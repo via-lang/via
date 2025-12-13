@@ -7,14 +7,14 @@
 **         https://github.com/XnLogicaL/via-lang         **
 ** ===================================================== */
 
-#include "declaration.hpp"
+#include "binding.hpp"
 
 #include <sstream>
 
 #include "ast/tree.hpp"
 #include "manager.hpp"
 #include "sema/const_value.hpp"
-#include "sema/types.hpp"
+#include "sema/type.hpp"
 #include "support/ansi.hpp"
 #include "symbol.hpp"
 

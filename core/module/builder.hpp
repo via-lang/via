@@ -14,8 +14,8 @@
 
 #include "manager.hpp"
 #include "module.hpp"
-#include "module/declaration.hpp"
-#include "sema/types.hpp"
+#include "module/binding.hpp"
+#include "sema/type.hpp"
 
 namespace via {
 

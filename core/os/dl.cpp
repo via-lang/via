@@ -7,7 +7,7 @@
 **         https://github.com/XnLogicaL/via-lang         **
 ** ===================================================== */
 
-#include "dynamic_library.hpp"
+#include "dl.hpp"
 
 #include <expected>
 #include <filesystem>

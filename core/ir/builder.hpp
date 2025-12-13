@@ -19,7 +19,7 @@
 #include "module/module.hpp"
 #include "module/symbol.hpp"
 #include "sema/local_ir.hpp"
-#include "sema/types.hpp"
+#include "sema/type.hpp"
 
 namespace via {
 

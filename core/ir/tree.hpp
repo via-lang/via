@@ -15,7 +15,7 @@
 
 #include "module/symbol.hpp"
 #include "sema/const_value.hpp"
-#include "sema/types.hpp"
+#include "sema/type.hpp"
 #include "support/utility.hpp"
 #include "vm/instruction.hpp"
 

@@ -14,7 +14,7 @@
 
 #include "ir/tree.hpp"
 #include "sema/const_value.hpp"
-#include "sema/types.hpp"
+#include "sema/type.hpp"
 #include "symbol.hpp"
 #include "vm/closure.hpp"
 

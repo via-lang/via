@@ -21,7 +21,7 @@
 #include "module/manager.hpp"
 #include "module/module.hpp"
 #include "sema/const_value.hpp"
-#include "sema/types.hpp"
+#include "sema/type.hpp"
 #include "support/ansi.hpp"
 #include "support/bit.hpp"
 #include "vm/instruction.hpp"

@@ -18,7 +18,7 @@
 #include "ir/builder.hpp"
 #include "lexer/source_buffer.hpp"
 #include "manager.hpp"
-#include "os/dynamic_library.hpp"
+#include "os/dl.hpp"
 #include "support/memory.hpp"
 #include "symbol.hpp"
 #include "vm/debugger.hpp"

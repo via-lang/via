@@ -17,11 +17,10 @@
 #include <string>
 #include <via/config.hpp>
 
-#include "declaration.hpp"
+#include "binding.hpp"
 #include "lexer/source_buffer.hpp"
-#include "os/dynamic_library.hpp"
+#include "os/dl.hpp"
 #include "support/memory.hpp"
-#include "vm/closure.hpp"
 #include "vm/executable.hpp"
 #include "vm/machine.hpp"
 

@@ -15,7 +15,7 @@
 
 #include "lexer/source_buffer.hpp"
 #include "lexer/token.hpp"
-#include "sema/types.hpp"
+#include "sema/type.hpp"
 
 #define TRY_COERCE(T, a, b) (T* a = dynamic_cast<T*>(b))
 #define TRY_IS(T, a) (dynamic_cast<T*>(a) != nullptr)

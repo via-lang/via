@@ -8,12 +8,10 @@
 ** ===================================================== */
 
 #include <argvx/paser.hpp>
+#include <support/ansi.hpp>
 #include <via/via.hpp>
 
-#include "logger.hpp"
-#include "module/module.hpp"
 #include "options.hpp"
-#include "support/ansi.hpp"
 #include "tools/utility.hpp"
 
 static void translate_module_flags(via::ModuleFlags& flags,

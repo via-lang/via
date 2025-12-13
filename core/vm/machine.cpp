@@ -14,7 +14,7 @@
 #include "closure.hpp"
 #include "debug.hpp"
 #include "instruction.hpp"
-#include "module/declaration.hpp"
+#include "module/binding.hpp"
 #include "module/manager.hpp"
 #include "module/module.hpp"
 #include "reference.hpp"

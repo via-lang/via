@@ -7,7 +7,7 @@
 **         https://github.com/XnLogicaL/via-lang         **
 ** ===================================================== */
 
-#include "types.hpp"
+#include "type.hpp"
 
 #include <functional>
 #include <sstream>

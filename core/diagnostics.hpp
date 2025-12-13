@@ -33,22 +33,24 @@ struct Note {
   } kind = Kind::NOTE;
 
   const bool valid = false;
-  const std::string msg{};
+  const std::string msg;
 
   Note() = default;
-  Note(Kind kind, std::string msg) : kind(kind), valid(true), msg(msg) {}
+  explicit Note(Kind kind, std::string msg)
+      : kind(kind), valid(true), msg(msg) {}
 };
 
 struct Diagnosis {
   const Level level;
   const SourceLoc location;   // Absolute location in the source buffer
   const std::string message;  // Human-readable message
-  const Note note = {};
+  const Note note;
 };
 
 class Diagnostics final {
  public:
-  Diagnostics(std::string path, std::string name, const SourceBuffer& source)
+  explicit Diagnostics(std::string path, std::string name,
+                       const SourceBuffer& source)
       : m_path(path), m_name(name), m_source(source) {}
 
   NO_COPY(Diagnostics);

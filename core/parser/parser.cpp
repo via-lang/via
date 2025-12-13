@@ -12,7 +12,7 @@
 #include "ast/tree.hpp"
 #include "diagnostics.hpp"
 #include "lexer/token.hpp"
-#include "sema/types.hpp"
+#include "sema/type.hpp"
 
 #define SAVE_FIRST()       \
   auto* first = advance(); \
