@@ -157,9 +157,9 @@ via::QualType via::IRBuilder::type_of<via::ast::ExprSymbol>(
   if (auto local = frame.get_local(id)) {
     auto* ir_decl = local->local->get_ir_decl();
 
-    if TRY_COERCE (const ir::StmtVarDecl, var_decl, ir_decl) {
+    if TRY_COERCE (const ir::StatVarDecl, var_decl, ir_decl) {
       return var_decl->type;
-    } else if TRY_COERCE (const ir::StmtFuncDecl, func_decl, ir_decl) {
+    } else if TRY_COERCE (const ir::StatFuncDecl, func_decl, ir_decl) {
       std::vector<via::QualType> parms;
       for (const auto& parm : func_decl->parms) parms.push_back(parm.type);
       return m_types.instance<FunctionType>(func_decl->ret, std::move(parms));
@@ -601,16 +601,16 @@ const via::ir::Expr* via::IRBuilder::lower_expr(const ast::Expr* expr) {
 }
 
 template <>
-const via::ir::Stmt* via::IRBuilder::lower_stmt<via::ast::StmtIf>(
+const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatIf>(
 
-    const ast::StmtIf* ast_stmt_if) noexcept {
-  auto* merge_block = m_alloc.emplace<ir::StmtBlock>();
+    const ast::StatIf* ast_stat_if) noexcept {
+  auto* merge_block = m_alloc.emplace<ir::StatBlock>();
   merge_block->id = m_block_id++;
 
   ir::TrCondBranch* last = nullptr;
 
-  for (size_t i = 0; const auto& branch : ast_stmt_if->branches) {
-    auto* then_block = m_alloc.emplace<ir::StmtBlock>();
+  for (size_t i = 0; const auto& branch : ast_stat_if->branches) {
+    auto* then_block = m_alloc.emplace<ir::StatBlock>();
     then_block->id = m_block_id++;
 
     auto* then_term = m_alloc.emplace<ir::TrBranch>();
@@ -619,35 +619,35 @@ const via::ir::Stmt* via::IRBuilder::lower_stmt<via::ast::StmtIf>(
 
     auto* current_block = m_current_block;
     m_current_block = then_block;
-    m_current_block->stmts.push_back(({
-      auto* save = m_alloc.emplace<ir::StmtInstruction>();
+    m_current_block->stats.push_back(({
+      auto* save = m_alloc.emplace<ir::StatInstruction>();
       save->instr = {OpCode::SAVE, 0, 0, 0};
       save;
     }));
 
-    for (const auto& stmt : branch.body->stmts) {
-      m_current_block->stmts.push_back(lower_stmt(stmt));
+    for (const auto& stat : branch.body->stats) {
+      m_current_block->stats.push_back(lower_stat(stat));
     }
 
-    m_current_block->stmts.push_back(({
-      auto* restore = m_alloc.emplace<ir::StmtInstruction>();
+    m_current_block->stats.push_back(({
+      auto* restore = m_alloc.emplace<ir::StatInstruction>();
       restore->instr = {OpCode::RESTORE, 0, 0, 0};
       restore;
     }));
     m_current_block = current_block;
 
     if (branch.cond != nullptr) {
-      auto* cond_block = m_alloc.emplace<ir::StmtBlock>();
+      auto* cond_block = m_alloc.emplace<ir::StatBlock>();
       cond_block->id = m_block_id++;
 
-      m_current_block->stmts.push_back(cond_block);
-      m_current_block->stmts.push_back(then_block);
+      m_current_block->stats.push_back(cond_block);
+      m_current_block->stats.push_back(then_block);
 
       auto* term = m_alloc.emplace<ir::TrCondBranch>();
       term->cnd = lower_expr(branch.cond);
       term->iftrue = then_block;
 
-      if (i == ast_stmt_if->branches.size() - 1) {
+      if (i == ast_stat_if->branches.size() - 1) {
         term->iffalse = merge_block;
       }
       if (last != nullptr) {
@@ -658,7 +658,7 @@ const via::ir::Stmt* via::IRBuilder::lower_stmt<via::ast::StmtIf>(
       cond_block->term = term;
     } else {
       last->iffalse = then_block;
-      m_current_block->stmts.push_back(then_block);
+      m_current_block->stats.push_back(then_block);
     }
 
     i++;
@@ -667,16 +667,16 @@ const via::ir::Stmt* via::IRBuilder::lower_stmt<via::ast::StmtIf>(
 }
 
 template <>
-const via::ir::Stmt* via::IRBuilder::lower_stmt<via::ast::StmtWhile>(
+const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatWhile>(
 
-    const ast::StmtWhile* ast_stmt_while) noexcept {
-  auto* merge_block = m_alloc.emplace<ir::StmtBlock>();
+    const ast::StatWhile* ast_stat_while) noexcept {
+  auto* merge_block = m_alloc.emplace<ir::StatBlock>();
   merge_block->id = m_block_id++;
 
-  auto* cond_block = m_alloc.emplace<ir::StmtBlock>();
+  auto* cond_block = m_alloc.emplace<ir::StatBlock>();
   cond_block->id = m_block_id++;
 
-  auto* body_block = m_alloc.emplace<ir::StmtBlock>();
+  auto* body_block = m_alloc.emplace<ir::StatBlock>();
   body_block->id = m_block_id++;
   body_block->term = ({
     auto* body_term = m_alloc.emplace<ir::TrBranch>();
@@ -687,18 +687,18 @@ const via::ir::Stmt* via::IRBuilder::lower_stmt<via::ast::StmtWhile>(
   auto* current_block = m_current_block;
   m_current_block = body_block;
 
-  m_current_block->stmts.push_back(({
-    auto* save = m_alloc.emplace<ir::StmtInstruction>();
+  m_current_block->stats.push_back(({
+    auto* save = m_alloc.emplace<ir::StatInstruction>();
     save->instr = {OpCode::SAVE, 0, 0, 0};
     save;
   }));
 
-  for (const auto& stmt : ast_stmt_while->body->stmts) {
-    m_current_block->stmts.push_back(lower_stmt(stmt));
+  for (const auto& stat : ast_stat_while->body->stats) {
+    m_current_block->stats.push_back(lower_stat(stat));
   }
 
-  m_current_block->stmts.push_back(({
-    auto* restore = m_alloc.emplace<ir::StmtInstruction>();
+  m_current_block->stats.push_back(({
+    auto* restore = m_alloc.emplace<ir::StatInstruction>();
     restore->instr = {OpCode::RESTORE, 0, 0, 0};
     restore;
   }));
@@ -707,69 +707,69 @@ const via::ir::Stmt* via::IRBuilder::lower_stmt<via::ast::StmtWhile>(
 
   cond_block->term = ({
     auto* cond_term = m_alloc.emplace<ir::TrCondBranch>();
-    cond_term->cnd = lower_expr(ast_stmt_while->cond);
+    cond_term->cnd = lower_expr(ast_stat_while->cond);
     cond_term->iftrue = body_block;
     cond_term->iffalse = merge_block;
     cond_term;
   });
 
-  current_block->stmts.push_back(cond_block);
-  current_block->stmts.push_back(body_block);
+  current_block->stats.push_back(cond_block);
+  current_block->stats.push_back(body_block);
   return merge_block;
 }
 
 template <>
-const via::ir::Stmt* via::IRBuilder::lower_stmt<via::ast::StmtVarDecl>(
+const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatVarDecl>(
 
-    const ast::StmtVarDecl* ast_stmt_var_decl) noexcept {
-  auto* decl_stmt = m_alloc.emplace<ir::StmtVarDecl>();
-  decl_stmt->expr = lower_expr(ast_stmt_var_decl->rval);
-  decl_stmt->loc = ast_stmt_var_decl->loc;
+    const ast::StatVarDecl* ast_stat_var_decl) noexcept {
+  auto* decl_stat = m_alloc.emplace<ir::StatVarDecl>();
+  decl_stat->expr = lower_expr(ast_stat_var_decl->rval);
+  decl_stat->loc = ast_stat_var_decl->loc;
 
-  if TRY_COERCE (const ast::ExprSymbol, lval, ast_stmt_var_decl->lval) {
-    auto rval_type = type_of(ast_stmt_var_decl->rval);
+  if TRY_COERCE (const ast::ExprSymbol, lval, ast_stat_var_decl->lval) {
+    auto rval_type = type_of(ast_stat_var_decl->rval);
 
-    if (ast_stmt_var_decl->type != nullptr) {
-      decl_stmt->type = type_of(ast_stmt_var_decl->type);
-      if (decl_stmt->type != rval_type) {
+    if (ast_stat_var_decl->type != nullptr) {
+      decl_stat->type = type_of(ast_stat_var_decl->type);
+      if (decl_stat->type != rval_type) {
         m_diags.report<Level::ERROR>(
-            ast_stmt_var_decl->rval->loc,
+            ast_stat_var_decl->rval->loc,
             std::format(
                 "expression of type '{}' does not match declaration type '{}'",
-                dump_type(rval_type), dump_type(decl_stmt->type)),
-            rval_type.cast_result(decl_stmt->type) != CastResult::INVALID
+                dump_type(rval_type), dump_type(decl_stat->type)),
+            rval_type.cast_result(decl_stat->type) != CastResult::INVALID
                 ? Note{Note::NOTE, std::format("conversion from '{}' to '{}' "
                                                "possible with explicit cast",
                                                dump_type(rval_type),
-                                               dump_type(decl_stmt->type))}
+                                               dump_type(decl_stat->type))}
                 : Note{});
         goto fallback;
       }
     } else {
     fallback:
-      decl_stmt->type = rval_type;
+      decl_stat->type = rval_type;
     }
 
-    decl_stmt->symbol = intern_symbol(lval->symbol->to_string());
+    decl_stat->symbol = intern_symbol(lval->symbol->to_string());
   } else {
     debug::bug("bad lvalue");
   }
 
-  m_stack.top().set_local(decl_stmt->symbol, ast_stmt_var_decl, decl_stmt);
-  return decl_stmt;
+  m_stack.top().set_local(decl_stat->symbol, ast_stat_var_decl, decl_stat);
+  return decl_stat;
 }
 
 template <>
-const via::ir::Stmt* via::IRBuilder::lower_stmt<via::ast::StmtReturn>(
+const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatReturn>(
 
-    const ast::StmtReturn* ast_stmt_return) noexcept {
+    const ast::StatReturn* ast_stat_return) noexcept {
   auto* term = m_alloc.emplace<ir::TrReturn>();
   term->implicit = false;
-  term->loc = ast_stmt_return->loc;
+  term->loc = ast_stat_return->loc;
   term->val =
-      ast_stmt_return->expr ? lower_expr(ast_stmt_return->expr) : nullptr;
-  term->type = ast_stmt_return->expr
-                   ? type_of(ast_stmt_return->expr)
+      ast_stat_return->expr ? lower_expr(ast_stat_return->expr) : nullptr;
+  term->type = ast_stat_return->expr
+                   ? type_of(ast_stat_return->expr)
                    : m_types.instance<BuiltinType>(BuiltinKind::NIL);
 
   auto* block = end_block();
@@ -778,18 +778,18 @@ const via::ir::Stmt* via::IRBuilder::lower_stmt<via::ast::StmtReturn>(
 }
 
 template <>
-const via::ir::Stmt* via::IRBuilder::lower_stmt<via::ast::StmtImport>(
+const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatImport>(
 
-    const ast::StmtImport* ast_stmt_import) noexcept {
+    const ast::StatImport* ast_stat_import) noexcept {
   QualName qual_name;
-  for (const Token* token : ast_stmt_import->path) {
+  for (const Token* token : ast_stat_import->path) {
     qual_name.push_back(token->to_string());
   }
   auto name = qual_name.back();
 
   if (m_stack.size() > 1) {
     poison_symbol(name);
-    m_diags.report<Level::ERROR>(ast_stmt_import->loc,
+    m_diags.report<Level::ERROR>(ast_stat_import->loc,
                                  "import statements cannot be nested");
     return nullptr;
   }
@@ -797,7 +797,7 @@ const via::ir::Stmt* via::IRBuilder::lower_stmt<via::ast::StmtImport>(
   if (auto module = m_module->manager().get_module_by_name(name)) {
     poison_symbol(name);
     m_diags.report<Level::ERROR>(
-        ast_stmt_import->loc,
+        ast_stat_import->loc,
         std::format("module '{}' imported more than once", name));
 
     if (auto* import_decl = module->ast_decl()) {
@@ -805,48 +805,48 @@ const via::ir::Stmt* via::IRBuilder::lower_stmt<via::ast::StmtImport>(
     }
   }
 
-  auto result = m_module->import(qual_name, ast_stmt_import);
+  auto result = m_module->import(qual_name, ast_stat_import);
   if (!result.has_value()) {
     poison_symbol(name);
-    m_diags.report<Level::ERROR>(ast_stmt_import->loc, result.error());
+    m_diags.report<Level::ERROR>(ast_stat_import->loc, result.error());
   }
   return nullptr;
 }
 
 template <>
-const via::ir::Stmt* via::IRBuilder::lower_stmt<via::ast::StmtFunctionDecl>(
+const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatFunctionDecl>(
 
-    const ast::StmtFunctionDecl* ast_stmt_function_decl) noexcept {
-  auto* decl_stmt = m_alloc.emplace<ir::StmtFuncDecl>();
-  decl_stmt->kind = ImplKind::SOURCE;
-  decl_stmt->symbol = intern_symbol(ast_stmt_function_decl->name->to_string());
-  decl_stmt->ret = ast_stmt_function_decl->ret
-                       ? type_of(ast_stmt_function_decl->ret)
+    const ast::StatFunctionDecl* ast_stat_function_decl) noexcept {
+  auto* decl_stat = m_alloc.emplace<ir::StatFuncDecl>();
+  decl_stat->kind = ImplKind::SOURCE;
+  decl_stat->symbol = intern_symbol(ast_stat_function_decl->name->to_string());
+  decl_stat->ret = ast_stat_function_decl->ret
+                       ? type_of(ast_stat_function_decl->ret)
                        : nullptr;
 
   // TODO: Get rid of this
-  if (decl_stmt->ret == nullptr) {
-    poison_symbol(decl_stmt->symbol);
+  if (decl_stat->ret == nullptr) {
+    poison_symbol(decl_stat->symbol);
     m_diags.report<Level::ERROR>(
-        ast_stmt_function_decl->loc,
+        ast_stat_function_decl->loc,
         "compiler infered return types are not implemented");
     return nullptr;
   }
 
-  for (const auto& parm : ast_stmt_function_decl->parms) {
+  for (const auto& parm : ast_stat_function_decl->parms) {
     ir::Parameter new_parm;
     new_parm.symbol = intern_symbol(parm->symbol->to_string());
     new_parm.type = type_of(parm->type);
-    decl_stmt->parms.push_back(new_parm);
+    decl_stat->parms.push_back(new_parm);
   }
 
-  auto* block = m_alloc.emplace<ir::StmtBlock>();
+  auto* block = m_alloc.emplace<ir::StatBlock>();
   block->id = m_block_id++;
 
   m_stack.push({});
 
-  for (const auto& stmt : ast_stmt_function_decl->body->stmts) {
-    if TRY_COERCE (const ast::StmtReturn, ret, stmt) {
+  for (const auto& stat : ast_stat_function_decl->body->stats) {
+    if TRY_COERCE (const ast::StatReturn, ret, stat) {
       auto* term = m_alloc.emplace<ir::TrReturn>();
       term->implicit = false;
       term->loc = ret->loc;
@@ -857,14 +857,14 @@ const via::ir::Stmt* via::IRBuilder::lower_stmt<via::ast::StmtFunctionDecl>(
       break;
     }
 
-    block->stmts.push_back(lower_stmt(stmt));
+    block->stats.push_back(lower_stat(stat));
   }
 
   m_stack.pop();
 
   if (block->term == nullptr) {
-    SourceLoc loc{ast_stmt_function_decl->body->loc.end - 1,
-                  ast_stmt_function_decl->body->loc.end};
+    SourceLoc loc{ast_stat_function_decl->body->loc.end - 1,
+                  ast_stat_function_decl->body->loc.end};
 
     auto* nil = m_alloc.emplace<ir::ExprConstant>();
     nil->loc = loc;
@@ -879,7 +879,7 @@ const via::ir::Stmt* via::IRBuilder::lower_stmt<via::ast::StmtFunctionDecl>(
     block->term = term;
   }
 
-  QualType expected_ret_type = decl_stmt->ret;
+  QualType expected_ret_type = decl_stat->ret;
 
   for (const auto& term : get_control_paths(block)) {
     if TRY_COERCE (const ir::TrReturn, ret, term) {
@@ -896,16 +896,16 @@ const via::ir::Stmt* via::IRBuilder::lower_stmt<via::ast::StmtFunctionDecl>(
                                                          ret->type.to_string()))
                           : Note();
 
-        if (decl_stmt->ret) {
-          poison_symbol(decl_stmt->symbol);
+        if (decl_stat->ret) {
+          poison_symbol(decl_stat->symbol);
           m_diags.report<Level::ERROR>(
               ret->loc,
               std::format("function return type '{}' does not match type "
                           "'{}' returned by control path",
-                          decl_stmt->ret.to_string(), ret->type.to_string()),
+                          decl_stat->ret.to_string(), ret->type.to_string()),
               implicit_return_node);
         } else {
-          poison_symbol(decl_stmt->symbol);
+          poison_symbol(decl_stat->symbol);
           m_diags.report<Level::ERROR>(
               ret->loc,
               "all code paths must return the same type "
@@ -915,51 +915,51 @@ const via::ir::Stmt* via::IRBuilder::lower_stmt<via::ast::StmtFunctionDecl>(
         break;
       }
     } else {
-      poison_symbol(decl_stmt->symbol);
+      poison_symbol(decl_stat->symbol);
       m_diags.report<Level::ERROR>(
           term->loc, "all control paths must return from function");
       break;
     }
   }
 
-  if (decl_stmt->ret && expected_ret_type &&
-      decl_stmt->ret != expected_ret_type) {
-    poison_symbol(decl_stmt->symbol);
+  if (decl_stat->ret && expected_ret_type &&
+      decl_stat->ret != expected_ret_type) {
+    poison_symbol(decl_stat->symbol);
     m_diags.report<Level::ERROR>(
         block->loc,
         std::format("Function return type '{}' does not match inferred "
                     "return type '{}' from all control paths",
-                    dump_type(decl_stmt->ret), dump_type(expected_ret_type)));
+                    dump_type(decl_stat->ret), dump_type(expected_ret_type)));
   }
 
   auto& frame = m_stack.top();
-  frame.set_local(decl_stmt->symbol, ast_stmt_function_decl, decl_stmt,
+  frame.set_local(decl_stat->symbol, ast_stat_function_decl, decl_stat,
                   IRLocal::Qual::CONST);
 
-  decl_stmt->body = block;
-  decl_stmt->loc = ast_stmt_function_decl->loc;
-  return decl_stmt;
+  decl_stat->body = block;
+  decl_stat->loc = ast_stat_function_decl->loc;
+  return decl_stat;
 }
 
 template <>
-const via::ir::Stmt* via::IRBuilder::lower_stmt<via::ast::StmtExpr>(
+const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatExpr>(
 
-    const ast::StmtExpr* ast_stmt_expr) noexcept {
-  auto* expr = m_alloc.emplace<ir::StmtExpr>();
-  expr->expr = lower_expr(ast_stmt_expr->expr);
-  expr->loc = ast_stmt_expr->loc;
+    const ast::StatExpr* ast_stat_expr) noexcept {
+  auto* expr = m_alloc.emplace<ir::StatExpr>();
+  expr->expr = lower_expr(ast_stat_expr->expr);
+  expr->loc = ast_stat_expr->loc;
   return expr;
 }
 
-via::ir::StmtBlock* via::IRBuilder::end_block() noexcept {
+via::ir::StatBlock* via::IRBuilder::end_block() noexcept {
   m_should_push_block = true;
   return m_current_block;
 }
 
-via::ir::StmtBlock* via::IRBuilder::new_block(size_t id) noexcept {
-  ir::StmtBlock* block = m_current_block;
+via::ir::StatBlock* via::IRBuilder::new_block(size_t id) noexcept {
+  ir::StatBlock* block = m_current_block;
   m_should_push_block = false;
-  m_current_block = m_alloc.emplace<ir::StmtBlock>();
+  m_current_block = m_alloc.emplace<ir::StatBlock>();
   m_current_block->id = id;
   return block;
 }
@@ -987,30 +987,30 @@ std::string via::IRBuilder::dump_expr(const ast::Expr* expr) noexcept {
                       ansi::Style::BOLD);
 }
 
-const via::ir::Stmt* via::IRBuilder::lower_stmt(const ast::Stmt* stmt) {
+const via::ir::Stat* via::IRBuilder::lower_stat(const ast::Stat* stat) {
 #define VISIT_STMT(TYPE) \
-  if TRY_COERCE (const TYPE, _INNER, stmt) return lower_stmt<TYPE>(_INNER);
+  if TRY_COERCE (const TYPE, _INNER, stat) return lower_stat<TYPE>(_INNER);
 
-  VISIT_STMT(ast::StmtVarDecl);
-  VISIT_STMT(ast::StmtScope);
-  VISIT_STMT(ast::StmtIf);
-  VISIT_STMT(ast::StmtFor);
-  VISIT_STMT(ast::StmtForEach);
-  VISIT_STMT(ast::StmtWhile);
-  VISIT_STMT(ast::StmtAssign);
-  VISIT_STMT(ast::StmtReturn);
-  VISIT_STMT(ast::StmtEnum);
-  VISIT_STMT(ast::StmtImport);
-  VISIT_STMT(ast::StmtFunctionDecl);
-  VISIT_STMT(ast::StmtStructDecl);
-  VISIT_STMT(ast::StmtTypeDecl);
-  VISIT_STMT(ast::StmtExpr);
+  VISIT_STMT(ast::StatVarDecl);
+  VISIT_STMT(ast::StatScope);
+  VISIT_STMT(ast::StatIf);
+  VISIT_STMT(ast::StatFor);
+  VISIT_STMT(ast::StatForEach);
+  VISIT_STMT(ast::StatWhile);
+  VISIT_STMT(ast::StatAssign);
+  VISIT_STMT(ast::StatReturn);
+  VISIT_STMT(ast::StatEnum);
+  VISIT_STMT(ast::StatImport);
+  VISIT_STMT(ast::StatFunctionDecl);
+  VISIT_STMT(ast::StatStructDecl);
+  VISIT_STMT(ast::StatTypeDecl);
+  VISIT_STMT(ast::StatExpr);
 #undef VISIT_STMT
 
-  if TRY_IS (const ast::StmtEmpty, stmt) return nullptr;
+  if TRY_IS (const ast::StatEmpty, stat) return nullptr;
 
   debug::unimplemented(
-      std::format("case IRBuilder::lower_stmt({})", VIA_TYPENAME(*stmt)));
+      std::format("case IRBuilder::lower_stat({})", VIA_TYPENAME(*stat)));
 }
 
 via::IRTree via::IRBuilder::build() {
@@ -1019,12 +1019,12 @@ via::IRTree via::IRBuilder::build() {
 
   IRTree tree;
 
-  for (const auto& astStmt : m_ast) {
-    if (const ir::Stmt* loweredStmt = lower_stmt(astStmt)) {
-      m_current_block->stmts.push_back(loweredStmt);
+  for (const auto& astStat : m_ast) {
+    if (const ir::Stat* loweredStat = lower_stat(astStat)) {
+      m_current_block->stats.push_back(loweredStat);
     }
     if (m_should_push_block) {
-      ir::StmtBlock* block = new_block(m_block_id++);
+      ir::StatBlock* block = new_block(m_block_id++);
       tree.push_back(block);
     }
   }

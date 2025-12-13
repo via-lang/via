@@ -72,9 +72,9 @@ struct Expr {
                                 size_t depth = 0) const = 0;
 };
 
-struct Stmt {
+struct Stat {
   SourceLoc loc;
-  virtual ~Stmt() = default;
+  virtual ~Stat() = default;
   virtual std::optional<SymbolId> get_symbol() const { return std::nullopt; }
   virtual std::string to_string(const SymbolTable* sym_tab,
                                 size_t depth = 0) const = 0;
@@ -106,17 +106,17 @@ struct TrBreak : public Term {
   NODE_FIELDS(Term)
 };
 
-struct StmtBlock;
+struct StatBlock;
 
 struct TrBranch : public Term {
   NODE_FIELDS(Term)
-  StmtBlock* target;
+  StatBlock* target;
 };
 
 struct TrCondBranch : public Term {
   NODE_FIELDS(Term)
   const Expr* cnd;
-  StmtBlock *iftrue, *iffalse;
+  StatBlock *iftrue, *iffalse;
 };
 
 struct Parameter {
@@ -203,46 +203,46 @@ struct ExprLambda : public Expr {
   NODE_FIELDS(Expr)
 };
 
-struct StmtVarDecl : public Stmt {
+struct StatVarDecl : public Stat {
   NODE_FIELDS()
   SymbolId symbol;
   const Expr* expr;
   QualType type;
 };
 
-struct StmtBlock;
-struct StmtFuncDecl : public Stmt {
+struct StatBlock;
+struct StatFuncDecl : public Stat {
   NODE_FIELDS()
 
   ImplKind kind;
   SymbolId symbol;
   QualType ret;
   std::vector<Parameter> parms;
-  const StmtBlock* body;
+  const StatBlock* body;
 
   std::optional<SymbolId> get_symbol() const override { return symbol; }
 };
 
-struct StmtInstruction : public Stmt {
+struct StatInstruction : public Stat {
   NODE_FIELDS()
   Instruction instr;
 };
 
-struct StmtBlock : public Stmt {
+struct StatBlock : public Stat {
   NODE_FIELDS()
   uint32_t id;
-  std::vector<const Stmt*> stmts;
+  std::vector<const Stat*> stats;
   const Term* term;
 };
 
-struct StmtExpr : public Stmt {
+struct StatExpr : public Stat {
   NODE_FIELDS()
   const Expr* expr;
 };
 
 }  // namespace ir
 
-using IRTree = std::vector<const ir::Stmt*>;
+using IRTree = std::vector<const ir::Stat*>;
 
 std::string to_string(const SymbolTable& sym_tab, const IRTree& ir_tree);
 

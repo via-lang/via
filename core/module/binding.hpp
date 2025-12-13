@@ -21,13 +21,12 @@
 namespace via {
 
 union ImplStorage {
-  const ir::StmtFuncDecl* source;
+  const ir::StatFuncDecl* source;
   NativeCallback native;
 };
 
 class Module;
 class ValueRef;
-struct CallInfo;
 class Binding;
 
 struct SymbolInfo {
@@ -35,23 +34,14 @@ struct SymbolInfo {
   const Module* module;
 };
 
-struct BindingParameter {
-  QualType type;
-  ConstValue value{};
-
-  std::string to_string() const;
-};
-
-using BindingTable = const Binding*[];
-
 class Binding {
  public:
-  static Binding* from(ModuleManager& manager, const ir::Stmt* node);
+  static Binding* from(ModuleManager& manager, const ir::Stat* node);
 
+  virtual std::optional<SymbolId> identity() const = 0;
   virtual std::string signature(const SymbolTable&) const {
     return "<identity error>";
   }
-  virtual std::optional<SymbolId> identity() const = 0;
 };
 
 class FunctionBinding final : public Binding {
@@ -59,6 +49,11 @@ class FunctionBinding final : public Binding {
   friend class Binding;
   friend class IRBuilder;
   friend class VirtualMachine;
+
+  struct Parameter {
+    QualType type;
+    ConstValue value{};
+  };
 
  public:
   explicit FunctionBinding(ModuleManager& manager, SymbolId symbol)
@@ -78,7 +73,7 @@ class FunctionBinding final : public Binding {
   ImplStorage m_impl;
   SymbolId m_symbol;
   QualType m_return;
-  std::vector<BindingParameter> m_params;
+  std::vector<Parameter> m_params;
 };
 
 std::string to_string(

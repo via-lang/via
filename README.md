@@ -28,7 +28,7 @@
 </p>
 
 > [!WARNING]
-> This is an **experimental** project and not yet production-ready. Most features are under conception/development and may be incomplete/unstable. Implementations are subject to change as the project evolves.
+> This is an **experimental** project and not yet production-ready. Most features are under conception/development and may be incomplete/unstable. Implementations are subject to change as the project evolves. That said, by no means is it a non-serious project.
 
 # Introduction
 

@@ -37,8 +37,6 @@ constexpr auto DL_EXTENSION = ".dll";
 #define DL_SUPPORTED 0
 #endif
 
-consteval bool is_dl_supported() { return DL_SUPPORTED; }
-
 class DynamicLibrary final {
  public:
   DynamicLibrary() = default;
@@ -48,6 +46,7 @@ class DynamicLibrary final {
   NO_COPY(DynamicLibrary);
 
  public:
+  static consteval bool supported() { return DL_SUPPORTED; }
   static std::expected<DynamicLibrary, std::string> load_library(
       std::filesystem::path path);
 

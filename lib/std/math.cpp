@@ -16,10 +16,10 @@ VIA_MODULE_ENTRY(math, manager) {
   b.function("sin")
       .returns(b.float_t())
       .parameter(b.float_t())
-      .implement([](via::VirtualMachine* vm, via::CallInfo& ci) {
+      .implement(VIA_MODULE_LAMBDA(vm, ci) {
         auto x = ci.args.at(0);
-        auto result = std::sin(x->unwrap<via::FLOAT>());
-        return via::ValueRef(vm, result);
+        auto r = std::sin(x->unwrap<via::FLOAT>());
+        return via::ValueRef(vm, r);
       });
 
   return b.build();

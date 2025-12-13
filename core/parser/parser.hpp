@@ -71,19 +71,19 @@ class Parser final {
   const ast::Type* parse_type();
 
   // Statement
-  const ast::StmtVarDecl* parse_stmt_var_decl(bool semicolon);
-  const ast::StmtFor* parse_stmt_for();
-  const ast::StmtForEach* parse_stmt_for_each();
-  const ast::StmtIf* parse_stmt_if();
-  const ast::StmtWhile* parse_stmt_while();
-  const ast::StmtAssign* parse_stmt_assign(const ast::Expr* expr);
-  const ast::StmtReturn* parse_stmt_return();
-  const ast::StmtEnum* parse_stmt_enum();
-  const ast::StmtImport* parse_stmt_import();
-  const ast::StmtFunctionDecl* parse_stmt_func_decl();
-  const ast::StmtStructDecl* parse_stmt_struct_decl();
-  const ast::StmtTypeDecl* parse_stmt_type_decl();
-  const ast::Stmt* parse_stmt();
+  const ast::StatVarDecl* parse_stat_var_decl(bool semicolon);
+  const ast::StatFor* parse_stat_for();
+  const ast::StatForEach* parse_stat_for_each();
+  const ast::StatIf* parse_stat_if();
+  const ast::StatWhile* parse_stat_while();
+  const ast::StatAssign* parse_stat_assign(const ast::Expr* expr);
+  const ast::StatReturn* parse_stat_return();
+  const ast::StatEnum* parse_stat_enum();
+  const ast::StatImport* parse_stat_import();
+  const ast::StatFunctionDecl* parse_stat_func_decl();
+  const ast::StatStructDecl* parse_stat_struct_decl();
+  const ast::StatTypeDecl* parse_stat_type_decl();
+  const ast::Stat* parse_stat();
 
  private:
   Diagnostics& m_diags;

@@ -27,7 +27,7 @@ std::string via::ast::Parameter::to_string() const {
 
 std::string via::ast::Scope::to_string(size_t depth) const {
   return via::to_string(
-      stmts, [depth](const auto& arg) { return arg->to_string(depth + 1); },
+      stats, [depth](const auto& arg) { return arg->to_string(depth + 1); },
       "{\n", INDENT(depth) + "}", ";\n");
 }
 
@@ -98,17 +98,17 @@ std::string via::ast::ExprLambda::to_string(size_t depth) const {
       ret != nullptr ? ret->to_string() : "<infered>", body->to_string(depth));
 }
 
-std::string via::ast::StmtVarDecl::to_string(size_t depth) const {
+std::string via::ast::StatVarDecl::to_string(size_t depth) const {
   return INDENT(depth) + std::format("var {}: {} = {}", lval->to_string(),
                                      type ? type->to_string() : "<infered>",
                                      rval ? rval->to_string() : "<none>");
 }
 
-std::string via::ast::StmtScope::to_string(size_t depth) const {
+std::string via::ast::StatScope::to_string(size_t depth) const {
   return INDENT(depth) + "do " + body->to_string(depth);
 }
 
-std::string via::ast::StmtIf::to_string(size_t depth) const {
+std::string via::ast::StatIf::to_string(size_t depth) const {
   std::ostringstream oss;
   for (size_t i = 0; auto& branch : branches) {
     oss << INDENT(depth);
@@ -123,7 +123,7 @@ std::string via::ast::StmtIf::to_string(size_t depth) const {
   return oss.str();
 }
 
-std::string via::ast::StmtFor::to_string(size_t depth) const {
+std::string via::ast::StatFor::to_string(size_t depth) const {
   return INDENT(depth) +
          std::format("for {}, {}, {} {}", init->to_string(),
                      target->to_string(),
@@ -131,27 +131,27 @@ std::string via::ast::StmtFor::to_string(size_t depth) const {
                      body->to_string(depth));
 }
 
-std::string via::ast::StmtForEach::to_string(size_t depth) const {
+std::string via::ast::StatForEach::to_string(size_t depth) const {
   return INDENT(depth) + std::format("for {} in {} {}", name->to_string(),
                                      expr->to_string(), body->to_string(depth));
 }
 
-std::string via::ast::StmtWhile::to_string(size_t depth) const {
+std::string via::ast::StatWhile::to_string(size_t depth) const {
   return INDENT(depth) +
          std::format("while {} {}", cond->to_string(), body->to_string(depth));
 }
 
-std::string via::ast::StmtAssign::to_string(size_t depth) const {
+std::string via::ast::StatAssign::to_string(size_t depth) const {
   return INDENT(depth) + std::format("{} {}= {}", lval->to_string(),
                                      op->to_string(), rval->to_string());
 }
 
-std::string via::ast::StmtReturn::to_string(size_t depth) const {
+std::string via::ast::StatReturn::to_string(size_t depth) const {
   return INDENT(depth) +
          std::format("return {}", expr ? expr->to_string() : "<null>");
 }
 
-std::string via::ast::StmtEnum::to_string(size_t depth) const {
+std::string via::ast::StatEnum::to_string(size_t depth) const {
   return INDENT(depth) +
          std::format("enum {} of {} {}", symbol->to_string(),
                      type != nullptr ? type->to_string() : "<infered>",
@@ -166,7 +166,7 @@ std::string via::ast::StmtEnum::to_string(size_t depth) const {
                          "{\n", INDENT(depth) + "}", ",\n"));
 }
 
-std::string via::ast::StmtImport::to_string(size_t depth) const {
+std::string via::ast::StatImport::to_string(size_t depth) const {
   return INDENT(depth) +
          std::format("import {}",
                      via::to_string(
@@ -174,7 +174,7 @@ std::string via::ast::StmtImport::to_string(size_t depth) const {
                          "", "", "::"));
 }
 
-std::string via::ast::StmtFunctionDecl::to_string(size_t depth) const {
+std::string via::ast::StatFunctionDecl::to_string(size_t depth) const {
   return INDENT(depth) +
          std::format(
              "fn {}{} -> {} {}", name->to_string(),
@@ -185,21 +185,21 @@ std::string via::ast::StmtFunctionDecl::to_string(size_t depth) const {
              body->to_string(depth));
 }
 
-std::string via::ast::StmtStructDecl::to_string(size_t depth) const {
+std::string via::ast::StatStructDecl::to_string(size_t depth) const {
   return INDENT(depth) +
          std::format("struct {} {}", name->to_string(), body->to_string(depth));
 }
 
-std::string via::ast::StmtTypeDecl::to_string(size_t depth) const {
+std::string via::ast::StatTypeDecl::to_string(size_t depth) const {
   return INDENT(depth) +
          std::format("type {} = {}", symbol->to_string(), type->to_string());
 }
 
-std::string via::ast::StmtEmpty::to_string(size_t depth) const {
+std::string via::ast::StatEmpty::to_string(size_t depth) const {
   return INDENT(depth);
 }
 
-std::string via::ast::StmtExpr::to_string(size_t depth) const {
+std::string via::ast::StatExpr::to_string(size_t depth) const {
   return INDENT(depth) + expr->to_string();
 }
 

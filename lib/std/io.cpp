@@ -10,7 +10,7 @@
 #include <iostream>
 #include <via/via.hpp>
 
-#include "sema/const_value.hpp"
+#include "module/module.hpp"
 #include "vm/closure.hpp"
 #include "vm/machine.hpp"
 
@@ -20,7 +20,7 @@ VIA_MODULE_ENTRY(io, manager) {
   b.function("print")
       .returns(b.nil_t())
       .parameter(b.string_t())
-      .implement([](via::VirtualMachine* vm, via::CallInfo& ci) {
+      .implement(VIA_MODULE_LAMBDA(vm, ci) {
         auto str = ci.args.at(0);
         std::cout << str->unwrap<via::STRING>();
         return via::ValueRef(vm);
@@ -29,7 +29,7 @@ VIA_MODULE_ENTRY(io, manager) {
   b.function("printn")
       .returns(b.nil_t())
       .parameter(b.string_t())
-      .implement([](via::VirtualMachine* vm, via::CallInfo& ci) {
+      .implement(VIA_MODULE_LAMBDA(vm, ci) {
         auto str = ci.args.at(0);
         std::cout << str->unwrap<via::STRING>() << "\n";
         return via::ValueRef(vm);
@@ -38,16 +38,16 @@ VIA_MODULE_ENTRY(io, manager) {
   b.function("input")
       .returns(b.string_t())
       .parameter(b.string_t())
-      .implement([](via::VirtualMachine* vm, via::CallInfo& ci) {
+      .implement(VIA_MODULE_LAMBDA(vm, ci) {
         auto& alloc = vm->allocator();
-        auto string = ci.args.at(0);
+        auto str = ci.args.at(0);
 
         std::string in;
-        std::cout << string->unwrap<via::STRING>();
+        std::cout << str->unwrap<via::STRING>();
         std::cin >> in;
 
-        char* cstring = alloc.strdup(in.c_str());
-        return via::ValueRef(vm, cstring);
+        char* cstr = alloc.strdup(in.c_str());
+        return via::ValueRef(vm, cstr);
       });
 
   return b.build();

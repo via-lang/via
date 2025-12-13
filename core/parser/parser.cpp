@@ -168,11 +168,11 @@ const via::ast::Scope* via::Parser::parse_scope() {
   auto scope = m_alloc.emplace<ast::Scope>();
 
   if (first->kind == COLON) {
-    scope->stmts.push_back(parse_stmt());
-    scope->loc = {loc.begin, scope->stmts.back()->loc.end};
+    scope->stats.push_back(parse_stat());
+    scope->loc = {loc.begin, scope->stats.back()->loc.end};
   } else if (first->kind == BRACE_OPEN) {
     while (!match(BRACE_CLOSE)) {
-      scope->stmts.push_back(parse_stmt());
+      scope->stats.push_back(parse_stat());
     }
 
     auto* last = advance();
@@ -589,10 +589,10 @@ done:
   return primary;
 }
 
-const via::ast::StmtVarDecl* via::Parser::parse_stmt_var_decl(bool semicolon) {
+const via::ast::StatVarDecl* via::Parser::parse_stat_var_decl(bool semicolon) {
   SAVE_FIRST()
 
-  auto vars = m_alloc.emplace<ast::StmtVarDecl>();
+  auto vars = m_alloc.emplace<ast::StatVarDecl>();
   vars->decl = first;
   vars->lval = parse_lvalue();
 
@@ -614,11 +614,11 @@ const via::ast::StmtVarDecl* via::Parser::parse_stmt_var_decl(bool semicolon) {
   return vars;
 }
 
-const via::ast::StmtFor* via::Parser::parse_stmt_for() {
+const via::ast::StatFor* via::Parser::parse_stat_for() {
   SAVE_FIRST()
 
-  auto fors = m_alloc.emplace<ast::StmtFor>();
-  fors->init = parse_stmt_var_decl(false);
+  auto fors = m_alloc.emplace<ast::StatFor>();
+  fors->init = parse_stat_var_decl(false);
 
   if (fors->init->decl->kind == KW_CONST) {
     throw ParserError(m_source.location(*fors->init->decl),
@@ -639,10 +639,10 @@ const via::ast::StmtFor* via::Parser::parse_stmt_for() {
   return fors;
 }
 
-const via::ast::StmtForEach* via::Parser::parse_stmt_for_each() {
+const via::ast::StatForEach* via::Parser::parse_stat_for_each() {
   SAVE_FIRST()
 
-  auto fors = m_alloc.emplace<ast::StmtForEach>();
+  auto fors = m_alloc.emplace<ast::StatForEach>();
   fors->name = parse_lvalue();
 
   expect(KW_IN, "parsing for each statement");
@@ -653,8 +653,8 @@ const via::ast::StmtForEach* via::Parser::parse_stmt_for_each() {
   return fors;
 }
 
-const via::ast::StmtIf* via::Parser::parse_stmt_if() {
-  using Branch = ast::StmtIf::Branch;
+const via::ast::StatIf* via::Parser::parse_stat_if() {
+  using Branch = ast::StatIf::Branch;
 
   SAVE_FIRST()
 
@@ -662,7 +662,7 @@ const via::ast::StmtIf* via::Parser::parse_stmt_if() {
   br.cond = parse_expr();
   br.body = parse_scope();
 
-  auto* ifs = m_alloc.emplace<ast::StmtIf>();
+  auto* ifs = m_alloc.emplace<ast::StatIf>();
   ifs->branches.push_back(br);
 
   while (match(KW_ELSE)) {
@@ -685,19 +685,19 @@ const via::ast::StmtIf* via::Parser::parse_stmt_if() {
   return ifs;
 }
 
-const via::ast::StmtWhile* via::Parser::parse_stmt_while() {
+const via::ast::StatWhile* via::Parser::parse_stat_while() {
   SAVE_FIRST()
 
-  auto* whs = m_alloc.emplace<ast::StmtWhile>();
+  auto* whs = m_alloc.emplace<ast::StatWhile>();
   whs->cond = parse_expr();
   whs->body = parse_scope();
   whs->loc = {loc.begin, whs->body->loc.end};
   return whs;
 }
 
-const via::ast::StmtAssign* via::Parser::parse_stmt_assign(
+const via::ast::StatAssign* via::Parser::parse_stat_assign(
     const ast::Expr* expr) {
-  auto as = m_alloc.emplace<ast::StmtAssign>();
+  auto as = m_alloc.emplace<ast::StatAssign>();
   as->lval = expr;
   as->op = advance();
   as->rval = parse_expr();
@@ -706,10 +706,10 @@ const via::ast::StmtAssign* via::Parser::parse_stmt_assign(
   return as;
 }
 
-const via::ast::StmtReturn* via::Parser::parse_stmt_return() {
+const via::ast::StatReturn* via::Parser::parse_stat_return() {
   SAVE_FIRST()
 
-  auto* ret = m_alloc.emplace<ast::StmtReturn>();
+  auto* ret = m_alloc.emplace<ast::StatReturn>();
 
   if (is_expr_start(peek()->kind)) {
     ret->expr = parse_expr();
@@ -723,10 +723,10 @@ const via::ast::StmtReturn* via::Parser::parse_stmt_return() {
   return ret;
 }
 
-const via::ast::StmtEnum* via::Parser::parse_stmt_enum() {
+const via::ast::StatEnum* via::Parser::parse_stat_enum() {
   SAVE_FIRST()
 
-  auto ens = m_alloc.emplace<ast::StmtEnum>();
+  auto ens = m_alloc.emplace<ast::StatEnum>();
   ens->symbol = advance();
 
   if (optional(KW_OF)) {
@@ -751,11 +751,11 @@ const via::ast::StmtEnum* via::Parser::parse_stmt_enum() {
   return ens;
 }
 
-const via::ast::StmtImport* via::Parser::parse_stmt_import() {
+const via::ast::StatImport* via::Parser::parse_stat_import() {
   SAVE_FIRST()
 
   size_t end;
-  auto imp = m_alloc.emplace<ast::StmtImport>();
+  auto imp = m_alloc.emplace<ast::StatImport>();
 
   while (true) {
     auto* tok = expect(IDENTIFIER, "parsing import path");
@@ -774,10 +774,10 @@ const via::ast::StmtImport* via::Parser::parse_stmt_import() {
   return imp;
 }
 
-const via::ast::StmtFunctionDecl* via::Parser::parse_stmt_func_decl() {
+const via::ast::StatFunctionDecl* via::Parser::parse_stat_func_decl() {
   SAVE_FIRST()
 
-  auto* fn = m_alloc.emplace<ast::StmtFunctionDecl>();
+  auto* fn = m_alloc.emplace<ast::StatFunctionDecl>();
   fn->name = expect(IDENTIFIER, "parsing function name");
 
   expect(PAREN_OPEN, "parsing function parameter list");
@@ -806,20 +806,20 @@ const via::ast::StmtFunctionDecl* via::Parser::parse_stmt_func_decl() {
   return fn;
 }
 
-const via::ast::StmtStructDecl* via::Parser::parse_stmt_struct_decl() {
+const via::ast::StatStructDecl* via::Parser::parse_stat_struct_decl() {
   SAVE_FIRST()
 
-  auto* strc = m_alloc.emplace<ast::StmtStructDecl>();
+  auto* strc = m_alloc.emplace<ast::StatStructDecl>();
   strc->name = expect(IDENTIFIER, "parsing struct name");
   strc->body = parse_scope();
   strc->loc = {loc.begin, strc->loc.end};
   return strc;
 }
 
-const via::ast::StmtTypeDecl* via::Parser::parse_stmt_type_decl() {
+const via::ast::StatTypeDecl* via::Parser::parse_stat_type_decl() {
   SAVE_FIRST()
 
-  auto* ty = m_alloc.emplace<ast::StmtTypeDecl>();
+  auto* ty = m_alloc.emplace<ast::StatTypeDecl>();
   ty->symbol = advance();
 
   expect(OP_EQ, "parsing type declaration");
@@ -831,42 +831,42 @@ const via::ast::StmtTypeDecl* via::Parser::parse_stmt_type_decl() {
   return ty;
 }
 
-const via::ast::Stmt* via::Parser::parse_stmt() {
+const via::ast::Stat* via::Parser::parse_stat() {
   switch (peek()->kind) {
     case KW_IF:
-      return (const ast::Stmt*)parse_stmt_if();
+      return (const ast::Stat*)parse_stat_if();
     case KW_WHILE:
-      return (const ast::Stmt*)parse_stmt_while();
+      return (const ast::Stat*)parse_stat_while();
     case KW_VAR:
     case KW_CONST:
-      return (const ast::Stmt*)parse_stmt_var_decl(true);
+      return (const ast::Stat*)parse_stat_var_decl(true);
     case KW_DO: {
       SAVE_FIRST();
-      auto* scope = m_alloc.emplace<ast::StmtScope>();
+      auto* scope = m_alloc.emplace<ast::StatScope>();
       scope->body = parse_scope();
       scope->loc = {loc.begin, scope->body->loc.end};
-      return (const ast::Stmt*)scope;
+      return (const ast::Stat*)scope;
     }
     case KW_FOR:
       if (match(KW_VAR, 1))  // generic for loop
-        return (const ast::Stmt*)parse_stmt_for();
-      return (const ast::Stmt*)parse_stmt_for_each();
+        return (const ast::Stat*)parse_stat_for();
+      return (const ast::Stat*)parse_stat_for_each();
     case KW_RETURN:
-      return (const ast::Stmt*)parse_stmt_return();
+      return (const ast::Stat*)parse_stat_return();
     case KW_ENUM:
-      return (const ast::Stmt*)parse_stmt_enum();
+      return (const ast::Stat*)parse_stat_enum();
     case KW_IMPORT:
-      return (const ast::Stmt*)parse_stmt_import();
+      return (const ast::Stat*)parse_stat_import();
     case KW_FN:
-      return (const ast::Stmt*)parse_stmt_func_decl();
+      return (const ast::Stat*)parse_stat_func_decl();
     case KW_STRUCT:
-      return (const ast::Stmt*)parse_stmt_struct_decl();
+      return (const ast::Stat*)parse_stat_struct_decl();
     case KW_TYPE:
-      return (const ast::Stmt*)parse_stmt_type_decl();
+      return (const ast::Stat*)parse_stat_type_decl();
     case SEMICOLON: {
-      auto empty = m_alloc.emplace<ast::StmtEmpty>();
+      auto empty = m_alloc.emplace<ast::StatEmpty>();
       empty->loc = m_source.location(*advance());
-      return (const ast::Stmt*)empty;
+      return (const ast::Stat*)empty;
     }
     default:
       break;
@@ -893,21 +893,21 @@ const via::ast::Stmt* via::Parser::parse_stmt() {
     case OP_PERCENT_EQ:
     case OP_PIPE_EQ:
     case OP_AMP_EQ:
-      return (const ast::Stmt*)parse_stmt_assign(expr);
+      return (const ast::Stat*)parse_stat_assign(expr);
     default: {
-      auto empty = m_alloc.emplace<ast::StmtExpr>();
+      auto empty = m_alloc.emplace<ast::StatExpr>();
       empty->expr = expr;
       empty->loc = empty->expr->loc;
 
       if TRY_COERCE (const ast::ExprCall, _, expr) {
-        goto valid_expr_stmt;
+        goto valid_expr_stat;
       } else {
         goto unexpected_token;
       }
 
-    valid_expr_stmt:
+    valid_expr_stat:
       optional(SEMICOLON);
-      return (const ast::Stmt*)empty;
+      return (const ast::Stat*)empty;
     }
   }
 }
@@ -916,8 +916,8 @@ via::SyntaxTree via::Parser::parse() {
   SyntaxTree nodes;
   while (!match(EOF_)) {
     try {
-      auto* stmt = parse_stmt();
-      nodes.push_back(stmt);
+      auto* stat = parse_stat();
+      nodes.push_back(stat);
     } catch (const ParserError& e) {
       m_diags.report(e.diag);
       break;

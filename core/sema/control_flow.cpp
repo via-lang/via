@@ -14,11 +14,11 @@
 #include "ast/tree.hpp"
 
 std::vector<const via::ir::Term*> via::get_control_paths(
-    const ir::StmtBlock* entry) noexcept {
-  std::unordered_set<const ir::StmtBlock*> visited;
+    const ir::StatBlock* entry) noexcept {
+  std::unordered_set<const ir::StatBlock*> visited;
   std::vector<const ir::Term*> terms;
-  std::function<void(const ir::StmtBlock*)> dfs =
-      [&](const ir::StmtBlock* block) {
+  std::function<void(const ir::StatBlock*)> dfs =
+      [&](const ir::StatBlock* block) {
         if (!block || !visited.insert(block).second) return;
 
         if TRY_COERCE (const ir::TrReturn, ret, block->term) {

@@ -238,44 +238,44 @@ void via::Executable::lower_expr(const ir::Expr* expr,
 }
 
 template <>
-void via::detail::ir_lower_stmt<ir::StmtVarDecl>(
-    Executable& exe, const ir::StmtVarDecl* ir_stmt_var_decl) noexcept {
+void via::detail::ir_lower_stat<ir::StatVarDecl>(
+    Executable& exe, const ir::StatVarDecl* ir_stat_var_decl) noexcept {
   auto dst = exe.m_reg_state.alloc();
-  exe.lower_expr(ir_stmt_var_decl->expr, dst);
+  exe.lower_expr(ir_stat_var_decl->expr, dst);
   exe.push_instruction(OpCode::PUSH, {dst});
   exe.push_instruction(OpCode::FREE1, {dst});
   exe.m_reg_state.free(dst);
 
   auto& frame = exe.m_stack.top();
-  frame.set_local(ir_stmt_var_decl->symbol);
+  frame.set_local(ir_stat_var_decl->symbol);
 }
 
 template <>
-void via::detail::ir_lower_stmt<ir::StmtInstruction>(
-    Executable& exe, const ir::StmtInstruction* ir_stmt_instr) noexcept {
-  exe.m_bytecode.push_back(ir_stmt_instr->instr);
+void via::detail::ir_lower_stat<ir::StatInstruction>(
+    Executable& exe, const ir::StatInstruction* ir_stat_instr) noexcept {
+  exe.m_bytecode.push_back(ir_stat_instr->instr);
 }
 
 template <>
-void via::detail::ir_lower_stmt<ir::StmtBlock>(
-    Executable& exe, const ir::StmtBlock* ir_stmt_block) noexcept {
-  exe.set_label(ir_stmt_block->id);
-  for (const auto& stmt : ir_stmt_block->stmts) {
-    exe.lower_stmt(stmt);
+void via::detail::ir_lower_stat<ir::StatBlock>(
+    Executable& exe, const ir::StatBlock* ir_stat_block) noexcept {
+  exe.set_label(ir_stat_block->id);
+  for (const auto& stat : ir_stat_block->stats) {
+    exe.lower_stat(stat);
   }
-  if (ir_stmt_block->term != nullptr) {
-    exe.lower_term(ir_stmt_block->term);
+  if (ir_stat_block->term != nullptr) {
+    exe.lower_term(ir_stat_block->term);
   }
 }
 
 template <>
-void via::detail::ir_lower_stmt<ir::StmtFuncDecl>(
-    Executable& exe, const ir::StmtFuncDecl* ir_stmt_func_decl) noexcept {
+void via::detail::ir_lower_stat<ir::StatFuncDecl>(
+    Executable& exe, const ir::StatFuncDecl* ir_stat_func_decl) noexcept {
   exe.m_stack.push({});
 
   auto dst = exe.m_reg_state.alloc();
   auto pc = exe.push_instruction(OpCode::NOP);
-  exe.lower_stmt(ir_stmt_func_decl->body);
+  exe.lower_stat(ir_stat_func_decl->body);
 
   size_t offset = exe.program_counter() - pc + 1;
   uint16_t high, low;
@@ -289,27 +289,27 @@ void via::detail::ir_lower_stmt<ir::StmtFuncDecl>(
   exe.m_stack.pop();
 
   auto& frame = exe.m_stack.top();
-  frame.set_local(ir_stmt_func_decl->symbol);
+  frame.set_local(ir_stat_func_decl->symbol);
 }
 
 template <>
-void via::detail::ir_lower_stmt<ir::StmtExpr>(
-    Executable& exe, const ir::StmtExpr* ir_stmt_expr) noexcept {
-  exe.lower_expr(ir_stmt_expr->expr, std::nullopt);
+void via::detail::ir_lower_stat<ir::StatExpr>(
+    Executable& exe, const ir::StatExpr* ir_stat_expr) noexcept {
+  exe.lower_expr(ir_stat_expr->expr, std::nullopt);
 }
 
-void via::Executable::lower_stmt(const ir::Stmt* stmt) noexcept {
+void via::Executable::lower_stat(const ir::Stat* stat) noexcept {
 #define VISIT_STMT(TYPE)                   \
-  if TRY_COERCE (const TYPE, _INNER, stmt) \
-    return detail::ir_lower_stmt<TYPE>(*this, _INNER);
+  if TRY_COERCE (const TYPE, _INNER, stat) \
+    return detail::ir_lower_stat<TYPE>(*this, _INNER);
 
-  VISIT_STMT(ir::StmtVarDecl)
-  VISIT_STMT(ir::StmtFuncDecl)
-  VISIT_STMT(ir::StmtInstruction)
-  VISIT_STMT(ir::StmtBlock)
-  VISIT_STMT(ir::StmtExpr)
+  VISIT_STMT(ir::StatVarDecl)
+  VISIT_STMT(ir::StatFuncDecl)
+  VISIT_STMT(ir::StatInstruction)
+  VISIT_STMT(ir::StatBlock)
+  VISIT_STMT(ir::StatExpr)
 
-  debug::unimplemented(std::format("lower_stmt({})", VIA_TYPENAME(*stmt)));
+  debug::unimplemented(std::format("lower_stat({})", VIA_TYPENAME(*stat)));
 #undef VISIT_STMT
 }
 
@@ -372,8 +372,8 @@ via::Executable* via::Executable::build_from_ir(Module* module,
   exe->m_module = module;
   exe->m_flags = flags;
 
-  for (const auto& stmt : ir_tree) {
-    exe->lower_stmt(stmt);
+  for (const auto& stat : ir_tree) {
+    exe->lower_stat(stat);
   }
 
   exe->lower_jumps();

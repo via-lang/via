@@ -29,9 +29,9 @@ struct Expr {
   virtual std::string to_string(size_t depth = 0) const = 0;
 };
 
-struct Stmt {
+struct Stat {
   SourceLoc loc;
-  virtual ~Stmt() = default;
+  virtual ~Stat() = default;
   virtual std::string to_string(size_t depth = 0) const = 0;
 };
 
@@ -56,7 +56,7 @@ struct Parameter {
 };
 
 struct Scope {
-  std::vector<const Stmt*> stmts;
+  std::vector<const Stat*> stats;
   SourceLoc loc;
   std::string to_string(size_t depth) const;
 };
@@ -144,103 +144,103 @@ struct ExprLambda : public Expr {
   const Scope* body;
 };
 
-struct StmtVarDecl : public Stmt {
-  NODE_FIELDS(StmtVarDecl);
+struct StatVarDecl : public Stat {
+  NODE_FIELDS(StatVarDecl);
   const Token* decl;
   const Expr* lval;
   const Expr* rval;
   const Type* type;
 };
 
-struct StmtScope : public Stmt {
-  NODE_FIELDS(StmtScope);
+struct StatScope : public Stat {
+  NODE_FIELDS(StatScope);
   const Scope* body;
 };
 
-struct StmtIf : public Stmt {
+struct StatIf : public Stat {
   struct Branch {
     const Expr* cond;
     const Scope* body;
   };
 
-  NODE_FIELDS(StmtIf);
+  NODE_FIELDS(StatIf);
   std::vector<Branch> branches;
 };
 
-struct StmtFor : public Stmt {
-  NODE_FIELDS(StmtFor);
-  const StmtVarDecl* init;
+struct StatFor : public Stat {
+  NODE_FIELDS(StatFor);
+  const StatVarDecl* init;
   const Expr *target, *step;
   const Scope* body;
 };
 
-struct StmtForEach : public Stmt {
-  NODE_FIELDS(StmtForEach);
+struct StatForEach : public Stat {
+  NODE_FIELDS(StatForEach);
   const Expr* name;
   const Expr* expr;
   const Scope* body;
 };
 
-struct StmtWhile : public Stmt {
-  NODE_FIELDS(StmtWhile);
+struct StatWhile : public Stat {
+  NODE_FIELDS(StatWhile);
   const Expr* cond;
   const Scope* body;
 };
 
-struct StmtAssign : public Stmt {
-  NODE_FIELDS(StmtAssign);
+struct StatAssign : public Stat {
+  NODE_FIELDS(StatAssign);
   const Token* op;
   const Expr *lval, *rval;
 };
 
-struct StmtReturn : public Stmt {
-  NODE_FIELDS(StmtReturn);
+struct StatReturn : public Stat {
+  NODE_FIELDS(StatReturn);
   const Expr* expr;
 };
 
-struct StmtEnum : public Stmt {
+struct StatEnum : public Stat {
   struct Pair {
     const Token* symbol;
     const Expr* expr;
   };
 
-  NODE_FIELDS(StmtEnum);
+  NODE_FIELDS(StatEnum);
   const Token* symbol;
   const Type* type;
   std::vector<Pair> pairs;
 };
 
-struct StmtImport : public Stmt {
-  NODE_FIELDS(StmtImport);
+struct StatImport : public Stat {
+  NODE_FIELDS(StatImport);
   std::vector<const Token*> path;
 };
 
-struct StmtFunctionDecl : public Stmt {
-  NODE_FIELDS(StmtFunctionDecl);
+struct StatFunctionDecl : public Stat {
+  NODE_FIELDS(StatFunctionDecl);
   const Token* name;
   const Type* ret;
   std::vector<const Parameter*> parms;
   const Scope* body;
 };
 
-struct StmtStructDecl : public Stmt {
-  NODE_FIELDS(StmtStructDecl);
+struct StatStructDecl : public Stat {
+  NODE_FIELDS(StatStructDecl);
   const Token* name;
   const Scope* body;
 };
 
-struct StmtTypeDecl : public Stmt {
-  NODE_FIELDS(StmtTypeDecl);
+struct StatTypeDecl : public Stat {
+  NODE_FIELDS(StatTypeDecl);
   const Token* symbol;
   const Type* type;
 };
 
-struct StmtEmpty : public Stmt {
-  NODE_FIELDS(StmtEmpty);
+struct StatEmpty : public Stat {
+  NODE_FIELDS(StatEmpty);
 };
 
-struct StmtExpr : public Stmt {
-  NODE_FIELDS(StmtExpr);
+struct StatExpr : public Stat {
+  NODE_FIELDS(StatExpr);
   const Expr* expr;
 };
 
@@ -271,7 +271,7 @@ bool is_lvalue(const Expr* expr) noexcept;
 
 }  // namespace ast
 
-using SyntaxTree = std::vector<const ast::Stmt*>;
+using SyntaxTree = std::vector<const ast::Stat*>;
 
 std::string to_string(const SyntaxTree& ast);
 

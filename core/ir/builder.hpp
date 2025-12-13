@@ -55,9 +55,9 @@ class IRBuilder final {
   QualType type_of(const ast::Expr* expr) noexcept;
   QualType type_of(const ast::Type* type) noexcept;
   const ir::Expr* lower_expr(const ast::Expr* expr);
-  const ir::Stmt* lower_stmt(const ast::Stmt* stmt);
-  ir::StmtBlock* end_block() noexcept;
-  ir::StmtBlock* new_block(size_t id) noexcept;
+  const ir::Stat* lower_stat(const ast::Stat* stat);
+  ir::StatBlock* end_block() noexcept;
+  ir::StatBlock* new_block(size_t id) noexcept;
   std::string dump_type(QualType type) noexcept;
   std::string dump_expr(const ast::Expr* expr) noexcept;
 
@@ -74,9 +74,9 @@ class IRBuilder final {
     const ir::Expr* lower_expr(const Expr*) noexcept
         { debug::todo(std::format("lower_expr<{}>()", VIA_TYPENAME(Expr))); }
 
-    template <derived_from<ast::Stmt> Stmt>
-    const ir::Stmt* lower_stmt(const Stmt*) noexcept
-        { debug::todo(std::format("lower_stmt<{}>()", VIA_TYPENAME(Stmt))); }
+    template <derived_from<ast::Stat> Stat>
+    const ir::Stat* lower_stat(const Stat*) noexcept
+        { debug::todo(std::format("lower_stat<{}>()", VIA_TYPENAME(Stat))); }
   // clang-format on
 
  private:
@@ -89,7 +89,7 @@ class IRBuilder final {
   SymbolTable& m_symbols;
   bool m_should_push_block;
   uint32_t m_block_id = 0;
-  ir::StmtBlock* m_current_block;
+  ir::StatBlock* m_current_block;
   std::unordered_set<SymbolId> m_poisoned_ids;
 };
 

@@ -23,6 +23,7 @@
 #define USE_DLFCN 0
 #endif
 
+// Fuck Windows.
 #if !USE_DLFCN && defined(VIA_PLATFORM_WINDOWS)
 static std::string dlerror_win() {
   DWORD error = GetLastError();
@@ -44,15 +45,12 @@ std::expected<via::os::DynamicLibrary, std::string>
 via::os::DynamicLibrary::load_library(std::filesystem::path path) {
   std::string path_str = path.string();
 
-  if (!std::filesystem::is_regular_file(path)) {
+  if (!std::filesystem::is_regular_file(path))
     return std::unexpected(
         std::format("No such file or directory: '{}'", path_str));
-  }
-
-  if (path.extension().string() != DL_EXTENSION) {
+  if (path.extension().string() != DL_EXTENSION)
     return std::unexpected(std::format(
         "Dynamic library has invalid extension (expected {})", DL_EXTENSION));
-  }
 
 #if USE_DLFCN
   if (void* handle = dlopen(path_str.c_str(), RTLD_NOW))
@@ -85,7 +83,7 @@ via::os::DynamicLibrary::DynamicLibrary(DynamicLibrary&& other)
 via::os::DynamicLibrary& via::os::DynamicLibrary::operator=(
     DynamicLibrary&& other) {
   if (this != &other) {
-    if (m_handle) {
+    if (m_handle != nullptr) {
 #if USE_DLFCN
       dlclose(m_handle);
 #else

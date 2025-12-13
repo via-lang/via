@@ -23,6 +23,7 @@
 #include "support/memory.hpp"
 #include "vm/executable.hpp"
 #include "vm/machine.hpp"
+#include "vm/reference.hpp"
 
 #define VIA_MODULE_ENTRY_PREFIX viainit_
 
@@ -33,6 +34,9 @@
 #define VIA_MODULE_FUNCTION(ID, VM, CALL_INFO) \
   via::ValueRef ID(via::VirtualMachine* VM, via::CallInfo& CALL_INFO)
 
+#define VIA_MODULE_LAMBDA(VM, CALL_INFO) \
+  [](via::VirtualMachine * VM, via::CallInfo & CALL_INFO)->via::ValueRef
+
 namespace via {
 namespace config {
 
@@ -42,8 +46,7 @@ constexpr const char MODULE_ENTRY_PREFIX[] =
 }  // namespace config
 
 class ModuleManager;
-
-struct NativeModuleInfo {
+class NativeModuleInfo {
  public:
   explicit NativeModuleInfo(const Binding** buffer, size_t size)
       : m_defs(buffer, size) {}
@@ -58,7 +61,7 @@ struct NativeModuleInfo {
   std::span<const Binding*> m_defs;
 };
 
-using NativeModuleInitCallback = NativeModuleInfo* (*)(ModuleManager*);
+using NativeModuleEntry = NativeModuleInfo* (*)(ModuleManager*);
 
 enum class ModuleKind : uint8_t {
   SOURCE,
@@ -97,13 +100,13 @@ class Module final {
 
   static std::expected<Module*, std::string> load_source_file(
       ModuleManager& manager, Module* importee, const char* name,
-      const std::filesystem::path& path, const ast::StmtImport* decl,
+      const std::filesystem::path& path, const ast::StatImport* decl,
       const ModulePerms perms = ModulePerms::NONE,
       const ModuleFlags flags = ModuleFlags::NONE);
 
   static std::expected<Module*, std::string> load_native_object(
       ModuleManager& manager, Module* importee, const char* name,
-      const std::filesystem::path& path, const ast::StmtImport* decl,
+      const std::filesystem::path& path, const ast::StatImport* decl,
       const ModulePerms perms = ModulePerms::NONE,
       const ModuleFlags flags = ModuleFlags::NONE);
 
@@ -117,7 +120,7 @@ class Module final {
 
   std::optional<const Binding*> lookup(SymbolId symbol);
   std::expected<Module*, std::string> import(const QualName& path,
-                                             const ast::StmtImport* ast_decl);
+                                             const ast::StatImport* ast_decl);
 
  protected:
   ScopedAllocator m_alloc;
@@ -135,7 +138,7 @@ class Module final {
   Module* m_importee = nullptr;
   ModuleManager& m_manager;
   os::DynamicLibrary m_dl;
-  const ast::StmtImport* m_ast_decl = nullptr;
+  const ast::StatImport* m_ast_decl = nullptr;
 };
 
 }  // namespace via

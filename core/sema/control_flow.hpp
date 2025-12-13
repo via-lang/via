@@ -17,6 +17,6 @@
 namespace via {
 
 std::vector<const ir::Term*> get_control_paths(
-    const ir::StmtBlock* entry) noexcept;
+    const ir::StatBlock* entry) noexcept;
 
 }  // namespace via

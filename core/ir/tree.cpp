@@ -195,14 +195,14 @@ std::string via::ir::ExprLambda::to_string(const SymbolTable* sym_tab,
   return INDENT(depth) + "<lambda>";
 }
 
-std::string via::ir::StmtVarDecl::to_string(const SymbolTable* sym_tab,
+std::string via::ir::StatVarDecl::to_string(const SymbolTable* sym_tab,
                                             size_t depth) const {
   return INDENT(depth) + std::format("LOCAL {}: {} = {}", SYMBOL(symbol),
                                      type.to_string(),
                                      TOSTRING(expr, 0, EXPR_ERROR));
 }
 
-std::string via::ir::StmtFuncDecl::to_string(const SymbolTable* sym_tab,
+std::string via::ir::StatFuncDecl::to_string(const SymbolTable* sym_tab,
                                              size_t depth) const {
   std::ostringstream oss;
   oss << INDENT(depth)
@@ -214,31 +214,31 @@ std::string via::ir::StmtFuncDecl::to_string(const SymbolTable* sym_tab,
                  ")"),
              ret.to_string());
 
-  for (const Stmt* stmt : body->stmts)
-    oss << TOSTRING(stmt, depth + 1, STMT_ERROR) << "\n";
+  for (const Stat* stat : body->stats)
+    oss << TOSTRING(stat, depth + 1, STMT_ERROR) << "\n";
 
   oss << TOSTRING(body->term, depth + 1, TERM_ERROR);
   return oss.str();
 }
 
-std::string via::ir::StmtInstruction::to_string(const SymbolTable* sym_tab,
+std::string via::ir::StatInstruction::to_string(const SymbolTable* sym_tab,
                                                 size_t depth) const {
   return INDENT(depth) + instr.to_string(false);
 }
 
-std::string via::ir::StmtBlock::to_string(const SymbolTable* sym_tab,
+std::string via::ir::StatBlock::to_string(const SymbolTable* sym_tab,
                                           size_t depth) const {
   std::ostringstream oss;
   oss << INDENT(depth) << "BLOCK #" << id << ":\n";
 
-  for (const Stmt* stmt : stmts)
-    oss << TOSTRING(stmt, depth + 1, STMT_ERROR) << "\n";
+  for (const Stat* stat : stats)
+    oss << TOSTRING(stat, depth + 1, STMT_ERROR) << "\n";
 
   oss << TOSTRING(term, depth + 1, TERM_ERROR);
   return oss.str();
 }
 
-std::string via::ir::StmtExpr::to_string(const SymbolTable* sym_tab,
+std::string via::ir::StatExpr::to_string(const SymbolTable* sym_tab,
                                          size_t depth) const {
   return TOSTRING(expr, depth, EXPR_ERROR);
 }

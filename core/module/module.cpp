@@ -50,7 +50,7 @@ read_file(const std::filesystem::path& path)
 // Load a shared library as a native module object
 std::expected<via::Module*, std::string> via::Module::load_native_object(
     ModuleManager& manager, Module* importee, const char* name,
-    const std::filesystem::path& path, const ast::StmtImport* ast_decl,
+    const std::filesystem::path& path, const ast::StatImport* ast_decl,
     const ModulePerms perms, const ModuleFlags flags) {
   // Check if the module is being recursively imported
   if (manager.is_current_import(name)) {
@@ -90,7 +90,7 @@ std::expected<via::Module*, std::string> via::Module::load_native_object(
 
   // Find the module's entry point
   auto symbol = std::format("{}{}", config::MODULE_ENTRY_PREFIX, name);
-  auto callback = dll->load_symbol<NativeModuleInitCallback>(symbol.c_str());
+  auto callback = dll->load_symbol<NativeModuleEntry>(symbol.c_str());
   if (!callback.has_value()) {
     return std::unexpected(
         std::format("Failed to load native module: {}", callback.error()));
@@ -123,7 +123,7 @@ std::expected<via::Module*, std::string> via::Module::load_native_object(
 // Load source file as a module
 std::expected<via::Module*, std::string> via::Module::load_source_file(
     ModuleManager& manager, Module* importee, const char* name,
-    const std::filesystem::path& path, const ast::StmtImport* ast_decl,
+    const std::filesystem::path& path, const ast::StatImport* ast_decl,
     const ModulePerms perms, const ModuleFlags flags) {
   // Check if the module is being recursively imported
   if (manager.is_current_import(name)) {
@@ -329,7 +329,7 @@ std::optional<const via::Binding*> via::Module::lookup(via::SymbolId symbol) {
 }
 
 std::expected<via::Module*, std::string> via::Module::import(
-    const QualName& path, const ast::StmtImport* ast_decl) {
+    const QualName& path, const ast::StatImport* ast_decl) {
   auto module = resolve_import_path(m_path, path, m_manager);
   if (!module.has_value()) {
     return std::unexpected(
