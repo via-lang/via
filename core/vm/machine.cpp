@@ -20,19 +20,12 @@
 #include "value.hpp"
 
 template <>
-via::IntAction via::detail::handle_interrupt<via::Interrupt::NONE>(
-    VirtualMachine* vm) {
-  UNREACHABLE();
-}
-
-template <>
-via::IntAction via::detail::handle_interrupt<via::Interrupt::ERROR>(
-    VirtualMachine* vm) {
-  Closure* handler = vm->unwind_stack(
+via::IntAction via::VirtualMachine::m_handle<via::Interrupt::ERROR>() {
+  Closure* handler = m_unwind_stack(
       [&](auto, auto, auto flags, auto) { return flags & CallFlags::PROTECT; });
 
   if (handler == nullptr) {
-    auto* error = reinterpret_cast<ErrorInt*>(vm->m_int_arg);
+    auto* error = reinterpret_cast<ErrorInt*>(m_int_arg);
     (*error->out) << error->msg;
     return IntAction::EXIT;
   }
@@ -53,9 +46,8 @@ std::string via::Snapshot::to_string() const noexcept {
   return oss.str();
 }
 
-void via::VirtualMachine::save_stack() { m_sp = m_stack.end(); }
-
-void via::VirtualMachine::restore_stack() {
+void via::VirtualMachine::m_save_stack() { m_sp = m_stack.end(); }
+void via::VirtualMachine::m_restore_stack() {
   for (auto* ptr = m_stack.end() - 1; ptr > m_sp; ptr--) {
     auto* value = reinterpret_cast<Value*>(*ptr);
     value->unref();
@@ -63,12 +55,12 @@ void via::VirtualMachine::restore_stack() {
   m_stack.jump(m_sp);
 }
 
+via::IntAction via::VirtualMachine::m_handle_interrupt() {
+  if (m_int_hook != nullptr) m_int_hook(this, m_int, m_int_arg);
+
 #define DEFINE_INTERRUPT_HANDLER(INT) \
   case Interrupt::INT:                \
-    return detail::handle_interrupt<Interrupt::INT>(this);
-
-via::IntAction via::VirtualMachine::handle_interrupt() {
-  if (m_int_hook != nullptr) m_int_hook(this, m_int, m_int_arg);
+    return m_handle<Interrupt::INT>();
 
   switch (m_int) {
     FOR_EACH_INTERRUPT(DEFINE_INTERRUPT_HANDLER)
@@ -78,7 +70,7 @@ via::IntAction via::VirtualMachine::handle_interrupt() {
   return IntAction::RESUME;
 }
 
-via::Closure* via::VirtualMachine::unwind_stack(StackUnwindCallback pred) {
+via::Closure* via::VirtualMachine::m_unwind_stack(StackUnwindCallback pred) {
   for (uintptr_t* fp = m_fp; fp != nullptr;) {
     m_stack.jump(fp + 1);
 

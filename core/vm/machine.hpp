@@ -61,16 +61,6 @@ using StackUnwindCallback =
     std::function<bool(const uintptr_t* fp, const Instruction* pc,
                        const CallFlags flags, ValueRef callee)>;
 
-namespace detail {
-
-template <bool SingleStep, bool OverridePC>
-void execute(VirtualMachine* vm);
-
-template <Interrupt Int>
-IntAction handle_interrupt(VirtualMachine* vm);
-
-}  // namespace detail
-
 class Value;
 class Snapshot {
  public:
@@ -99,12 +89,6 @@ class ValueRef;
 class ModuleManager;
 class VirtualMachine final {
  public:
-  template <bool, bool>
-  friend void detail::execute(VirtualMachine*);
-
-  template <Interrupt>
-  friend IntAction detail::handle_interrupt(VirtualMachine*);
-
   friend class Snapshot;
   friend class Debugger;
 
@@ -135,12 +119,20 @@ class VirtualMachine final {
   void execute();
   void execute_once();
 
- protected:
-  void save_stack();
-  void restore_stack();
-  Closure* unwind_stack(StackUnwindCallback pred);
-  bool has_interrupt() const { return m_int != Interrupt::NONE; }
-  IntAction handle_interrupt();
+ private:
+  void m_save_stack();
+  void m_restore_stack();
+  Closure* m_unwind_stack(StackUnwindCallback pred);
+  bool m_has_interrupt() const { return m_int != Interrupt::NONE; }
+  IntAction m_handle_interrupt();
+
+  template <Interrupt Int>
+  IntAction m_handle() {
+    UNREACHABLE(Int);
+  }
+
+  template <bool SingleStep, bool OverridePC>
+  void m_execute();
 
  protected:
   const Executable* m_exe;

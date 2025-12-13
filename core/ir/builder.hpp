@@ -66,14 +66,17 @@ class IRBuilder final {
   SymbolId intern_symbol(const via::Token& token) { return m_symbols.intern(token.to_string()); }
 
   template <derived_from<ast::Expr, ast::Type> Type>
+    requires (!std::is_same_v<Type, ast::Type>)
   QualType type_of(const Type*)
   { UNREACHABLE(VIA_TYPENAME(Type)); }
 
   template <derived_from<ast::Expr> Expr>
+    requires (!std::is_same_v<Type, ast::Expr>)
   const ir::Expr* lower_expr(const Expr*)
   { UNREACHABLE(VIA_TYPENAME(Expr)); }
 
   template <derived_from<ast::Stat> Stat>
+    requires (!std::is_same_v<Type, ast::Type>)
   const ir::Stat* lower_stat(const Stat*)
   { UNREACHABLE(VIA_TYPENAME(Stat)); }
   // clang-format on

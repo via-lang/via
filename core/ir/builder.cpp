@@ -389,7 +389,7 @@ const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprStaticAccess>(
 
   auto* access_expr = m_alloc.emplace<ir::ExprAccess>();
   access_expr->kind = ir::ExprAccess::Kind::STATIC;
-  access_expr->root = lower_expr(ast_stc_access_expr->root);
+  access_expr->root = lower(ast_stc_access_expr->root);
   access_expr->index = intern_symbol(*ast_stc_access_expr->index);
   access_expr->type = type_of(ast_stc_access_expr);
   access_expr->loc = ast_stc_access_expr->loc;
@@ -402,7 +402,7 @@ const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprDynAccess>(
     const ast::ExprDynAccess* ast_dyn_access_expr) {
   auto* access_expr = m_alloc.emplace<ir::ExprAccess>();
   access_expr->kind = ir::ExprAccess::Kind::DYNAMIC;
-  access_expr->root = lower_expr(ast_dyn_access_expr->root);
+  access_expr->root = lower(ast_dyn_access_expr->root);
   access_expr->index = intern_symbol(*ast_dyn_access_expr->index);
   access_expr->type = type_of(ast_dyn_access_expr);
   access_expr->loc = ast_dyn_access_expr->loc;
@@ -415,7 +415,7 @@ const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprUnary>(
     const ast::ExprUnary* ast_expr_unary) {
   auto* unary_expr = m_alloc.emplace<ir::ExprUnary>();
   unary_expr->op = to_unary_op(ast_expr_unary->op->kind);
-  unary_expr->expr = lower_expr(ast_expr_unary->expr);
+  unary_expr->expr = lower(ast_expr_unary->expr);
   unary_expr->loc = ast_expr_unary->loc;
 
   auto op = to_unary_op(ast_expr_unary->op->kind);
@@ -440,8 +440,8 @@ const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprBinary>(
     const ast::ExprBinary* ast_expr_binary) {
   auto* binary_expr = m_alloc.emplace<ir::ExprBinary>();
   binary_expr->op = to_binary_op(ast_expr_binary->op->kind);
-  binary_expr->lhs = lower_expr(ast_expr_binary->lhs);
-  binary_expr->rhs = lower_expr(ast_expr_binary->rhs);
+  binary_expr->lhs = lower(ast_expr_binary->lhs);
+  binary_expr->rhs = lower(ast_expr_binary->rhs);
   binary_expr->loc = ast_expr_binary->loc;
 
   auto op = to_binary_op(ast_expr_binary->op->kind);
@@ -466,7 +466,7 @@ template <>
 const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprGroup>(
 
     const ast::ExprGroup* ast_expr_group) {
-  return lower_expr(ast_expr_group->expr);
+  return lower(ast_expr_group->expr);
 }
 
 template <>
@@ -474,12 +474,12 @@ const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprCall>(
 
     const ast::ExprCall* ast_expr_call) {
   auto* call_expr = m_alloc.emplace<ir::ExprCall>();
-  call_expr->callee = lower_expr(ast_expr_call->callee);
+  call_expr->callee = lower(ast_expr_call->callee);
   call_expr->loc = ast_expr_call->loc;
   call_expr->args = [&]() {
     std::vector<const ir::Expr*> args;
     for (const auto& ast_arg : ast_expr_call->args)
-      args.push_back(lower_expr(ast_arg));
+      args.push_back(lower(ast_arg));
     return args;
   }();
 
@@ -548,7 +548,7 @@ const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprCast>(
     const ast::ExprCast* ast_expr_cast) {
   auto cast_type = type_of(ast_expr_cast->type);
   auto* cast_expr = m_alloc.emplace<ir::ExprCast>();
-  cast_expr->expr = lower_expr(ast_expr_cast->expr);
+  cast_expr->expr = lower(ast_expr_cast->expr);
   cast_expr->cast = cast_type;
   cast_expr->type = cast_type;
 
@@ -592,9 +592,9 @@ const via::ir::Expr* via::IRBuilder::lower(const ast::Expr* expr) {
 #undef VISIT_EXPR
 
   if TRY_COERCE (const ast::ExprGroup, expr_group, expr)
-    return lower_expr(expr_group->expr);
+    return lower(expr_group->expr);
 
-  UNREACHABLE(std::format("IRBuilder::lower_expr({})", VIA_TYPENAME(*expr)));
+  UNREACHABLE(std::format("IRBuilder::lower({})", VIA_TYPENAME(*expr)));
 }
 
 template <>
@@ -623,7 +623,7 @@ const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatIf>(
     }));
 
     for (const auto& stat : branch.body->stats) {
-      m_current_block->stats.push_back(lower_stat(stat));
+      m_current_block->stats.push_back(lower(stat));
     }
 
     m_current_block->stats.push_back(({
@@ -641,7 +641,7 @@ const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatIf>(
       m_current_block->stats.push_back(then_block);
 
       auto* term = m_alloc.emplace<ir::TrCondBranch>();
-      term->cnd = lower_expr(branch.cond);
+      term->cnd = lower(branch.cond);
       term->iftrue = then_block;
 
       if (i == ast_stat_if->branches.size() - 1) {
@@ -691,7 +691,7 @@ const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatWhile>(
   }));
 
   for (const auto& stat : ast_stat_while->body->stats) {
-    m_current_block->stats.push_back(lower_stat(stat));
+    m_current_block->stats.push_back(lower(stat));
   }
 
   m_current_block->stats.push_back(({
@@ -704,7 +704,7 @@ const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatWhile>(
 
   cond_block->term = ({
     auto* cond_term = m_alloc.emplace<ir::TrCondBranch>();
-    cond_term->cnd = lower_expr(ast_stat_while->cond);
+    cond_term->cnd = lower(ast_stat_while->cond);
     cond_term->iftrue = body_block;
     cond_term->iffalse = merge_block;
     cond_term;
@@ -720,7 +720,7 @@ const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatVarDecl>(
 
     const ast::StatVarDecl* ast_stat_var_decl) {
   auto* decl_stat = m_alloc.emplace<ir::StatVarDecl>();
-  decl_stat->expr = lower_expr(ast_stat_var_decl->rval);
+  decl_stat->expr = lower(ast_stat_var_decl->rval);
   decl_stat->loc = ast_stat_var_decl->loc;
 
   if TRY_COERCE (const ast::ExprSymbol, lval, ast_stat_var_decl->lval) {
@@ -763,8 +763,7 @@ const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatReturn>(
   auto* term = m_alloc.emplace<ir::TrReturn>();
   term->implicit = false;
   term->loc = ast_stat_return->loc;
-  term->val =
-      ast_stat_return->expr ? lower_expr(ast_stat_return->expr) : nullptr;
+  term->val = ast_stat_return->expr ? lower(ast_stat_return->expr) : nullptr;
   term->type = ast_stat_return->expr
                    ? type_of(ast_stat_return->expr)
                    : m_types.instance<BuiltinType>(BuiltinKind::NIL);
@@ -847,14 +846,14 @@ const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatFunctionDecl>(
       auto* term = m_alloc.emplace<ir::TrReturn>();
       term->implicit = false;
       term->loc = ret->loc;
-      term->val = ret->expr ? lower_expr(ret->expr) : nullptr;
+      term->val = ret->expr ? lower(ret->expr) : nullptr;
       term->type = ret->expr ? type_of(ret->expr)
                              : m_types.instance<BuiltinType>(BuiltinKind::NIL);
       block->term = term;
       break;
     }
 
-    block->stats.push_back(lower_stat(stat));
+    block->stats.push_back(lower(stat));
   }
 
   m_stack.pop();
@@ -943,7 +942,7 @@ const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatExpr>(
 
     const ast::StatExpr* ast_stat_expr) {
   auto* expr = m_alloc.emplace<ir::StatExpr>();
-  expr->expr = lower_expr(ast_stat_expr->expr);
+  expr->expr = lower(ast_stat_expr->expr);
   expr->loc = ast_stat_expr->loc;
   return expr;
 }
@@ -1005,8 +1004,7 @@ const via::ir::Stat* via::IRBuilder::lower(const ast::Stat* stat) {
 #undef VISIT_STMT
 
   if TRY_IS (const ast::StatEmpty, stat) return nullptr;
-
-  UNREACHABLE(std::format("IRBuilder::lower_stat({})", VIA_TYPENAME(*stat)));
+  UNREACHABLE(VIA_TYPENAME(*stat));
 }
 
 via::IRTree via::IRBuilder::build() {
@@ -1015,10 +1013,9 @@ via::IRTree via::IRBuilder::build() {
 
   IRTree tree;
 
-  for (const auto& astStat : m_ast) {
-    if (const ir::Stat* loweredStat = lower_stat(astStat)) {
-      m_current_block->stats.push_back(loweredStat);
-    }
+  for (const auto& ast : m_ast) {
+    if (const ir::Stat* stat = lower(ast))
+      m_current_block->stats.push_back(stat);
     if (m_should_push_block) {
       ir::StatBlock* block = new_block(m_block_id++);
       tree.push_back(block);

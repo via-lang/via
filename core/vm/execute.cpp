@@ -36,18 +36,18 @@
     }                                \
   }
 
-#define CV(ID)                         \
-  ({                                   \
-    auto cv = consts.at(ID);           \
-    auto* val = Value::create(vm, cv); \
-    val;                               \
+#define CV(ID)                           \
+  ({                                     \
+    auto cv = consts.at(ID);             \
+    auto* val = Value::create(this, cv); \
+    val;                                 \
   })
 
-#define CV_REF(ID)                     \
-  ({                                   \
-    auto cv = consts.at(ID);           \
-    auto* val = Value::create(vm, cv); \
-    ValueRef(vm, val);                 \
+#define CV_REF(ID)                       \
+  ({                                     \
+    auto cv = consts.at(ID);             \
+    auto* val = Value::create(this, cv); \
+    ValueRef(this, val);                 \
   })
 
 #define LGET(ID) reinterpret_cast<Value*>(stack.at(ID))
@@ -76,7 +76,7 @@
 #define DBG_TRAP(FORMAT, ...) debug::bug(std::format(FORMAT, __VA_ARGS__));
 
 template <bool SingleStep, bool OverridePC>
-[[gnu::flatten]] void via::detail::execute(VirtualMachine* vm) {
+[[gnu::flatten]] void via::VirtualMachine::m_execute() {
 #ifdef HAS_CGOTO
   [[gnu::aligned(64)]] static void* dispatch_table[] = {
 #define DEFINE_DISPATCH_OP(OP) &&OP_##OP,
@@ -86,21 +86,21 @@ template <bool SingleStep, bool OverridePC>
 #endif
 
   /* Explicit VM stuff CSE */
-  auto& stack = vm->m_stack;
-  auto& regs = vm->m_registers;
-  auto& consts = vm->m_exe->constants();
+  auto& stack = m_stack;
+  auto& regs = m_registers;
+  auto& consts = m_exe->constants();
 
   /* Explicit module stuff CSE */
-  auto& manager = vm->m_module->manager();
+  auto& manager = m_module->manager();
   auto& symtab = manager.symbol_table();
 
-  const auto*& pc = vm->m_pc;
+  const auto*& pc = m_pc;
 
 [[maybe_unused]] dispatch:
 
-  [[unlikely]] if (vm->has_interrupt()) {
-    auto action = vm->handle_interrupt();
-    vm->set_interrupt(Interrupt::NONE, nullptr);
+  [[unlikely]] if (m_has_interrupt()) {
+    auto action = m_handle_interrupt();
+    set_interrupt(Interrupt::NONE, nullptr);
 
     switch (action) {
       case IntAction::EXIT:
@@ -173,26 +173,26 @@ template <bool SingleStep, bool OverridePC>
     CASE(LOADNIL) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm));
+      RSET(a, Value::create(this));
       DISPATCH();
     }
     CASE(LOADTRUE) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, true));
+      RSET(a, Value::create(this, true));
       DISPATCH();
     }
     CASE(LOADFALSE) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, false));
+      RSET(a, Value::create(this, false));
       DISPATCH();
     }
     CASE(LOADINT) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, static_cast<int64_t>(
-                                    pack_halves<uint32_t>(pc->b, pc->c))));
+      RSET(a, Value::create(this, static_cast<int64_t>(
+                                      pack_halves<uint32_t>(pc->b, pc->c))));
       DISPATCH();
     }
     CASE(NEWSTR)
@@ -200,500 +200,505 @@ template <bool SingleStep, bool OverridePC>
     CASE(NEWDICT)
     CASE(NEWTUPLE) { goto trap__unimplemented_opcode; }
     CASE(NEWCLOSURE) {
-      auto closure = Closure::create(vm, vm->m_pc);
-      RSET(pc->a, Value::create(vm, closure));
+      auto closure = Closure::create(this, m_pc);
+      RSET(pc->a, Value::create(this, closure));
       JFWD(pack_halves<uint32_t>(pc->b, pc->c));
       DISPATCH();
     }
     CASE(IADD) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, int64_t(RGET(pc->b)->m_data.integer +
-                                        RGET(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, int64_t(RGET(pc->b)->m_data.integer +
+                                          RGET(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(IADDK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, int64_t(RGET(pc->b)->m_data.integer +
-                                        CV(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, int64_t(RGET(pc->b)->m_data.integer +
+                                          CV(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(FADD) {
       CSE_A();
       RFREE(a);
       RSET(a,
-           Value::create(vm, data_type_t<FLOAT>(RGET(pc->b)->m_data.float_ +
-                                                RGET(pc->c)->m_data.float_)));
+           Value::create(this, data_type_t<FLOAT>(RGET(pc->b)->m_data.float_ +
+                                                  RGET(pc->c)->m_data.float_)));
       DISPATCH();
     }
     CASE(FADDK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, data_type_t<FLOAT>(RGET(pc->b)->m_data.float_ +
-                                                   CV(pc->c)->m_data.float_)));
+      RSET(a,
+           Value::create(this, data_type_t<FLOAT>(RGET(pc->b)->m_data.float_ +
+                                                  CV(pc->c)->m_data.float_)));
       DISPATCH();
     }
     CASE(ISUB) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, int64_t(RGET(pc->b)->m_data.integer -
-                                        RGET(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, int64_t(RGET(pc->b)->m_data.integer -
+                                          RGET(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(ISUBK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, int64_t(RGET(pc->b)->m_data.integer -
-                                        CV(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, int64_t(RGET(pc->b)->m_data.integer -
+                                          CV(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(FSUB) {
       CSE_A();
       RFREE(a);
       RSET(a,
-           Value::create(vm, data_type_t<FLOAT>(RGET(pc->b)->m_data.float_ -
-                                                RGET(pc->c)->m_data.float_)));
+           Value::create(this, data_type_t<FLOAT>(RGET(pc->b)->m_data.float_ -
+                                                  RGET(pc->c)->m_data.float_)));
       DISPATCH();
     }
     CASE(FSUBK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, data_type_t<FLOAT>(RGET(pc->b)->m_data.float_ -
-                                                   CV(pc->c)->m_data.float_)));
+      RSET(a,
+           Value::create(this, data_type_t<FLOAT>(RGET(pc->b)->m_data.float_ -
+                                                  CV(pc->c)->m_data.float_)));
       DISPATCH();
     }
     CASE(IMUL) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, int64_t(RGET(pc->b)->m_data.integer *
-                                        RGET(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, int64_t(RGET(pc->b)->m_data.integer *
+                                          RGET(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(IMULK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, int64_t(RGET(pc->b)->m_data.integer *
-                                        CV(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, int64_t(RGET(pc->b)->m_data.integer *
+                                          CV(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(FMUL) {
       CSE_A();
       RFREE(a);
       RSET(a,
-           Value::create(vm, data_type_t<FLOAT>(RGET(pc->b)->m_data.float_ *
-                                                RGET(pc->c)->m_data.float_)));
+           Value::create(this, data_type_t<FLOAT>(RGET(pc->b)->m_data.float_ *
+                                                  RGET(pc->c)->m_data.float_)));
       DISPATCH();
     }
     CASE(FMULK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, data_type_t<FLOAT>(RGET(pc->b)->m_data.float_ *
-                                                   CV(pc->c)->m_data.float_)));
+      RSET(a,
+           Value::create(this, data_type_t<FLOAT>(RGET(pc->b)->m_data.float_ *
+                                                  CV(pc->c)->m_data.float_)));
       DISPATCH();
     }
     CASE(IDIV) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, int64_t(RGET(pc->b)->m_data.integer /
-                                        RGET(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, int64_t(RGET(pc->b)->m_data.integer /
+                                          RGET(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(IDIVK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, int64_t(RGET(pc->b)->m_data.integer /
-                                        CV(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, int64_t(RGET(pc->b)->m_data.integer /
+                                          CV(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(FDIV) {
       CSE_A();
       RFREE(a);
       RSET(a,
-           Value::create(vm, data_type_t<FLOAT>(RGET(pc->b)->m_data.float_ /
-                                                RGET(pc->c)->m_data.float_)));
+           Value::create(this, data_type_t<FLOAT>(RGET(pc->b)->m_data.float_ /
+                                                  RGET(pc->c)->m_data.float_)));
       DISPATCH();
     }
     CASE(FDIVK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, data_type_t<FLOAT>(RGET(pc->b)->m_data.float_ /
-                                                   CV(pc->c)->m_data.float_)));
+      RSET(a,
+           Value::create(this, data_type_t<FLOAT>(RGET(pc->b)->m_data.float_ /
+                                                  CV(pc->c)->m_data.float_)));
       DISPATCH();
     }
     CASE(INEG) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, int64_t(-RGET(pc->b)->m_data.integer)));
+      RSET(a, Value::create(this, int64_t(-RGET(pc->b)->m_data.integer)));
       DISPATCH();
     }
     CASE(INEGK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, int64_t(-CV(pc->b)->m_data.integer)));
+      RSET(a, Value::create(this, int64_t(-CV(pc->b)->m_data.integer)));
       DISPATCH();
     }
     CASE(FNEG) {
       CSE_A();
       RFREE(a);
-      RSET(a,
-           Value::create(vm, data_type_t<FLOAT>(-RGET(pc->b)->m_data.float_)));
+      RSET(a, Value::create(this,
+                            data_type_t<FLOAT>(-RGET(pc->b)->m_data.float_)));
       DISPATCH();
     }
     CASE(FNEGK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, data_type_t<FLOAT>(-CV(pc->b)->m_data.float_)));
+      RSET(a,
+           Value::create(this, data_type_t<FLOAT>(-CV(pc->b)->m_data.float_)));
       DISPATCH();
     }
     CASE(BAND) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, int64_t(RGET(pc->b)->m_data.integer &
-                                        RGET(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, int64_t(RGET(pc->b)->m_data.integer &
+                                          RGET(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(BANDK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, int64_t(RGET(pc->b)->m_data.integer &
-                                        CV(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, int64_t(RGET(pc->b)->m_data.integer &
+                                          CV(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(BOR) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, int64_t(RGET(pc->b)->m_data.integer |
-                                        RGET(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, int64_t(RGET(pc->b)->m_data.integer |
+                                          RGET(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(BORK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, int64_t(RGET(pc->b)->m_data.integer |
-                                        CV(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, int64_t(RGET(pc->b)->m_data.integer |
+                                          CV(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(BXOR) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, int64_t(RGET(pc->b)->m_data.integer ^
-                                        RGET(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, int64_t(RGET(pc->b)->m_data.integer ^
+                                          RGET(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(BXORK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, int64_t(RGET(pc->b)->m_data.integer ^
-                                        CV(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, int64_t(RGET(pc->b)->m_data.integer ^
+                                          CV(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(BSHL) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, int64_t(RGET(pc->b)->m_data.integer
-                                        << RGET(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, int64_t(RGET(pc->b)->m_data.integer
+                                          << RGET(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(BSHLK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, int64_t(RGET(pc->b)->m_data.integer
-                                        << CV(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, int64_t(RGET(pc->b)->m_data.integer
+                                          << CV(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(BSHR) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, int64_t(RGET(pc->b)->m_data.integer >>
-                                        RGET(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, int64_t(RGET(pc->b)->m_data.integer >>
+                                          RGET(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(BSHRK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, int64_t(RGET(pc->b)->m_data.integer >>
-                                        CV(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, int64_t(RGET(pc->b)->m_data.integer >>
+                                          CV(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(BNOT) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, int64_t(~RGET(pc->b)->m_data.integer)));
+      RSET(a, Value::create(this, int64_t(~RGET(pc->b)->m_data.integer)));
       DISPATCH();
     }
     CASE(BNOTK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, int64_t(CV(pc->b)->m_data.integer)));
+      RSET(a, Value::create(this, int64_t(CV(pc->b)->m_data.integer)));
       DISPATCH();
     }
     CASE(AND) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.boolean &&
-                                     RGET(pc->c)->m_data.boolean)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.boolean &&
+                                       RGET(pc->c)->m_data.boolean)));
       DISPATCH();
     }
     CASE(ANDK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.boolean &&
-                                     CV(pc->c)->m_data.boolean)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.boolean &&
+                                       CV(pc->c)->m_data.boolean)));
       DISPATCH();
     }
     CASE(OR) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.boolean ||
-                                     RGET(pc->c)->m_data.boolean)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.boolean ||
+                                       RGET(pc->c)->m_data.boolean)));
       DISPATCH();
     }
     CASE(ORK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.boolean ||
-                                     CV(pc->c)->m_data.boolean)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.boolean ||
+                                       CV(pc->c)->m_data.boolean)));
       DISPATCH();
     }
     CASE(IEQ) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.integer ==
-                                     RGET(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.integer ==
+                                       RGET(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(IEQK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.integer ==
-                                     CV(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.integer ==
+                                       CV(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(FEQ) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.float_ ==
-                                     RGET(pc->c)->m_data.float_)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.float_ ==
+                                       RGET(pc->c)->m_data.float_)));
       DISPATCH();
     }
     CASE(FEQK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.float_ ==
-                                     CV(pc->c)->m_data.float_)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.float_ ==
+                                       CV(pc->c)->m_data.float_)));
       DISPATCH();
     }
     CASE(BEQ) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.boolean ==
-                                     RGET(pc->c)->m_data.boolean)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.boolean ==
+                                       RGET(pc->c)->m_data.boolean)));
       DISPATCH();
     }
     CASE(BEQK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.boolean ==
-                                     CV(pc->c)->m_data.boolean)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.boolean ==
+                                       CV(pc->c)->m_data.boolean)));
       DISPATCH();
     }
     CASE(SEQ) {
       CSE_A();
       RFREE(a)
       RSET(a, Value::create(
-                  vm, bool(std::strcmp(RGET(pc->b)->m_data.string,
-                                       RGET(pc->c)->m_data.string) == 0)));
+                  this, bool(std::strcmp(RGET(pc->b)->m_data.string,
+                                         RGET(pc->c)->m_data.string) == 0)));
       DISPATCH();
     }
     CASE(SEQK) {
       CSE_A();
       RFREE(a)
-      RSET(a,
-           Value::create(vm, bool(std::strcmp(RGET(pc->b)->m_data.string,
-                                              CV(pc->c)->m_data.string) == 0)));
+      RSET(a, Value::create(this,
+                            bool(std::strcmp(RGET(pc->b)->m_data.string,
+                                             CV(pc->c)->m_data.string) == 0)));
       DISPATCH();
     }
     CASE(INEQ) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.integer !=
-                                     RGET(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.integer !=
+                                       RGET(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(INEQK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.integer !=
-                                     CV(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.integer !=
+                                       CV(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(FNEQ) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.float_ !=
-                                     RGET(pc->c)->m_data.float_)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.float_ !=
+                                       RGET(pc->c)->m_data.float_)));
       DISPATCH();
     }
     CASE(FNEQK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.float_ !=
-                                     CV(pc->c)->m_data.float_)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.float_ !=
+                                       CV(pc->c)->m_data.float_)));
       DISPATCH();
     }
     CASE(BNEQ) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.boolean !=
-                                     RGET(pc->c)->m_data.boolean)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.boolean !=
+                                       RGET(pc->c)->m_data.boolean)));
       DISPATCH();
     }
     CASE(BNEQK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.boolean !=
-                                     CV(pc->c)->m_data.boolean)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.boolean !=
+                                       CV(pc->c)->m_data.boolean)));
       DISPATCH();
     }
     CASE(SNEQ) {
       CSE_A();
       RFREE(a)
       RSET(a, Value::create(
-                  vm, bool(std::strcmp(RGET(pc->b)->m_data.string,
-                                       RGET(pc->c)->m_data.string) != 0)));
+                  this, bool(std::strcmp(RGET(pc->b)->m_data.string,
+                                         RGET(pc->c)->m_data.string) != 0)));
       DISPATCH();
     }
     CASE(SNEQK) {
       CSE_A();
       RFREE(a)
-      RSET(a,
-           Value::create(vm, bool(std::strcmp(RGET(pc->b)->m_data.string,
-                                              CV(pc->c)->m_data.string) != 0)));
+      RSET(a, Value::create(this,
+                            bool(std::strcmp(RGET(pc->b)->m_data.string,
+                                             CV(pc->c)->m_data.string) != 0)));
       DISPATCH();
     }
     CASE(IS) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b) == RGET(pc->c))));
+      RSET(a, Value::create(this, bool(RGET(pc->b) == RGET(pc->c))));
       DISPATCH();
     }
     CASE(ILT) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.integer <
-                                     RGET(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.integer <
+                                       RGET(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(ILTK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.integer <
-                                     CV(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.integer <
+                                       CV(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(FLT) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.float_ <
-                                     RGET(pc->c)->m_data.float_)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.float_ <
+                                       RGET(pc->c)->m_data.float_)));
       DISPATCH();
     }
     CASE(FLTK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.float_ <
-                                     CV(pc->c)->m_data.float_)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.float_ <
+                                       CV(pc->c)->m_data.float_)));
       DISPATCH();
     }
     CASE(IGT) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.integer >
-                                     RGET(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.integer >
+                                       RGET(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(IGTK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.integer >
-                                     CV(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.integer >
+                                       CV(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(FGT) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.float_ >
-                                     RGET(pc->c)->m_data.float_)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.float_ >
+                                       RGET(pc->c)->m_data.float_)));
       DISPATCH();
     }
     CASE(FGTK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.float_ >
-                                     CV(pc->c)->m_data.float_)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.float_ >
+                                       CV(pc->c)->m_data.float_)));
       DISPATCH();
     }
     CASE(ILTEQ) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.integer <=
-                                     RGET(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.integer <=
+                                       RGET(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(ILTEQK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.integer <=
-                                     CV(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.integer <=
+                                       CV(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(FLTEQ) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.float_ <=
-                                     RGET(pc->c)->m_data.float_)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.float_ <=
+                                       RGET(pc->c)->m_data.float_)));
       DISPATCH();
     }
     CASE(FLTEQK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.float_ <=
-                                     CV(pc->c)->m_data.float_)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.float_ <=
+                                       CV(pc->c)->m_data.float_)));
       DISPATCH();
     }
     CASE(IGTEQ) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.integer >=
-                                     RGET(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.integer >=
+                                       RGET(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(IGTEQK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.integer >=
-                                     CV(pc->c)->m_data.integer)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.integer >=
+                                       CV(pc->c)->m_data.integer)));
       DISPATCH();
     }
     CASE(FGTEQ) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.float_ >=
-                                     RGET(pc->c)->m_data.float_)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.float_ >=
+                                       RGET(pc->c)->m_data.float_)));
       DISPATCH();
     }
     CASE(FGTEQK) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(RGET(pc->b)->m_data.float_ >=
-                                     CV(pc->c)->m_data.float_)));
+      RSET(a, Value::create(this, bool(RGET(pc->b)->m_data.float_ >=
+                                       CV(pc->c)->m_data.float_)));
       DISPATCH();
     }
     CASE(NOT) {
       CSE_A();
       RFREE(a);
-      RSET(a, Value::create(vm, bool(!RGET(pc->b)->m_data.boolean)));
+      RSET(a, Value::create(this, bool(!RGET(pc->b)->m_data.boolean)));
       DISPATCH();
     }
     CASE(JMP) {
@@ -733,21 +738,21 @@ template <bool SingleStep, bool OverridePC>
       DISPATCH();
     }
     CASE(SAVE) {
-      vm->save_stack();
+      m_save_stack();
       DISPATCH();
     }
     CASE(RESTORE) {
-      vm->restore_stack();
+      m_restore_stack();
       DISPATCH();
     }
     CASE(PUSH) {
       auto* val = RGET(pc->a);
       val->m_rc++;
-      vm->push_local(ValueRef(vm, val));
+      push_local(ValueRef(this, val));
       DISPATCH();
     }
     CASE(PUSHK) {
-      vm->push_local(CV_REF(pc->a));
+      push_local(CV_REF(pc->a));
       DISPATCH();
     }
     CASE(GETTOP) {
@@ -780,31 +785,31 @@ template <bool SingleStep, bool OverridePC>
       DISPATCH();
     }
     CASE(CALL) {
-      vm->call(ValueRef(vm, RGET(pc->a)));
+      call(ValueRef(this, RGET(pc->a)));
       DISPATCH();
     }
     CASE(PCALL) {
-      vm->call(ValueRef(vm, RGET(pc->a)), CallFlags::PROTECT);
+      call(ValueRef(this, RGET(pc->a)), CallFlags::PROTECT);
       DISPATCH();
     }
     CASE(RET) {
-      vm->return_(ValueRef(vm, RGET(pc->a)));
+      return_(ValueRef(this, RGET(pc->a)));
       DISPATCH();
     }
     CASE(RETNIL) {
-      vm->return_(ValueRef(vm, Value::create(vm)));
+      return_(ValueRef(this, Value::create(this)));
       DISPATCH();
     }
     CASE(RETTRUE) {
-      vm->return_(ValueRef(vm, Value::create(vm, true)));
+      return_(ValueRef(this, Value::create(this, true)));
       DISPATCH();
     }
     CASE(RETFALSE) {
-      vm->return_(ValueRef(vm, Value::create(vm, false)));
+      return_(ValueRef(this, Value::create(this, false)));
       DISPATCH();
     }
     CASE(RETK) {
-      vm->return_(CV_REF(pc->a));
+      return_(CV_REF(pc->a));
       DISPATCH();
     }
     CASE(TOINT) {
@@ -825,7 +830,7 @@ template <bool SingleStep, bool OverridePC>
     }
     CASE(GETIMPORT) {
       CSE_A();
-      auto import = vm->get_import(pc->b, pc->c);
+      auto import = get_import(pc->b, pc->c);
       import->m_rc++;
       RFREE(a);
       RSET(a, import.get());
@@ -852,6 +857,5 @@ template <bool SingleStep, bool OverridePC>
 exit:;
 }
 
-void via::VirtualMachine::execute() { detail::execute<false, false>(this); }
-
-void via::VirtualMachine::execute_once() { detail::execute<true, false>(this); }
+void via::VirtualMachine::execute() { m_execute<false, false>(); }
+void via::VirtualMachine::execute_once() { m_execute<true, false>(); }

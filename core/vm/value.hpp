@@ -68,9 +68,6 @@ class Value final {
   friend class ValueRef;
   friend class VirtualMachine;
 
-  template <bool, bool>
-  friend void detail::execute(VirtualMachine*);
-
  public:
   static Value* create(VirtualMachine* vm);
   static Value* create(VirtualMachine* vm, int64_t integer);
