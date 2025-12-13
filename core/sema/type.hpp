@@ -9,13 +9,12 @@
 
 #pragma once
 
-#include <concepts>
 #include <functional>
+#include <libassert/assert.hpp>
 #include <type_traits>
 #include <vector>
 #include <via/config.hpp>
 
-#include "debug.hpp"
 #include "support/enum.hpp"
 #include "support/memory.hpp"
 #include "support/type.hpp"
@@ -67,7 +66,7 @@ class Type {
   virtual bool is_callable() const { return false; }
   virtual bool is_subscriptable() const { return false; }
   virtual CastResult cast_result(const Type* to) const = 0;
-  virtual std::string to_string() const { debug::unimplemented(); }
+  virtual std::string to_string() const { UNREACHABLE(); }
 
  public:
   const TypeFlags flags;

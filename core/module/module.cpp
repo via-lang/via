@@ -13,13 +13,13 @@
 #include <format>
 #include <fstream>
 #include <iostream>
+#include <libassert/assert.hpp>
 
-#include "debug.hpp"
 #include "ir/builder.hpp"
+#include "ir/tree.hpp"
 #include "lexer/source_buffer.hpp"
 #include "manager.hpp"
 #include "os/dl.hpp"
-#include "support/memory.hpp"
 #include "symbol.hpp"
 #include "vm/debugger.hpp"
 #include "vm/machine.hpp"
@@ -102,7 +102,7 @@ std::expected<via::Module*, std::string> via::Module::load_native_object(
   auto& module_info = *((*callback)(&manager));
 
   // Validate module information
-  debug::require(module_info->size() != 0);
+  DEBUG_ASSERT(module_info->size() != 0);
 
   // Map module definitions
   for (const auto& entry : module_info.unwrap()) {
@@ -195,7 +195,7 @@ std::expected<via::Module*, std::string> via::Module::load_source_file(
     }
 
     // Build executable
-    Executable* exe = Executable::build_from_ir(module, diags, module->m_ir);
+    Executable* exe = Executable::build(module, diags, module->m_ir);
     module->m_exe = exe;
 
     // Check for the abscence of the no execution flag
@@ -254,24 +254,19 @@ error:
 }
 
 struct ModuleInfo {
-  enum class Kind {
-    SOURCE,
-    BINARY,
-    NATIVE,
-  } kind;
-
+  via::ImplKind kind;
   std::filesystem::path path;
 };
 
 struct ModuleCandidate {
-  ModuleInfo::Kind kind;
+  via::ImplKind kind;
   std::string name;
 };
 
 static std::optional<ModuleInfo> resolve_import_path(
     const std::filesystem::path& root, const via::QualName& path,
     const via::ModuleManager& manager) {
-  via::debug::require(!path.empty(), "bad import path");
+  DEBUG_ASSERT(!path.empty(), "bad import path");
 
   auto path_slice = path;
   auto& module_name = path_slice.back();
@@ -286,17 +281,17 @@ static std::optional<ModuleInfo> resolve_import_path(
     }
 
     ModuleCandidate candidates[] = {
-        {ModuleInfo::Kind::SOURCE, module_name + ".via"},
-        {ModuleInfo::Kind::BINARY, module_name + ".viac"},
+        {via::ImplKind::SOURCE, module_name + ".via"},
+        {via::ImplKind::BINARY, module_name + ".viac"},
 #ifdef VIA_PLATFORM_LINUX
-        {ModuleInfo::Kind::NATIVE, module_name + ".so"},
+        {via::ImplKind::NATIVE, module_name + ".so"},
 #elif defined(VIA_PLATFORM_WINDOWS)
-        {ModuleInfo::Kind::NATIVE, module_name + ".dll"},
+        {via::ImplKind::NATIVE, module_name + ".dll"},
 #endif
     };
 
     auto try_path = [&](const std::filesystem::path& candidate,
-                        ModuleInfo::Kind kind) -> std::optional<ModuleInfo> {
+                        via::ImplKind kind) -> std::optional<ModuleInfo> {
       if (std::filesystem::exists(candidate) &&
           std::filesystem::is_regular_file(candidate))
         return ModuleInfo{.kind = kind, .path = candidate};
@@ -311,7 +306,7 @@ static std::optional<ModuleInfo> resolve_import_path(
 
     // Fallback: module in a subfolder "module.via"
     auto module_path = path / module_name / "module.via";
-    if (auto result = try_path(module_path, ModuleInfo::Kind::SOURCE))
+    if (auto result = try_path(module_path, via::ImplKind::SOURCE))
       return result;
     return std::nullopt;
   };
@@ -341,14 +336,14 @@ std::expected<via::Module*, std::string> via::Module::import(
   }
 
   switch (module->kind) {
-    case ModuleInfo::Kind::SOURCE:
+    case ImplKind::SOURCE:
       return Module::load_source_file(m_manager, this, path.back().c_str(),
                                       module->path, ast_decl, m_perms, m_flags);
-    case ModuleInfo::Kind::NATIVE:
+    case ImplKind::NATIVE:
       return Module::load_native_object(m_manager, this, path.back().c_str(),
                                         module->path, ast_decl, m_perms,
                                         m_flags);
     default:
-      debug::todo("module types");
+      UNREACHABLE("unimplemented module type");
   }
 }

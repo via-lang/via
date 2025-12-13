@@ -9,9 +9,10 @@
 
 #include "diagnostics.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <libassert/assert.hpp>
 
-#include "debug.hpp"
 #include "logger.hpp"
 #include "support/ansi.hpp"
 
@@ -27,7 +28,7 @@ std::string via::to_string(Note::Kind kind) noexcept {
       return ansi::format("SUGGESTION", ansi::Foreground::MAGENTA,
                           ansi::Background::NONE, ansi::Style::BOLD);
   }
-  debug::unimplemented();
+  UNREACHABLE();
 }
 
 bool via::Diagnostics::failed() const {

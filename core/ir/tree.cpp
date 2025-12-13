@@ -9,6 +9,8 @@
 
 #include "tree.hpp"
 
+#include <libassert/assert.hpp>
+
 #include "lexer/token.hpp"
 #include "module/symbol.hpp"
 #include "support/ansi.hpp"
@@ -36,8 +38,7 @@ via::UnaryOp via::to_unary_op(via::TokenKind kind) noexcept {
     default:
       break;
   }
-
-  via::debug::unimplemented("unmapped UnaryOp TokenKind");
+  UNREACHABLE("unmapped UnaryOp TokenKind");
 }
 
 via::BinaryOp via::to_binary_op(via::TokenKind kind) noexcept {
@@ -71,8 +72,7 @@ via::BinaryOp via::to_binary_op(via::TokenKind kind) noexcept {
     default:
       break;
   }
-
-  via::debug::unimplemented("unmapped BinaryOp TokenKind");
+  UNREACHABLE("unmapped BinaryOp TokenKind");
 }
 
 std::string via::ir::TrReturn::to_string(const SymbolTable* sym_tab,

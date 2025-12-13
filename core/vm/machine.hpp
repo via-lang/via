@@ -12,11 +12,11 @@
 #include <cstddef>
 #include <functional>
 #include <iostream>
+#include <libassert/assert.hpp>
 #include <ostream>
 #include <string>
 #include <via/config.hpp>
 
-#include "debug.hpp"
 #include "executable.hpp"
 #include "instruction.hpp"
 #include "module/symbol.hpp"
@@ -117,7 +117,7 @@ class VirtualMachine final {
         m_pc(m_bp),
         m_stack(m_alloc),
         m_registers(std::make_unique<Value*[]>(config::vm::REGISTER_COUNT)) {
-    debug::require(!exe->bytecode().empty(), "illformed header");
+    DEBUG_ASSERT(!exe->bytecode().empty(), "illformed header");
   }
 
  public:

@@ -8,8 +8,8 @@
 ** ===================================================== */
 
 #include <cstring>
+#include <libassert/assert.hpp>
 
-#include "debug.hpp"
 #include "machine.hpp"
 #include "module/manager.hpp"
 #include "reference.hpp"
@@ -701,14 +701,14 @@ template <bool SingleStep, bool OverridePC>
       DISPATCH();
     }
     CASE(JMPIF) {
-      if (RGET(pc->a)->as_c<BOOL>()) {
+      if (RGET(pc->a)->template as_c<BOOL>()) {
         JFWD(pack_halves<uint32_t>(pc->b, pc->c));
         DISPATCH();
       }
       DISPATCH();
     }
     CASE(JMPIFX) {
-      if (!RGET(pc->a)->as_c<BOOL>()) {
+      if (!RGET(pc->a)->template as_c<BOOL>()) {
         JFWD(pack_halves<uint32_t>(pc->b, pc->c));
         DISPATCH();
       }
@@ -719,14 +719,14 @@ template <bool SingleStep, bool OverridePC>
       DISPATCH();
     }
     CASE(JMPBACKIF) {
-      if (RGET(pc->a)->as_c<BOOL>()) {
+      if (RGET(pc->a)->template as_c<BOOL>()) {
         JBACK(pack_halves<uint32_t>(pc->b, pc->c));
         DISPATCH();
       }
       DISPATCH();
     }
     CASE(JMPBACKIFX) {
-      if (!RGET(pc->a)->as_c<BOOL>()) {
+      if (!RGET(pc->a)->template as_c<BOOL>()) {
         JBACK(pack_halves<uint32_t>(pc->b, pc->c));
         DISPATCH();
       }
@@ -808,19 +808,19 @@ template <bool SingleStep, bool OverridePC>
       DISPATCH();
     }
     CASE(TOINT) {
-      RSET(pc->a, RGET(pc->b)->as<INT>());
+      RSET(pc->a, RGET(pc->b)->template as<INT>());
       DISPATCH();
     }
     CASE(TOFLOAT) {
-      RSET(pc->a, RGET(pc->b)->as<FLOAT>());
+      RSET(pc->a, RGET(pc->b)->template as<FLOAT>());
       DISPATCH();
     }
     CASE(TOBOOL) {
-      RSET(pc->a, RGET(pc->b)->as<BOOL>());
+      RSET(pc->a, RGET(pc->b)->template as<BOOL>());
       DISPATCH();
     }
     CASE(TOSTRING) {
-      RSET(pc->a, RGET(pc->b)->as<STRING>());
+      RSET(pc->a, RGET(pc->b)->template as<STRING>());
       DISPATCH();
     }
     CASE(GETIMPORT) {
@@ -841,11 +841,11 @@ template <bool SingleStep, bool OverridePC>
 
   // clang-format off
 [[maybe_unused]] trap__unknown_opcode:
-    DBG_TRAP("trap: unknown opcode 0x{:x} ({})", (uint16_t) pc->op, to_string(pc->op));
+    PANIC("trap: unknown opcode 0x{:x} ({})", (uint16_t) pc->op, to_string(pc->op));
 [[maybe_unused]] trap__reserved_opcode:
-    DBG_TRAP("trap: reserved opcode 0x{:x} ({})", (uint16_t) pc->op, to_string(pc->op));
+    PANIC("trap: reserved opcode 0x{:x} ({})", (uint16_t) pc->op, to_string(pc->op));
 [[maybe_unused]] trap__unimplemented_opcode:
-    DBG_TRAP("trap: unimplemented opcode 0x{:x} ({})", (uint16_t) pc->op, to_string(pc->op));
+    PANIC("trap: unimplemented opcode 0x{:x} ({})", (uint16_t) pc->op, to_string(pc->op));
     DISPATCH();
   // clang-format on
 

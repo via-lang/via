@@ -9,9 +9,9 @@
 
 #include "lexer/source_buffer.hpp"
 
+#include <libassert/assert.hpp>
 #include <limits>
 
-#include "debug.hpp"
 #include "lexer/token.hpp"
 
 bool via::SourceBuffer::is_valid_range(SourceLoc loc) const {
@@ -21,9 +21,8 @@ bool via::SourceBuffer::is_valid_range(SourceLoc loc) const {
 }
 
 std::string via::SourceBuffer::get_slice(SourceLoc loc) const {
-  debug::require(is_valid_range(loc), "Invalid range");
+  DEBUG_ASSERT(is_valid_range(loc), "invalid range");
   std::ostringstream oss;
-
   for (size_t i = loc.begin; i < loc.end; i++) oss << m_buffer.at(i);
   return oss.str();
 }

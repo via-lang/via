@@ -23,6 +23,7 @@ namespace via {
 
 #define FOR_EACH_IMPL_KIND(X) \
   X(SOURCE)                   \
+  X(BINARY)                   \
   X(NATIVE)
 
 enum class ImplKind { FOR_EACH_IMPL_KIND(DEFINE_ENUM) };

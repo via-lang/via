@@ -9,8 +9,6 @@
 
 #pragma once
 
-#include <algorithm>
-#include <ranges>
 #include <via/config.hpp>
 
 #include "lexer/source_buffer.hpp"
@@ -26,18 +24,18 @@ enum class Level : uint8_t {
 };
 
 struct Note {
-  const enum Kind {
+  enum Kind {
     NOTE,
     HINT,
     SUGGESTION,
-  } kind = Kind::NOTE;
+  };
 
+  const Kind kind = Kind::NOTE;
   const bool valid = false;
   const std::string msg;
 
   Note() = default;
-  explicit Note(Kind kind, std::string msg)
-      : kind(kind), valid(true), msg(msg) {}
+  Note(Kind kind, std::string msg) : kind(kind), valid(true), msg(msg) {}
 };
 
 struct Diagnosis {

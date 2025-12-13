@@ -9,22 +9,20 @@
 
 #include "machine.hpp"
 
+#include <libassert/assert.hpp>
 #include <ostream>
 
 #include "closure.hpp"
-#include "debug.hpp"
-#include "instruction.hpp"
 #include "module/binding.hpp"
 #include "module/manager.hpp"
 #include "module/module.hpp"
 #include "reference.hpp"
-#include "sema/const_value.hpp"
 #include "value.hpp"
 
 template <>
 via::IntAction via::detail::handle_interrupt<via::Interrupt::NONE>(
     VirtualMachine* vm) {
-  debug::bug("handle_interrupt<Interrupt::NONE> called");
+  UNREACHABLE();
 }
 
 template <>
@@ -121,7 +119,7 @@ via::ValueRef via::VirtualMachine::get_import(SymbolId module_id,
 
 // TODO: Better error handling
 error:
-  debug::bug("invalid call to VirtualMachine::get_import");
+  PANIC("invalid call to VirtualMachine::get_import");
 }
 
 void via::VirtualMachine::set_interrupt(Interrupt code, void* arg) noexcept {
@@ -138,7 +136,7 @@ void via::VirtualMachine::push_local(ValueRef val) {
 
 via::ValueRef via::VirtualMachine::get_local(size_t sp) {
   // Ensure the stack pointer is within bounds
-  debug::require(sp < m_stack.size(), "invalid stack pointer");
+  DEBUG_ASSERT(sp < m_stack.size(), "bad stack pointer");
   return ValueRef(this, (Value*)m_stack.at(sp));
 }
 
@@ -183,7 +181,7 @@ void via::VirtualMachine::call(ValueRef callee, CallFlags flags) {
 
 void via::VirtualMachine::return_(ValueRef value) {
   // Check if the frame pointer is valid
-  debug::require(m_fp != nullptr);
+  DEBUG_ASSERT(m_fp != nullptr, "bad internal frame pointer during return");
 
   // Get the top of the stack
   uintptr_t* top = &m_stack.top();

@@ -11,10 +11,10 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <libassert/assert.hpp>
 #include <vector>
 #include <via/config.hpp>
 
-#include "debug.hpp"
 #include "utility.hpp"
 
 namespace via {
@@ -113,7 +113,7 @@ class BumpAllocator final {
         (cur + (align - 1)) & ~(static_cast<std::uintptr_t>(align) - 1);
     std::byte* out = reinterpret_cast<std::byte*>(aligned);
 
-    debug::require(out + size <= m_end, "BumpAllocator overflow");
+    DEBUG_ASSERT(out + size <= m_end, "bump allocator overflow");
     m_cursor = out + size;
     return out;
   }

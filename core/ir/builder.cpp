@@ -9,15 +9,15 @@
 
 #include "builder.hpp"
 
-#include <cpptrace/basic.hpp>
 #include <format>
+#include <libassert/assert.hpp>
 #include <vector>
 
 #include "ast/tree.hpp"
-#include "debug.hpp"
 #include "diagnostics.hpp"
 #include "ir/tree.hpp"
 #include "module/binding.hpp"
+#include "sema/control_flow.hpp"
 #include "sema/local_ir.hpp"
 #include "sema/stack.hpp"
 #include "sema/type.hpp"
@@ -115,7 +115,7 @@ static const BinaryOpInfo BINARY_OP_TABLE[] = {
 
 template <>
 via::QualType via::IRBuilder::type_of<via::ast::ExprLiteral>(
-    const ast::ExprLiteral* ast_expr_literal) noexcept {
+    const ast::ExprLiteral* ast_expr_literal) {
   using enum TokenKind;
   using enum BuiltinKind;
 
@@ -141,7 +141,7 @@ via::QualType via::IRBuilder::type_of<via::ast::ExprLiteral>(
       kind = STRING;
       break;
     default:
-      debug::bug("invalid literal expression");
+      UNREACHABLE("invalid literal expression");
   }
   return m_types.instance<via::BuiltinType>(kind);
 }
@@ -149,7 +149,7 @@ via::QualType via::IRBuilder::type_of<via::ast::ExprLiteral>(
 template <>
 via::QualType via::IRBuilder::type_of<via::ast::ExprSymbol>(
 
-    const ast::ExprSymbol* ast_expr_symbol) noexcept {
+    const ast::ExprSymbol* ast_expr_symbol) {
   auto& frame = m_stack.top();
   auto symbol = ast_expr_symbol->symbol->to_string();
   auto id = intern_symbol(ast_expr_symbol->symbol->to_string());
@@ -171,7 +171,7 @@ via::QualType via::IRBuilder::type_of<via::ast::ExprSymbol>(
 template <>
 via::QualType via::IRBuilder::type_of<via::ast::ExprStaticAccess>(
 
-    const ast::ExprStaticAccess* ast_expr_st_access) noexcept {
+    const ast::ExprStaticAccess* ast_expr_st_access) {
   if TRY_COERCE (const ast::ExprSymbol, symbol, ast_expr_st_access->root) {
     auto& manager = m_module->manager();
     auto low = intern_symbol(symbol->symbol->to_string());
@@ -199,7 +199,7 @@ via::QualType via::IRBuilder::type_of<via::ast::ExprStaticAccess>(
 template <>
 via::QualType via::IRBuilder::type_of<via::ast::ExprUnary>(
 
-    const ast::ExprUnary* ast_expr_unary) noexcept {
+    const ast::ExprUnary* ast_expr_unary) {
   auto op = to_unary_op(ast_expr_unary->op->kind);
   auto info = UNARY_OP_TABLE[static_cast<uint8_t>(op)];
   auto type = type_of(ast_expr_unary->expr);
@@ -209,7 +209,7 @@ via::QualType via::IRBuilder::type_of<via::ast::ExprUnary>(
 template <>
 via::QualType via::IRBuilder::type_of<via::ast::ExprBinary>(
 
-    const ast::ExprBinary* ast_expr_binary) noexcept {
+    const ast::ExprBinary* ast_expr_binary) {
   auto op = to_binary_op(ast_expr_binary->op->kind);
   auto info = BINARY_OP_TABLE[static_cast<uint8_t>(op)];
   auto lhs = type_of(ast_expr_binary->lhs), rhs = type_of(ast_expr_binary->rhs);
@@ -219,7 +219,7 @@ via::QualType via::IRBuilder::type_of<via::ast::ExprBinary>(
 template <>
 via::QualType via::IRBuilder::type_of<via::ast::ExprCall>(
 
-    const ast::ExprCall* ast_expr_call) noexcept {
+    const ast::ExprCall* ast_expr_call) {
   auto callee = type_of(ast_expr_call->callee);
   if TRY_COERCE (const FunctionType, function, callee.unwrap())
     return function->returns();
@@ -229,14 +229,14 @@ via::QualType via::IRBuilder::type_of<via::ast::ExprCall>(
 template <>
 via::QualType via::IRBuilder::type_of<via::ast::ExprCast>(
 
-    const ast::ExprCast* ast_expr_cast) noexcept {
+    const ast::ExprCast* ast_expr_cast) {
   return type_of(ast_expr_cast->type);
 }
 
 template <>
 via::QualType via::IRBuilder::type_of<via::ast::ExprTernary>(
 
-    const ast::ExprTernary* ast_expr_ternary) noexcept {
+    const ast::ExprTernary* ast_expr_ternary) {
   auto lhs = type_of(ast_expr_ternary->lhs),
        rhs = type_of(ast_expr_ternary->rhs);
   return lhs == rhs ? lhs : nullptr;
@@ -245,7 +245,7 @@ via::QualType via::IRBuilder::type_of<via::ast::ExprTernary>(
 template <>
 via::QualType via::IRBuilder::type_of<via::ast::TypeBuiltin>(
 
-    const ast::TypeBuiltin* ast_type_builtin) noexcept {
+    const ast::TypeBuiltin* ast_type_builtin) {
   using enum TokenKind;
   using enum BuiltinKind;
   BuiltinKind kind;
@@ -267,13 +267,13 @@ via::QualType via::IRBuilder::type_of<via::ast::TypeBuiltin>(
       kind = STRING;
       break;
     default:
-      debug::bug("unmapped builtin type token");
+      UNREACHABLE("unmapped builtin type token");
   }
 
   return m_types.instance<BuiltinType>(kind);
 }
 
-via::QualType via::IRBuilder::type_of(const ast::Expr* expr) noexcept {
+via::QualType via::IRBuilder::type_of(const ast::Expr* expr) {
 #define VISIT_EXPR(TYPE) \
   if TRY_COERCE (const TYPE, _INNER, expr) return type_of<TYPE>(_INNER);
 
@@ -295,10 +295,10 @@ via::QualType via::IRBuilder::type_of(const ast::Expr* expr) noexcept {
   if TRY_COERCE (const ast::ExprGroup, expr_group, expr)
     return type_of(expr_group->expr);
 
-  debug::unimplemented(std::format("type_of({})", VIA_TYPENAME(*expr)));
+  UNREACHABLE(std::format("type_of({})", VIA_TYPENAME(*expr)));
 }
 
-via::QualType via::IRBuilder::type_of(const ast::Type* type) noexcept {
+via::QualType via::IRBuilder::type_of(const ast::Type* type) {
 #define VISIT_TYPE(TYPE) \
   if TRY_COERCE (const TYPE, _INNER, type) return type_of<TYPE>(_INNER);
 
@@ -318,17 +318,16 @@ via::QualType via::IRBuilder::type_of(const ast::Type* type) noexcept {
   VISIT_TYPE(ast::TypeMap);
   VISIT_TYPE(ast::TypeFunc);
 
-  debug::todo(std::format("type_of({})", VIA_TYPENAME(*type)));
+  UNREACHABLE(std::format("type_of({})", VIA_TYPENAME(*type)));
 #undef VISIT_TYPE
 }
 
 template <>
 const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprLiteral>(
 
-    const ast::ExprLiteral* ast_literal_expr) noexcept {
+    const ast::ExprLiteral* ast_literal_expr) {
   auto const_value = ConstValue::from_token(*ast_literal_expr->tok);
-
-  debug::require(const_value.has_value());
+  ASSERT_VAL(const_value);
 
   auto* constant_expr = m_alloc.emplace<ir::ExprConstant>();
   constant_expr->loc = ast_literal_expr->loc;
@@ -340,7 +339,7 @@ const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprLiteral>(
 template <>
 const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprSymbol>(
 
-    const ast::ExprSymbol* ast_symbol_expr) noexcept {
+    const ast::ExprSymbol* ast_symbol_expr) {
   if (is_poisoned(ast_symbol_expr->symbol->to_string())) return nullptr;
 
   auto& frame = m_stack.top();
@@ -365,7 +364,7 @@ const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprSymbol>(
 template <>
 const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprStaticAccess>(
 
-    const ast::ExprStaticAccess* ast_stc_access_expr) noexcept {
+    const ast::ExprStaticAccess* ast_stc_access_expr) {
   // Check for module thing
   if TRY_COERCE (const ast::ExprSymbol, root_symbol,
                  ast_stc_access_expr->root) {
@@ -400,7 +399,7 @@ const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprStaticAccess>(
 template <>
 const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprDynAccess>(
 
-    const ast::ExprDynAccess* ast_dyn_access_expr) noexcept {
+    const ast::ExprDynAccess* ast_dyn_access_expr) {
   auto* access_expr = m_alloc.emplace<ir::ExprAccess>();
   access_expr->kind = ir::ExprAccess::Kind::DYNAMIC;
   access_expr->root = lower_expr(ast_dyn_access_expr->root);
@@ -413,7 +412,7 @@ const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprDynAccess>(
 template <>
 const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprUnary>(
 
-    const ast::ExprUnary* ast_expr_unary) noexcept {
+    const ast::ExprUnary* ast_expr_unary) {
   auto* unary_expr = m_alloc.emplace<ir::ExprUnary>();
   unary_expr->op = to_unary_op(ast_expr_unary->op->kind);
   unary_expr->expr = lower_expr(ast_expr_unary->expr);
@@ -428,7 +427,7 @@ const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprUnary>(
         ast_expr_unary->loc, std::format("invalid unary operation '{}' ({}) on "
                                          "incompatible type '{}'",
                                          ast_expr_unary->op->to_string(),
-                                         to_string(op), dump_type(type)));
+                                         to_string(op), dump(type)));
   }
 
   unary_expr->type = info.get_result(m_types, type);
@@ -438,7 +437,7 @@ const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprUnary>(
 template <>
 const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprBinary>(
 
-    const ast::ExprBinary* ast_expr_binary) noexcept {
+    const ast::ExprBinary* ast_expr_binary) {
   auto* binary_expr = m_alloc.emplace<ir::ExprBinary>();
   binary_expr->op = to_binary_op(ast_expr_binary->op->kind);
   binary_expr->lhs = lower_expr(ast_expr_binary->lhs);
@@ -466,14 +465,14 @@ const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprBinary>(
 template <>
 const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprGroup>(
 
-    const ast::ExprGroup* ast_expr_group) noexcept {
+    const ast::ExprGroup* ast_expr_group) {
   return lower_expr(ast_expr_group->expr);
 }
 
 template <>
 const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprCall>(
 
-    const ast::ExprCall* ast_expr_call) noexcept {
+    const ast::ExprCall* ast_expr_call) {
   auto* call_expr = m_alloc.emplace<ir::ExprCall>();
   call_expr->callee = lower_expr(ast_expr_call->callee);
   call_expr->loc = ast_expr_call->loc;
@@ -498,7 +497,7 @@ const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprCall>(
             {ast_expr_call->loc.end - 1, ast_expr_call->loc.end},
             std::format("in function call to '{}': "
                         "missing required argument for parameter #{}",
-                        dump_expr(ast_expr_call->callee), arg_id));
+                        dump(ast_expr_call->callee), arg_id));
       } else {
         auto* arg = ast_expr_call->args.at(arg_id);
         auto arg_type = type_of(arg);
@@ -510,14 +509,14 @@ const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprCall>(
                   "in function call to '{}': "
                   "argument #{} of type '{}' is incompatible with parameter "
                   "that expects type '{}'",
-                  dump_expr(ast_expr_call->callee), arg_id, dump_type(arg_type),
-                  dump_type(parm_type)),
+                  dump(ast_expr_call->callee), arg_id, dump(arg_type),
+                  dump(parm_type)),
               cast_result != CastResult::INVALID
                   ? Note(Note::NOTE,
                          std::format(
                              "conversion from '{}' to '{}' possible with "
                              "explicit cast",
-                             dump_type(arg_type), dump_type(parm_type)))
+                             dump(arg_type), dump(parm_type)))
                   : Note{});
         }
       }
@@ -530,7 +529,7 @@ const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprCall>(
       m_diags.report<Level::ERROR>(
           {first->loc.begin, last->loc.end},
           std::format("in function call to '{}': expected {} arguments, got {}",
-                      dump_expr(ast_expr_call->callee), parm_count, arg_count),
+                      dump(ast_expr_call->callee), parm_count, arg_count),
           {Note::SUGGESTION, "remove argument(s)"});
     }
 
@@ -538,8 +537,7 @@ const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprCall>(
   } else {
     m_diags.report<Level::ERROR>(
         ast_expr_call->loc,
-        std::format("attempt to call non-function type '{}'",
-                    dump_type(callee)));
+        std::format("attempt to call non-function type '{}'", dump(callee)));
   }
   return call_expr;
 }
@@ -547,7 +545,7 @@ const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprCall>(
 template <>
 const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprCast>(
 
-    const ast::ExprCast* ast_expr_cast) noexcept {
+    const ast::ExprCast* ast_expr_cast) {
   auto cast_type = type_of(ast_expr_cast->type);
   auto* cast_expr = m_alloc.emplace<ir::ExprCast>();
   cast_expr->expr = lower_expr(ast_expr_cast->expr);
@@ -560,7 +558,7 @@ const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprCast>(
       m_diags.report<Level::WARNING>(
           ast_expr_cast->expr->loc,
           std::format("redundant type cast: expression is already of type '{}'",
-                      dump_type(cast_type)),
+                      dump(cast_type)),
           {Note::SUGGESTION, "Remove cast"});
     }
 
@@ -568,13 +566,13 @@ const via::ir::Expr* via::IRBuilder::lower_expr<via::ast::ExprCast>(
       m_diags.report<Level::ERROR>(
           ast_expr_cast->expr->loc,
           std::format("expression of type '{}' cannot be casted into type '{}'",
-                      dump_type(expr_type), dump_type(cast_type)));
+                      dump(expr_type), dump(cast_type)));
     }
   }
   return cast_expr;
 }
 
-const via::ir::Expr* via::IRBuilder::lower_expr(const ast::Expr* expr) {
+const via::ir::Expr* via::IRBuilder::lower(const ast::Expr* expr) {
 #define VISIT_EXPR(TYPE) \
   if TRY_COERCE (const TYPE, _INNER, expr) return lower_expr<TYPE>(_INNER);
 
@@ -596,14 +594,13 @@ const via::ir::Expr* via::IRBuilder::lower_expr(const ast::Expr* expr) {
   if TRY_COERCE (const ast::ExprGroup, expr_group, expr)
     return lower_expr(expr_group->expr);
 
-  debug::unimplemented(
-      std::format("case IRBuilder::lower_expr({})", VIA_TYPENAME(*expr)));
+  UNREACHABLE(std::format("IRBuilder::lower_expr({})", VIA_TYPENAME(*expr)));
 }
 
 template <>
 const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatIf>(
 
-    const ast::StatIf* ast_stat_if) noexcept {
+    const ast::StatIf* ast_stat_if) {
   auto* merge_block = m_alloc.emplace<ir::StatBlock>();
   merge_block->id = m_block_id++;
 
@@ -669,7 +666,7 @@ const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatIf>(
 template <>
 const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatWhile>(
 
-    const ast::StatWhile* ast_stat_while) noexcept {
+    const ast::StatWhile* ast_stat_while) {
   auto* merge_block = m_alloc.emplace<ir::StatBlock>();
   merge_block->id = m_block_id++;
 
@@ -721,7 +718,7 @@ const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatWhile>(
 template <>
 const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatVarDecl>(
 
-    const ast::StatVarDecl* ast_stat_var_decl) noexcept {
+    const ast::StatVarDecl* ast_stat_var_decl) {
   auto* decl_stat = m_alloc.emplace<ir::StatVarDecl>();
   decl_stat->expr = lower_expr(ast_stat_var_decl->rval);
   decl_stat->loc = ast_stat_var_decl->loc;
@@ -736,12 +733,12 @@ const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatVarDecl>(
             ast_stat_var_decl->rval->loc,
             std::format(
                 "expression of type '{}' does not match declaration type '{}'",
-                dump_type(rval_type), dump_type(decl_stat->type)),
+                dump(rval_type), dump(decl_stat->type)),
             rval_type.cast_result(decl_stat->type) != CastResult::INVALID
-                ? Note{Note::NOTE, std::format("conversion from '{}' to '{}' "
-                                               "possible with explicit cast",
-                                               dump_type(rval_type),
-                                               dump_type(decl_stat->type))}
+                ? Note{Note::NOTE,
+                       std::format("conversion from '{}' to '{}' "
+                                   "possible with explicit cast",
+                                   dump(rval_type), dump(decl_stat->type))}
                 : Note{});
         goto fallback;
       }
@@ -752,7 +749,7 @@ const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatVarDecl>(
 
     decl_stat->symbol = intern_symbol(lval->symbol->to_string());
   } else {
-    debug::bug("bad lvalue");
+    UNREACHABLE("bad lvalue");
   }
 
   m_stack.top().set_local(decl_stat->symbol, ast_stat_var_decl, decl_stat);
@@ -762,7 +759,7 @@ const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatVarDecl>(
 template <>
 const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatReturn>(
 
-    const ast::StatReturn* ast_stat_return) noexcept {
+    const ast::StatReturn* ast_stat_return) {
   auto* term = m_alloc.emplace<ir::TrReturn>();
   term->implicit = false;
   term->loc = ast_stat_return->loc;
@@ -780,7 +777,7 @@ const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatReturn>(
 template <>
 const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatImport>(
 
-    const ast::StatImport* ast_stat_import) noexcept {
+    const ast::StatImport* ast_stat_import) {
   QualName qual_name;
   for (const Token* token : ast_stat_import->path) {
     qual_name.push_back(token->to_string());
@@ -816,7 +813,7 @@ const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatImport>(
 template <>
 const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatFunctionDecl>(
 
-    const ast::StatFunctionDecl* ast_stat_function_decl) noexcept {
+    const ast::StatFunctionDecl* ast_stat_function_decl) {
   auto* decl_stat = m_alloc.emplace<ir::StatFuncDecl>();
   decl_stat->kind = ImplKind::SOURCE;
   decl_stat->symbol = intern_symbol(ast_stat_function_decl->name->to_string());
@@ -929,7 +926,7 @@ const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatFunctionDecl>(
         block->loc,
         std::format("Function return type '{}' does not match inferred "
                     "return type '{}' from all control paths",
-                    dump_type(decl_stat->ret), dump_type(expected_ret_type)));
+                    dump(decl_stat->ret), dump(expected_ret_type)));
   }
 
   auto& frame = m_stack.top();
@@ -944,19 +941,19 @@ const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatFunctionDecl>(
 template <>
 const via::ir::Stat* via::IRBuilder::lower_stat<via::ast::StatExpr>(
 
-    const ast::StatExpr* ast_stat_expr) noexcept {
+    const ast::StatExpr* ast_stat_expr) {
   auto* expr = m_alloc.emplace<ir::StatExpr>();
   expr->expr = lower_expr(ast_stat_expr->expr);
   expr->loc = ast_stat_expr->loc;
   return expr;
 }
 
-via::ir::StatBlock* via::IRBuilder::end_block() noexcept {
+via::ir::StatBlock* via::IRBuilder::end_block() {
   m_should_push_block = true;
   return m_current_block;
 }
 
-via::ir::StatBlock* via::IRBuilder::new_block(size_t id) noexcept {
+via::ir::StatBlock* via::IRBuilder::new_block(size_t id) {
   ir::StatBlock* block = m_current_block;
   m_should_push_block = false;
   m_current_block = m_alloc.emplace<ir::StatBlock>();
@@ -964,13 +961,13 @@ via::ir::StatBlock* via::IRBuilder::new_block(size_t id) noexcept {
   return block;
 }
 
-std::string via::IRBuilder::dump_type(QualType type) noexcept {
+std::string via::IRBuilder::dump(QualType type) {
   return ansi::format(type.unwrap() ? type.to_string() : "<type error>",
                       ansi::Foreground::MAGENTA, ansi::Background::NONE,
                       ansi::Style::BOLD);
 }
 
-std::string via::IRBuilder::dump_expr(const ast::Expr* expr) noexcept {
+std::string via::IRBuilder::dump(const ast::Expr* expr) {
   std::ostringstream oss;
   if (expr != nullptr) {
     for (const char chr : m_module->source().get_slice(expr->loc)) {
@@ -987,7 +984,7 @@ std::string via::IRBuilder::dump_expr(const ast::Expr* expr) noexcept {
                       ansi::Style::BOLD);
 }
 
-const via::ir::Stat* via::IRBuilder::lower_stat(const ast::Stat* stat) {
+const via::ir::Stat* via::IRBuilder::lower(const ast::Stat* stat) {
 #define VISIT_STMT(TYPE) \
   if TRY_COERCE (const TYPE, _INNER, stat) return lower_stat<TYPE>(_INNER);
 
@@ -1009,8 +1006,7 @@ const via::ir::Stat* via::IRBuilder::lower_stat(const ast::Stat* stat) {
 
   if TRY_IS (const ast::StatEmpty, stat) return nullptr;
 
-  debug::unimplemented(
-      std::format("case IRBuilder::lower_stat({})", VIA_TYPENAME(*stat)));
+  UNREACHABLE(std::format("IRBuilder::lower_stat({})", VIA_TYPENAME(*stat)));
 }
 
 via::IRTree via::IRBuilder::build() {

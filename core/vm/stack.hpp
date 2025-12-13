@@ -10,6 +10,7 @@
 #pragma once
 
 #include <cstddef>
+#include <libassert/assert.hpp>
 #include <via/config.hpp>
 
 #include "support/memory.hpp"
@@ -34,22 +35,22 @@ class Stack final {
   inline bool empty() const { return m_sp == m_bp; }
 
   inline void push(T val) {
-    debug::require(size() < capacity(), "stack overflow");
+    DEBUG_ASSERT(size() < capacity(), "vm stack overflow");
     *(m_sp++) = val;
   }
 
   inline T pop() {
-    debug::require(!empty(), "stack underflow");
+    DEBUG_ASSERT(!empty(), "vm stack underflow");
     return *(--m_sp);
   }
 
   inline T& top() {
-    debug::require(!empty(), "stack underflow");
+    DEBUG_ASSERT(!empty(), "vm stack underflow");
     return *(m_sp - 1);
   }
 
   inline const T& top() const {
-    debug::require(!empty(), "stack underflow");
+    DEBUG_ASSERT(!empty(), "vm stack underflow");
     return *(m_sp - 1);
   }
 

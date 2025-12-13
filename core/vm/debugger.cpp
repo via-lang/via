@@ -10,6 +10,7 @@
 #include "debugger.hpp"
 
 #include <iomanip>
+#include <libassert/assert.hpp>
 #include <print>
 #include <sstream>
 
@@ -55,8 +56,8 @@ static via::CommandArgument parse_argument(const std::string& tok) {
   if (tok.size() > 2 && tok[0] == '0' && (tok[1] == 'x' || tok[1] == 'X')) {
     try {
       return std::stoi(tok, nullptr, 16);
-    } catch (...) {
-      via::debug::bug();
+    } catch (const std::exception& e) {
+      PANIC(e.what());
     }
   }
 
@@ -67,8 +68,8 @@ static via::CommandArgument parse_argument(const std::string& tok) {
   if (numeric && tok.find_first_of("0123456789") != std::string::npos) {
     try {
       return std::stoi(tok);
-    } catch (...) {
-      via::debug::bug();
+    } catch (const std::exception& e) {
+      PANIC(e.what());
     }
   }
   return tok;

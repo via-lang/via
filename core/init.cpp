@@ -12,15 +12,16 @@
 #include <fmt/base.h>
 #include <mimalloc.h>
 
-#include <cpptrace/cpptrace.hpp>
-#include <iostream>
+#include <libassert/assert.hpp>
 
-#include "debug.hpp"
-#include "logger.hpp"
+#ifdef NDEBUG
+#define DEBUG 0
+#else
+#define DEBUG 1
+#endif
 
 static void mimalloc_error_handler(int err, void* arg) {
-  via::Logger::stderr_logger().error("mimalloc: error code {}", err);
-  cpptrace::generate_trace().print(std::cerr);
+  PANIC(std::format("mimalloc: {}", err));
 }
 
 static void init_mimalloc(uint8_t verbosity) noexcept {
@@ -35,7 +36,7 @@ static void init_mimalloc(uint8_t verbosity) noexcept {
                 4);  // commit lazily in 4-page steps
 
   mi_option_set(mi_option_reset_delay, 0);  // Disable page reset delay
-  mi_option_set(mi_option_show_errors, via::config::DEBUG_ENABLED);
+  mi_option_set(mi_option_show_errors, DEBUG);
   mi_option_set(mi_option_show_stats, verbosity > 1);
   mi_option_set(mi_option_verbose, verbosity > 2);
 
@@ -48,7 +49,7 @@ static void init_mimalloc(uint8_t verbosity) noexcept {
 
 static void trap_call() noexcept {
   static bool called = false;
-  via::debug::require(!called, "init() called twice");
+  ASSERT(!called, "via::init() called twice");
   called = true;
 }
 

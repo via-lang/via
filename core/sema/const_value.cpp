@@ -10,9 +10,9 @@
 #include "const_value.hpp"
 
 #include <format>
+#include <libassert/assert.hpp>
 #include <optional>
 
-#include "debug.hpp"
 #include "support/conv.hpp"
 
 std::optional<via::ConstValue> via::ConstValue::from_token(const Token& tok) {
@@ -54,5 +54,5 @@ std::string via::ConstValue::to_string() const {
     case STRING: return std::format("\"{}\"", unwrap<STRING>());
     default:     break;
   }  // clang-format on
-  debug::unimplemented();
+  UNREACHABLE();
 }

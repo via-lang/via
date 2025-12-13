@@ -11,10 +11,10 @@
 
 #include <bitset>
 #include <cstddef>
+#include <libassert/assert.hpp>
 #include <limits>
 #include <via/config.hpp>
 
-#include "debug.hpp"
 #include "diagnostics.hpp"
 
 namespace via {
@@ -44,8 +44,8 @@ class RegisterState {
   }
 
   inline void free(uint16_t reg) noexcept {
-    debug::require(reg <= config::REGISTER_COUNT,
-                   "invalid semantic register to free");
+    DEBUG_ASSERT(reg <= config::REGISTER_COUNT,
+                 "invalid semantic register to free");
     m_buffer.reset(reg);  // mark as free
   }
 

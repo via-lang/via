@@ -9,9 +9,9 @@
 
 #include "value.hpp"
 
-#include "debug.hpp"
+#include <libassert/assert.hpp>
+
 #include "sema/const_value.hpp"
-#include "support/conv.hpp"
 #include "support/memory.hpp"
 
 // clang-format off
@@ -26,14 +26,14 @@ via::Value* via::Value::create(VirtualMachine* vm, bool boolean)
 // clang-format on
 
 via::Value* via::Value::create(VirtualMachine* vm, char* string) {
-  debug::require(vm->allocator().owns(string),
-                 "Value construction via string requires it to be allocated by "
-                 "the corresponding Value::vm");
+  DEBUG_ASSERT(vm->allocator().owns(string),
+               "Value construction via string requires it to be allocated by "
+               "the corresponding Value::vm");
   return create(vm, STRING, {.string = string});
 }
 
 via::Value* via::Value::create(VirtualMachine* vm, Closure* closure) {
-  debug::require(
+  DEBUG_ASSERT(
       vm->allocator().owns(closure),
       "Value construction via closure object requires it to be allocated by "
       "the corresponding Value::vm");
@@ -60,7 +60,7 @@ via::Value* via::Value::create(VirtualMachine* vm, const ConstValue& cv) {
     default:
       break;
   }
-  debug::unimplemented();
+  UNREACHABLE();
 }
 
 bool via::Value::unref() noexcept {

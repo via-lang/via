@@ -9,7 +9,6 @@
 
 #include "logger.hpp"
 
-#include "debug.hpp"
 #include "support/ansi.hpp"
 
 static std::optional<std::string> get_level_string(via::LogLevel level) {

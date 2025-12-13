@@ -10,9 +10,9 @@
 #pragma once
 
 #include <cstdint>
+#include <libassert/assert.hpp>
 #include <optional>
 #include <stdfloat>
-#include <variant>
 #include <via/config.hpp>
 
 #include "closure.hpp"
@@ -184,20 +184,20 @@ inline c_type_t<STRING> Value::as_c<STRING>() const {
                       reinterpret_cast<void*>(m_data.function));
     default:       break;
   }  // clang-format on
-  debug::unimplemented();
+  UNREACHABLE(via::to_string(m_kind));
 }
 
 template <>
 inline Value* Value::as<INT>() const {
   auto val = as_c<INT>();
-  debug::require(val.has_value());
+  DEBUG_ASSERT_VAL(val);
   return create(m_vm, *val);
 }
 
 template <>
 inline Value* Value::as<FLOAT>() const {
   auto val = as_c<FLOAT>();
-  debug::require(val.has_value());
+  DEBUG_ASSERT_VAL(val);
   return create(m_vm, *val);
 }
 

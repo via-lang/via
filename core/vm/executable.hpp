@@ -10,9 +10,8 @@
 #pragma once
 
 #include <cstddef>
-#include <initializer_list>
 #include <iostream>
-#include <limits>
+#include <libassert/assert.hpp>
 #include <optional>
 #include <via/config.hpp>
 
@@ -39,22 +38,6 @@ namespace detail {
 void set_null_dst_trap(Executable& exe,
                        const std::optional<uint16_t>& dst) noexcept;
 
-template <derived_from<ir::Expr> Expr>
-void ir_lower_expr(Executable& exe, const Expr* expr,
-                   std::optional<uint16_t> dst) noexcept {
-  debug::todo(std::format("lower_expr<{}>()", VIA_TYPENAME(Expr)));
-}
-
-template <derived_from<ir::Stat> Stat>
-void ir_lower_stat(Executable& exe, const Stat* stat) noexcept {
-  debug::todo(std::format("lower_stat<{}>()", VIA_TYPENAME(Stat)));
-}
-
-template <derived_from<ir::Term> Term>
-void ir_lower_term(Executable& exe, const Term* term) noexcept {
-  debug::todo(std::format("lower_term<{}>()", VIA_TYPENAME(Term)));
-}
-
 }  // namespace detail
 
 enum ExeFlags : uint64_t {
@@ -67,26 +50,16 @@ class Executable final {
   friend void detail::set_null_dst_trap(
       Executable&, const std::optional<uint16_t>& dst) noexcept;
 
-  template <derived_from<ir::Expr> Expr>
-  friend void detail::ir_lower_expr(Executable&, const Expr*,
-                                    std::optional<uint16_t>) noexcept;
-
-  template <derived_from<ir::Stat> Stat>
-  friend void detail::ir_lower_stat(Executable&, const Stat*) noexcept;
-
-  template <derived_from<ir::Term> Term>
-  friend void detail::ir_lower_term(Executable&, const Term*) noexcept;
-
  public:
   Executable(Diagnostics& diags) : m_reg_state(diags) { m_stack.emplace(); }
 
-  static Executable* build_from_ir(Module* module, Diagnostics& diags,
-                                   const IRTree& ir_tree,
-                                   ExeFlags flags = ExeFlags::NONE) noexcept;
+  static Executable* build(Module* module, Diagnostics& diags,
+                           const IRTree& ir_tree,
+                           ExeFlags flags = ExeFlags::NONE);
 
-  static Executable* build_from_binary(
-      Module* module, Diagnostics& diags, std::ostream& bytes,
-      ExeFlags flags = ExeFlags::NONE) noexcept;
+  static Executable* build(Module* module, Diagnostics& diags,
+                           std::ostream& bytes,
+                           ExeFlags flags = ExeFlags::NONE);
 
  public:
   auto flags() const noexcept { return m_flags; }
@@ -102,11 +75,11 @@ class Executable final {
     return m_labels.size() - 1;
   }
 
-  void push_constant(ConstValue cv) noexcept {
-    debug::require(
+  void push_constant(ConstValue cvalue) noexcept {
+    DEBUG_ASSERT(
         m_constants.size() < (size_t)std::numeric_limits<uint16_t>::max(),
         "Constant count exceeds limit");
-    m_constants.push_back(std::move(cv));
+    m_constants.push_back(std::move(cvalue));
   }
 
   size_t push_instruction(OpCode op,
@@ -124,10 +97,19 @@ class Executable final {
     insn.c = ops[2];
   }
 
-  void lower_expr(const ir::Expr* expr, std::optional<uint16_t> dst) noexcept;
-  void lower_stat(const ir::Stat* stat) noexcept;
-  void lower_term(const ir::Term* term) noexcept;
-  void lower_jumps() noexcept;
+  void lower(const ir::Expr* expr, std::optional<uint16_t> dst);
+  void lower(const ir::Stat* stat);
+  void lower(const ir::Term* term);
+  void lower_jumps();
+
+  template <derived_from<ir::Expr> Expr>
+  void lower_expr(const Expr* expr, std::optional<uint16_t> dst) {}
+
+  template <derived_from<ir::Stat> Stat>
+  void lower_stat(const Stat* stat) {}
+
+  template <derived_from<ir::Term> Term>
+  void lower_term(const Term* term) {}
 
  private:
   Module* m_module;

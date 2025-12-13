@@ -42,41 +42,40 @@ class IRBuilder final {
 
  protected:
   // clang-format off
-    void poison_symbol(SymbolId symbol) noexcept { m_poisoned_ids.insert(symbol); }
-    void poison_symbol(QualName name) noexcept { m_poisoned_ids.insert(intern_symbol(name)); }
-    void poison_symbol(std::string symbol) noexcept { m_poisoned_ids.insert(intern_symbol(symbol)); }
-
-    bool is_poisoned(SymbolId symbol) noexcept { return m_poisoned_ids.contains(symbol); }
-    bool is_poisoned(QualName name) noexcept { return m_poisoned_ids.contains(intern_symbol(name)); }
-    bool is_poisoned(std::string symbol) noexcept { return m_poisoned_ids.contains(intern_symbol(symbol)); }
+  void poison_symbol(SymbolId symbol)  { m_poisoned_ids.insert(symbol); }
+  void poison_symbol(QualName name)  { m_poisoned_ids.insert(intern_symbol(name)); }
+  void poison_symbol(std::string symbol)  { m_poisoned_ids.insert(intern_symbol(symbol)); }
+  bool is_poisoned(SymbolId symbol)  { return m_poisoned_ids.contains(symbol); }
+  bool is_poisoned(QualName name)  { return m_poisoned_ids.contains(intern_symbol(name)); }
+  bool is_poisoned(std::string symbol)  { return m_poisoned_ids.contains(intern_symbol(symbol)); }
   // clang-format on
 
  private:
-  QualType type_of(const ast::Expr* expr) noexcept;
-  QualType type_of(const ast::Type* type) noexcept;
-  const ir::Expr* lower_expr(const ast::Expr* expr);
-  const ir::Stat* lower_stat(const ast::Stat* stat);
-  ir::StatBlock* end_block() noexcept;
-  ir::StatBlock* new_block(size_t id) noexcept;
-  std::string dump_type(QualType type) noexcept;
-  std::string dump_expr(const ast::Expr* expr) noexcept;
+  QualType type_of(const ast::Expr* expr);
+  QualType type_of(const ast::Type* type);
+  const ir::Expr* lower(const ast::Expr* expr);
+  const ir::Stat* lower(const ast::Stat* stat);
+  ir::StatBlock* end_block();
+  ir::StatBlock* new_block(size_t id);
+  std::string dump(QualType type);
+  std::string dump(const ast::Expr* expr);
 
   // clang-format off
-    SymbolId intern_symbol(std::string symbol) noexcept { return m_symbols.intern(symbol); }
-    SymbolId intern_symbol(const QualName& name) noexcept { return m_symbols.intern(name); }
-    SymbolId intern_symbol(const via::Token& token) noexcept { return m_symbols.intern(token.to_string()); }
+  SymbolId intern_symbol(std::string symbol) { return m_symbols.intern(symbol); }
+  SymbolId intern_symbol(const QualName& name) { return m_symbols.intern(name); }
+  SymbolId intern_symbol(const via::Token& token) { return m_symbols.intern(token.to_string()); }
 
-    template <derived_from<ast::Expr, ast::Type> Type>
-    QualType type_of(const Type*) noexcept
-        { debug::todo(std::format("type_of<{}>()", VIA_TYPENAME(Type))); }
+  template <derived_from<ast::Expr, ast::Type> Type>
+  QualType type_of(const Type*)
+  { UNREACHABLE(VIA_TYPENAME(Type)); }
 
-    template <derived_from<ast::Expr> Expr>
-    const ir::Expr* lower_expr(const Expr*) noexcept
-        { debug::todo(std::format("lower_expr<{}>()", VIA_TYPENAME(Expr))); }
+  template <derived_from<ast::Expr> Expr>
+  const ir::Expr* lower_expr(const Expr*)
+  { UNREACHABLE(VIA_TYPENAME(Expr)); }
 
-    template <derived_from<ast::Stat> Stat>
-    const ir::Stat* lower_stat(const Stat*) noexcept
-        { debug::todo(std::format("lower_stat<{}>()", VIA_TYPENAME(Stat))); }
+  template <derived_from<ast::Stat> Stat>
+  const ir::Stat* lower_stat(const Stat*)
+  { UNREACHABLE(VIA_TYPENAME(Stat)); }
   // clang-format on
 
  private:

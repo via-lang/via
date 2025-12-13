@@ -7,11 +7,11 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-    set(MI_SECURE $<$<CONFIG:Debug>:ON>)
-    # set(MI_TRACK_ASAN $<$<CONFIG:Debug>:ON>)
-    set(MI_DEBUG_FULL $<$<CONFIG:Debug>:ON>)
+  set(MI_SECURE $<$<CONFIG:Debug>:ON>)
+  # set(MI_TRACK_ASAN $<$<CONFIG:Debug>:ON>)
+  set(MI_DEBUG_FULL $<$<CONFIG:Debug>:ON>)
 
-    add_compile_options(
+  add_compile_options(
         -fdiagnostics-color=always
         -Wextra
         -Wall
@@ -22,15 +22,15 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         # $<$<CONFIG:Debug>:-fsanitize=address,undefined,leak>
     )
 
-    add_link_options(
+  add_link_options(
         # $<$<CONFIG:Debug>:-fsanitize=address,undefined,leak>
     )
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-    add_compile_options(/diagnostics:color)
+  add_compile_options(/diagnostics:color)
 endif()
 
 add_subdirectory(thirdparty/mimalloc)
-add_subdirectory(thirdparty/cpptrace)
+add_subdirectory(thirdparty/libassert)
 add_subdirectory(thirdparty/argvx)
 
 # Modules

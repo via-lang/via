@@ -12,10 +12,10 @@
 #include <cassert>
 #include <iomanip>
 #include <iostream>
+#include <libassert/assert.hpp>
 #include <limits>
 #include <unordered_map>
 
-#include "debug.hpp"
 #include "diagnostics.hpp"
 #include "ir/tree.hpp"
 #include "module/manager.hpp"
@@ -26,29 +26,25 @@
 #include "support/bit.hpp"
 #include "vm/instruction.hpp"
 
-namespace ir = via::ir;
-
 void via::detail::set_null_dst_trap(
-    Executable& exe, const std::optional<uint16_t>& dst) noexcept {
-  if (!dst.has_value()) {
-    debug::bug("destination register must not be null in this context");
-  }
+    via::Executable& exe, const std::optional<uint16_t>& dst) noexcept {
+  DEBUG_ASSERT_VAL(dst,
+                   "destination register must not be null in this context");
 }
 
 template <>
-void via::detail::ir_lower_expr<ir::ExprConstant>(
-    Executable& exe, const ir::ExprConstant* ir_expr_constant,
-    std::optional<uint16_t> dst) noexcept {
-  set_null_dst_trap(exe, dst);
+void via::Executable::lower_expr<via::ir::ExprConstant>(
+    const ir::ExprConstant* ir_expr_constant, std::optional<uint16_t> dst) {
+  detail::set_null_dst_trap(*this, dst);
 
   const ConstValue& cvalue = ir_expr_constant->value;
 
   switch (cvalue.kind()) {
     case NIL:
-      exe.push_instruction(OpCode::LOADNIL, {*dst});
+      push_instruction(OpCode::LOADNIL, {*dst});
       break;
     case BOOL:
-      exe.push_instruction(
+      push_instruction(
           cvalue.unwrap<BOOL>() ? OpCode::LOADTRUE : OpCode::LOADFALSE, {*dst});
       break;
     case INT: {
@@ -58,58 +54,56 @@ void via::detail::ir_lower_expr<ir::ExprConstant>(
         uint16_t b, c;
         int32_t val32 = static_cast<int32_t>(integer);  // preserve sign
         unpack_halves(static_cast<uint32_t>(val32), b, c);
-        exe.push_instruction(OpCode::LOADINT, {*dst, b, c});
+        push_instruction(OpCode::LOADINT, {*dst, b, c});
         break;
       }
       [[fallthrough]];
     }
     default:
-      exe.push_constant(cvalue);
-      exe.push_instruction(OpCode::LOADK, {*dst, (uint16_t)exe.constant_id()});
+      push_constant(cvalue);
+      push_instruction(OpCode::LOADK, {*dst, (uint16_t)constant_id()});
       break;
   }
 }
 
 template <>
-void via::detail::ir_lower_expr<ir::ExprSymbol>(
-    Executable& exe, const ir::ExprSymbol* ir_expr_symbol,
-    std::optional<uint16_t> dst) noexcept {
-  set_null_dst_trap(exe, dst);
+void via::Executable::lower_expr<via::ir::ExprSymbol>(
+    const ir::ExprSymbol* ir_expr_symbol, std::optional<uint16_t> dst) {
+  detail::set_null_dst_trap(*this, dst);
 
-  auto& frame = exe.m_stack.top();
+  auto& frame = m_stack.top();
   if (auto lref = frame.get_local(ir_expr_symbol->symbol)) {
-    exe.push_instruction(OpCode::GETLOCAL, {*dst, lref->id});
+    push_instruction(OpCode::GETLOCAL, {*dst, lref->id});
     return;
   }
 
-  debug::unimplemented("ir symbol lookup");
+  UNREACHABLE("unimplemented ir symbol lookup");
 }
 
 template <>
-void via::detail::ir_lower_expr<ir::ExprModuleAccess>(
-    Executable& exe, const ir::ExprModuleAccess* ir_expr_module_access,
-    std::optional<uint16_t> dst) noexcept {
-  set_null_dst_trap(exe, dst);
+void via::Executable::lower_expr<via::ir::ExprModuleAccess>(
+    const ir::ExprModuleAccess* ir_expr_module_access,
+    std::optional<uint16_t> dst) {
+  detail::set_null_dst_trap(*this, dst);
 
-  exe.push_instruction(OpCode::GETIMPORT,
-                       {
-                           *dst,
-                           static_cast<uint16_t>(ir_expr_module_access->mod_id),
-                           static_cast<uint16_t>(ir_expr_module_access->key_id),
-                       });
+  push_instruction(OpCode::GETIMPORT,
+                   {
+                       *dst,
+                       static_cast<uint16_t>(ir_expr_module_access->mod_id),
+                       static_cast<uint16_t>(ir_expr_module_access->key_id),
+                   });
 }
 
 template <>
-void via::detail::ir_lower_expr<ir::ExprBinary>(
-    Executable& exe, const ir::ExprBinary* ir_expr_binary,
-    std::optional<uint16_t> dst) noexcept {
-  set_null_dst_trap(exe, dst);
+void via::Executable::lower_expr<via::ir::ExprBinary>(
+    const ir::ExprBinary* ir_expr_binary, std::optional<uint16_t> dst) {
+  detail::set_null_dst_trap(*this, dst);
 
   uint16_t opid = static_cast<uint16_t>(ir_expr_binary->op);
-  uint16_t rlhs = exe.m_reg_state.alloc(), rrhs = exe.m_reg_state.alloc();
+  uint16_t rlhs = m_reg_state.alloc(), rrhs = m_reg_state.alloc();
 
-  exe.lower_expr(ir_expr_binary->lhs, rlhs);
-  exe.lower_expr(ir_expr_binary->rhs, rrhs);
+  lower_expr(ir_expr_binary->lhs, rlhs);
+  lower_expr(ir_expr_binary->rhs, rrhs);
 
   if (opid >= static_cast<uint16_t>(BinaryOp::ADD) &&
       opid <= static_cast<uint16_t>(BinaryOp::MOD)) {
@@ -121,75 +115,73 @@ void via::detail::ir_lower_expr<ir::ExprBinary>(
     if (ir_expr_binary->lhs->type.unwrap()->is_integral()) {
       if (ir_expr_binary->rhs->type.unwrap()->is_float()) {
         base += 2;  // FP mode
-        exe.push_instruction(OpCode::TOFLOAT, {rlhs, rlhs});
+        push_instruction(OpCode::TOFLOAT, {rlhs, rlhs});
       }
     } else {
       base += 2;  // FP mode
 
       if (ir_expr_binary->rhs->type.unwrap()->is_integral()) {
-        exe.push_instruction(OpCode::TOFLOAT, {rrhs, rrhs});
+        push_instruction(OpCode::TOFLOAT, {rrhs, rrhs});
       }
     }
 
-    exe.push_instruction(static_cast<OpCode>(base), {*dst, rlhs, rrhs});
+    push_instruction(static_cast<OpCode>(base), {*dst, rlhs, rrhs});
   } else if (opid >= static_cast<uint16_t>(BinaryOp::AND) &&
              opid <= static_cast<uint16_t>(BinaryOp::OR)) {
     /* TODO: Check if rhs is constexpr, in which case increment base by one
      * for K instructions*/
     uint16_t base = static_cast<uint16_t>(OpCode::AND) +
                     static_cast<uint16_t>(ir_expr_binary->op);
-    exe.push_instruction(static_cast<OpCode>(base), {*dst, rlhs, rrhs});
+    push_instruction(static_cast<OpCode>(base), {*dst, rlhs, rrhs});
   } else if (opid >= static_cast<uint16_t>(BinaryOp::BAND) &&
              opid <= static_cast<uint16_t>(BinaryOp::BSHR)) {
     /* TODO: Check if rhs is constexpr, in which case increment base by one
      * for K instructions*/
     uint16_t base = static_cast<uint16_t>(OpCode::BAND) +
                     static_cast<uint16_t>(ir_expr_binary->op);
-    exe.push_instruction(static_cast<OpCode>(base), {*dst, rlhs, rrhs});
+    push_instruction(static_cast<OpCode>(base), {*dst, rlhs, rrhs});
   }
 
-  exe.push_instruction(OpCode::FREE2, {rlhs, rrhs});
-  exe.m_reg_state.free_all(rlhs, rrhs);
+  push_instruction(OpCode::FREE2, {rlhs, rrhs});
+  m_reg_state.free_all(rlhs, rrhs);
 }
 
 template <>
-void via::detail::ir_lower_expr<ir::ExprCall>(
-    Executable& exe, const ir::ExprCall* ir_expr_call,
-    std::optional<uint16_t> dst) noexcept {
-  uint16_t callee = exe.m_reg_state.alloc();
+void via::Executable::lower_expr<via::ir::ExprCall>(
+    const ir::ExprCall* ir_expr_call, std::optional<uint16_t> dst) {
+  uint16_t callee = m_reg_state.alloc();
   auto args = ir_expr_call->args;
   std::reverse(args.begin(), args.end());
 
   for (const auto& arg : args) {
-    exe.lower_expr(arg, callee);
-    exe.push_instruction(OpCode::PUSH, {callee});
+    lower_expr(arg, callee);
+    push_instruction(OpCode::PUSH, {callee});
   }
 
-  exe.lower_expr(ir_expr_call->callee, callee);
-  exe.push_instruction(OpCode::CALL, {callee});
-  exe.push_instruction(OpCode::FREE1, {callee});
-  exe.m_reg_state.free(callee);
+  lower_expr(ir_expr_call->callee, callee);
+  push_instruction(OpCode::CALL, {callee});
+  push_instruction(OpCode::FREE1, {callee});
+  m_reg_state.free(callee);
 
   if (dst.has_value()) {
-    exe.push_instruction(OpCode::GETTOP, {*dst});
+    push_instruction(OpCode::GETTOP, {*dst});
   }
 }
 
 template <>
-void via::detail::ir_lower_expr<ir::ExprCast>(
-    Executable& exe, const ir::ExprCast* ir_expr_cast,
-    std::optional<uint16_t> dst) noexcept {
+void via::Executable::lower_expr<via::ir::ExprCast>(
+    const ir::ExprCast* ir_expr_cast, std::optional<uint16_t> dst) {
   using enum BuiltinKind;
 
-  set_null_dst_trap(exe, dst);
-  exe.lower_expr(ir_expr_cast->expr, dst);
+  detail::set_null_dst_trap(*this, dst);
+  lower_expr(ir_expr_cast->expr, dst);
 
   if (ir_expr_cast->cast == ir_expr_cast->expr->type) {
     // Redundant cast
     return;
   }
 
-  auto& type_ctx = exe.m_module->manager().type_context();
+  auto& type_ctx = m_module->manager().type_context();
 
   if TRY_COERCE (const BuiltinType, cast_bultin_type,
                  ir_expr_cast->cast.unwrap()) {
@@ -204,19 +196,17 @@ void via::detail::ir_lower_expr<ir::ExprCast>(
       };
 
       if (auto it = cast_rules.find(cast_bultin_type); it != cast_rules.end()) {
-        exe.push_instruction(it->second, {*dst, *dst});
+        push_instruction(it->second, {*dst, *dst});
       } else {
-        debug::bug("unmapped builtin cast directive");
+        UNREACHABLE("unmapped builtin cast directive");
       }
     }
   }
 }
 
-void via::Executable::lower_expr(const ir::Expr* expr,
-                                 std::optional<uint16_t> dst) noexcept {
-#define VISIT_EXPR(TYPE)                   \
-  if TRY_COERCE (const TYPE, _INNER, expr) \
-    return detail::ir_lower_expr<TYPE>(*this, _INNER, dst);
+void via::Executable::lower(const ir::Expr* expr, std::optional<uint16_t> dst) {
+#define VISIT_EXPR(TYPE) \
+  if TRY_COERCE (const TYPE, _INNER, expr) return lower_expr<TYPE>(_INNER, dst);
 
   VISIT_EXPR(ir::ExprConstant);
   VISIT_EXPR(ir::ExprSymbol);
@@ -231,142 +221,137 @@ void via::Executable::lower_expr(const ir::Expr* expr,
   VISIT_EXPR(ir::ExprArray);
   VISIT_EXPR(ir::ExprTuple);
   VISIT_EXPR(ir::ExprLambda);
-
-  debug::unimplemented(
-      std::format("lower_expr({}, uint16_t)", VIA_TYPENAME(*expr)));
 #undef VISIT_EXPR
+
+  UNREACHABLE(VIA_TYPENAME(*expr));
 }
 
 template <>
-void via::detail::ir_lower_stat<ir::StatVarDecl>(
-    Executable& exe, const ir::StatVarDecl* ir_stat_var_decl) noexcept {
-  auto dst = exe.m_reg_state.alloc();
-  exe.lower_expr(ir_stat_var_decl->expr, dst);
-  exe.push_instruction(OpCode::PUSH, {dst});
-  exe.push_instruction(OpCode::FREE1, {dst});
-  exe.m_reg_state.free(dst);
+void via::Executable::lower_stat<via::ir::StatVarDecl>(
+    const ir::StatVarDecl* ir_stat_var_decl) {
+  auto dst = m_reg_state.alloc();
+  lower_expr(ir_stat_var_decl->expr, dst);
+  push_instruction(OpCode::PUSH, {dst});
+  push_instruction(OpCode::FREE1, {dst});
+  m_reg_state.free(dst);
 
-  auto& frame = exe.m_stack.top();
+  auto& frame = m_stack.top();
   frame.set_local(ir_stat_var_decl->symbol);
 }
 
 template <>
-void via::detail::ir_lower_stat<ir::StatInstruction>(
-    Executable& exe, const ir::StatInstruction* ir_stat_instr) noexcept {
-  exe.m_bytecode.push_back(ir_stat_instr->instr);
+void via::Executable::lower_stat<via::ir::StatInstruction>(
+    const ir::StatInstruction* ir_stat_instr) {
+  m_bytecode.push_back(ir_stat_instr->instr);
 }
 
 template <>
-void via::detail::ir_lower_stat<ir::StatBlock>(
-    Executable& exe, const ir::StatBlock* ir_stat_block) noexcept {
-  exe.set_label(ir_stat_block->id);
+void via::Executable::lower_stat<via::ir::StatBlock>(
+    const ir::StatBlock* ir_stat_block) {
+  set_label(ir_stat_block->id);
   for (const auto& stat : ir_stat_block->stats) {
-    exe.lower_stat(stat);
+    lower_stat(stat);
   }
   if (ir_stat_block->term != nullptr) {
-    exe.lower_term(ir_stat_block->term);
+    lower_term(ir_stat_block->term);
   }
 }
 
 template <>
-void via::detail::ir_lower_stat<ir::StatFuncDecl>(
-    Executable& exe, const ir::StatFuncDecl* ir_stat_func_decl) noexcept {
-  exe.m_stack.push({});
+void via::Executable::lower_stat<via::ir::StatFuncDecl>(
+    const ir::StatFuncDecl* ir_stat_func_decl) {
+  m_stack.push({});
 
-  auto dst = exe.m_reg_state.alloc();
-  auto pc = exe.push_instruction(OpCode::NOP);
-  exe.lower_stat(ir_stat_func_decl->body);
+  auto dst = m_reg_state.alloc();
+  auto pc = push_instruction(OpCode::NOP);
+  lower_stat(ir_stat_func_decl->body);
 
-  size_t offset = exe.program_counter() - pc + 1;
+  size_t offset = program_counter() - pc + 1;
   uint16_t high, low;
 
   unpack_halves(static_cast<uint32_t>(offset), high, low);
 
-  exe.push_instruction(OpCode::PUSH, {dst});
-  exe.push_instruction(OpCode::FREE1, {dst});
-  exe.set_instruction(pc, OpCode::NEWCLOSURE, {dst, high, low});
-  exe.m_reg_state.free(dst);
-  exe.m_stack.pop();
+  push_instruction(OpCode::PUSH, {dst});
+  push_instruction(OpCode::FREE1, {dst});
+  set_instruction(pc, OpCode::NEWCLOSURE, {dst, high, low});
+  m_reg_state.free(dst);
+  m_stack.pop();
 
-  auto& frame = exe.m_stack.top();
+  auto& frame = m_stack.top();
   frame.set_local(ir_stat_func_decl->symbol);
 }
 
 template <>
-void via::detail::ir_lower_stat<ir::StatExpr>(
-    Executable& exe, const ir::StatExpr* ir_stat_expr) noexcept {
-  exe.lower_expr(ir_stat_expr->expr, std::nullopt);
+void via::Executable::lower_stat<via::ir::StatExpr>(
+    const ir::StatExpr* ir_stat_expr) {
+  lower_expr(ir_stat_expr->expr, std::nullopt);
 }
 
-void via::Executable::lower_stat(const ir::Stat* stat) noexcept {
-#define VISIT_STMT(TYPE)                   \
-  if TRY_COERCE (const TYPE, _INNER, stat) \
-    return detail::ir_lower_stat<TYPE>(*this, _INNER);
+void via::Executable::lower(const ir::Stat* stat) {
+#define VISIT_STMT(TYPE) \
+  if TRY_COERCE (const TYPE, _INNER, stat) return lower_stat<TYPE>(_INNER);
 
   VISIT_STMT(ir::StatVarDecl)
   VISIT_STMT(ir::StatFuncDecl)
   VISIT_STMT(ir::StatInstruction)
   VISIT_STMT(ir::StatBlock)
   VISIT_STMT(ir::StatExpr)
-
-  debug::unimplemented(std::format("lower_stat({})", VIA_TYPENAME(*stat)));
 #undef VISIT_STMT
+
+  UNREACHABLE(VIA_TYPENAME(*stat));
 }
 
 template <>
-void via::detail::ir_lower_term<ir::TrReturn>(
-    Executable& exe, const ir::TrReturn* ir_term_ret) noexcept {
+void via::Executable::lower_term<via::ir::TrReturn>(
+    const ir::TrReturn* ir_term_ret) {
   if (ir_term_ret->val) {
-    uint16_t reg = exe.m_reg_state.alloc();
-    exe.lower_expr(ir_term_ret->val, reg);
-    exe.push_instruction(OpCode::RET, {reg});
-    exe.m_reg_state.free(reg);
+    uint16_t reg = m_reg_state.alloc();
+    lower_expr(ir_term_ret->val, reg);
+    push_instruction(OpCode::RET, {reg});
+    m_reg_state.free(reg);
   } else {
-    exe.push_instruction(OpCode::RETNIL);
+    push_instruction(OpCode::RETNIL);
   }
 }
 
 template <>
-void via::detail::ir_lower_term<ir::TrBranch>(
-    Executable& exe, const ir::TrBranch* ir_term_branch) noexcept {
+void via::Executable::lower_term<via::ir::TrBranch>(
+    const ir::TrBranch* ir_term_branch) {
   uint16_t high, low;
   unpack_halves(ir_term_branch->target->id, high, low);
-  exe.push_instruction(OpCode::JMP, {high, low});
+  push_instruction(OpCode::JMP, {high, low});
 }
 
 template <>
-void via::detail::ir_lower_term<ir::TrCondBranch>(
-    Executable& exe, const ir::TrCondBranch* ir_term_cond_branch) noexcept {
+void via::Executable::lower_term<via::ir::TrCondBranch>(
+    const ir::TrCondBranch* ir_term_cond_branch) {
   uint16_t thigh, tlow, fhigh, flow;
   unpack_halves(ir_term_cond_branch->iftrue->id, thigh, tlow);
   unpack_halves(ir_term_cond_branch->iffalse->id, fhigh, flow);
 
-  uint16_t reg = exe.m_reg_state.alloc();
-  exe.lower_expr(ir_term_cond_branch->cnd, reg);
-  exe.push_instruction(OpCode::JMPIF, {reg, thigh, tlow});
-  exe.push_instruction(OpCode::JMP, {fhigh, flow});
-  exe.m_reg_state.free(reg);
+  uint16_t reg = m_reg_state.alloc();
+  lower_expr(ir_term_cond_branch->cnd, reg);
+  push_instruction(OpCode::JMPIF, {reg, thigh, tlow});
+  push_instruction(OpCode::JMP, {fhigh, flow});
+  m_reg_state.free(reg);
 }
 
-void via::Executable::lower_term(const ir::Term* term) noexcept {
-#define VISIT_TERM(TYPE)                   \
-  if TRY_COERCE (const TYPE, _INNER, term) \
-    return detail::ir_lower_term<TYPE>(*this, _INNER);
+void via::Executable::lower(const ir::Term* term) {
+#define VISIT_TERM(TYPE) \
+  if TRY_COERCE (const TYPE, _INNER, term) return lower_term<TYPE>(_INNER);
 
   VISIT_TERM(ir::TrReturn);
   VISIT_TERM(ir::TrBranch);
   VISIT_TERM(ir::TrCondBranch);
   VISIT_TERM(ir::TrContinue);
   VISIT_TERM(ir::TrBreak);
-
-  debug::unimplemented(std::format("lower_term({})", VIA_TYPENAME(*term)));
 #undef VISIT_TERM
+
+  UNREACHABLE(VIA_TYPENAME(*term));
 }
 
-via::Executable* via::Executable::build_from_ir(Module* module,
-                                                Diagnostics& diags,
-                                                const IRTree& ir_tree,
-                                                ExeFlags flags) noexcept {
+via::Executable* via::Executable::build(Module* module, Diagnostics& diags,
+                                        const IRTree& ir_tree, ExeFlags flags) {
   auto& alloc = module->allocator();
   auto* exe = alloc.emplace<Executable>(diags);
   exe->m_module = module;
@@ -381,7 +366,7 @@ via::Executable* via::Executable::build_from_ir(Module* module,
   return exe;
 }
 
-void via::Executable::lower_jumps() noexcept {
+void via::Executable::lower_jumps() {
   size_t pc = 0;
   for (Instruction& instr : m_bytecode) {
     switch (instr.op) {

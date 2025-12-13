@@ -11,6 +11,8 @@
 
 #include <mimalloc.h>
 
+#include <libassert/assert.hpp>
+
 via::ScopedAllocator::ScopedAllocator() : m_heap(mi_heap_new()) {}
 
 via::ScopedAllocator::~ScopedAllocator() {
@@ -43,7 +45,7 @@ char* via::ScopedAllocator::strndup(const char* str, size_t n) noexcept {
 }
 
 void via::ScopedAllocator::free(void* ptr) {
-  debug::require(
+  DEBUG_ASSERT(
       owns(ptr),
       std::format("free() called on pointer {:p} not owned by allocator {:p}",
                   (const void*)ptr, (const void*)this));

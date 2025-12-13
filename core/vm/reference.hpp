@@ -10,6 +10,7 @@
 #pragma once
 
 #include <cstddef>
+#include <libassert/assert.hpp>
 #include <via/config.hpp>
 
 #include "value.hpp"
@@ -73,12 +74,12 @@ class ValueRef final {
   }
 
   Value* operator->() const {
-    debug::require(!is_null(), "attempt to read NULL reference (operator->)");
+    DEBUG_ASSERT(!is_null(), "attempt to read NULL reference (operator->)");
     return m_ptr;
   }
 
   Value& operator*() const {
-    debug::require(!is_null(), "attempt to read NULL reference (operator*)");
+    DEBUG_ASSERT(!is_null(), "attempt to read NULL reference (operator*)");
     return *m_ptr;
   }
 
@@ -87,13 +88,13 @@ class ValueRef final {
   inline bool is_null() const { return m_ptr == nullptr; }
 
   inline void free() {
-    debug::require(!is_null(), "free called on NULL reference");
+    DEBUG_ASSERT(!is_null(), "free called on NULL reference");
     m_ptr->unref();
     m_ptr = nullptr;
   }
 
   inline size_t ref_count() const {
-    debug::require(!is_null(), "ref_count() called on NULL reference");
+    DEBUG_ASSERT(!is_null(), "ref_count() called on NULL reference");
     return m_ptr->m_rc;
   }
 

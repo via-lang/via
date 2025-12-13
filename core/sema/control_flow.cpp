@@ -29,7 +29,7 @@ std::vector<const via::ir::Term*> via::get_control_paths(
           dfs(cbr->iftrue);
           dfs(cbr->iffalse);
         } else {
-          debug::bug("unmapped dfs block terminator");
+          UNREACHABLE("unmapped dfs block terminator");
         }
       };
 
