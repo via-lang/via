@@ -11,24 +11,21 @@
 
 #include <functional>
 
-#define defer ::via::detail::DeferImpl _ = [&]
+#define defer ::via::detail::BindingerImpl _ = [&]
 
 namespace via {
 namespace detail {
 
-using DeferCallback = std::function<void()>;
+using BindingerCallback = std::function<void()>;
 
-class DeferImpl final
-{
-  public:
-    ~DeferImpl() { m_callback(); }
-    DeferImpl(DeferCallback callback)
-        : m_callback(std::move(callback))
-    {}
+class BindingerImpl final {
+ public:
+  ~BindingerImpl() { m_callback(); }
+  BindingerImpl(BindingerCallback callback) : m_callback(std::move(callback)) {}
 
-  private:
-    DeferCallback m_callback;
+ private:
+  BindingerCallback m_callback;
 };
 
-} // namespace detail
-} // namespace via
+}  // namespace detail
+}  // namespace via

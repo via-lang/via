@@ -8,16 +8,17 @@
 ** ===================================================== */
 
 #include "lexer.hpp"
+
 #include <cstring>
+
 #include "support/ansi.hpp"
 
 using enum via::TokenKind;
 
 // max 3-char symbol lookahead
-struct TokenReprPair
-{
-    const char* str;
-    via::TokenKind kind;
+struct TokenReprPair {
+  const char* str;
+  via::TokenKind kind;
 };
 
 static constexpr TokenReprPair KEYWORDS[] = {
@@ -82,312 +83,290 @@ static constexpr TokenReprPair OPERATORS[] = {
     {"..=", OP_DOT_DOT_EQ},
 };
 
-static consteval size_t string_length(const char* str)
-{
-    size_t len = 0;
-    while (str[len] != '\0') {
-        ++len;
-    }
+static consteval size_t string_length(const char* str) {
+  size_t len = 0;
+  while (str[len] != '\0') {
+    ++len;
+  }
 
-    return len;
+  return len;
 }
 
-static consteval size_t max_operator_length()
-{
-    size_t maxSize = 0;
+static consteval size_t max_operator_length() {
+  size_t maxSize = 0;
 
-    for (const auto& symbol: OPERATORS) {
-        size_t size = string_length(symbol.str);
-        if (size > maxSize) {
-            maxSize = size;
-        }
+  for (const auto& symbol : OPERATORS) {
+    size_t size = string_length(symbol.str);
+    if (size > maxSize) {
+      maxSize = size;
     }
+  }
 
-    return maxSize;
+  return maxSize;
 }
 
-static bool is_numeric(via::TokenKind* kind, char c)
-{
-    switch (*kind) {
+static bool is_numeric(via::TokenKind* kind, char c) {
+  switch (*kind) {
     case LIT_INT:
-        return isdigit(c) || (c == '.' && *kind != LIT_FLOAT); // decimal
+      return isdigit(c) || (c == '.' && *kind != LIT_FLOAT);  // decimal
     case LIT_XINT:
-        return isxdigit(c); // hexadecimal
+      return isxdigit(c);  // hexadecimal
     case LIT_BINT:
-        return c == '0' || c == '1'; // binary
+      return c == '0' || c == '1';  // binary
     default:
-        break;
-    }
+      break;
+  }
 
-    return false;
+  return false;
 }
 
-static bool is_identifier_start(char c)
-{
-    return isalpha(c) || c == '_';
+static bool is_identifier_start(char c) { return isalpha(c) || c == '_'; }
+
+static bool is_identifier(char c) { return isalnum(c) || c == '_'; }
+
+static bool is_string_delim(char c) {
+  return c == '"' || c == '\'' || c == '`';
 }
 
-static bool is_identifier(char c)
-{
-    return isalnum(c) || c == '_';
+char via::Lexer::advance(size_t ahead) {
+  char c = *m_cursor;
+  m_cursor += ahead;
+  return m_cursor < m_end ? c : '\0';
 }
 
-static bool is_string_delim(char c)
-{
-    return c == '"' || c == '\'' || c == '`';
+char via::Lexer::peek(ssize_t ahead) {
+  return m_cursor + ahead < m_end ? *(m_cursor + ahead) : '\0';
 }
 
-char via::Lexer::advance(size_t ahead)
-{
-    char c = *m_cursor;
-    m_cursor += ahead;
-    return m_cursor < m_end ? c : '\0';
-}
+via::Token* via::Lexer::read_number() {
+  Token* token = m_alloc.emplace<Token>();
+  token->kind = LIT_INT;
+  token->lexeme = m_cursor;
+  token->size = 0;
 
-char via::Lexer::peek(ssize_t ahead)
-{
-    return m_cursor + ahead < m_end ? *(m_cursor + ahead) : '\0';
-}
+  if (peek() == '0') {
+    if (peek(1) == 'x')
+      token->kind = LIT_XINT;
+    else if (peek(1) == 'b')
+      token->kind = LIT_BINT;
+    else
+      goto decimal;
 
-via::Token* via::Lexer::read_number()
-{
-    Token* token = m_alloc.emplace<Token>();
-    token->kind = LIT_INT;
-    token->lexeme = m_cursor;
-    token->size = 0;
-
-    if (peek() == '0') {
-        if (peek(1) == 'x')
-            token->kind = LIT_XINT;
-        else if (peek(1) == 'b')
-            token->kind = LIT_BINT;
-        else
-            goto decimal;
-
-        token->size = 2;
-        advance(2); // 0b/0x
-    }
+    token->size = 2;
+    advance(2);  // 0b/0x
+  }
 
 decimal:
-    char c;
-    while ((c = peek()), is_numeric(&token->kind, c)) {
-        if (c == '.') {
-            if (token->kind == LIT_INT)
-                token->kind = LIT_FLOAT;
-            else {
-                token->kind = ILLEGAL;
-                break;
-            }
-        }
-
-        advance();
-        token->size++;
-    }
-
-    return token;
-}
-
-via::Token* via::Lexer::read_string()
-{
-    Token* token = m_alloc.emplace<Token>();
-    token->kind = LIT_STRING;
-    token->lexeme = m_cursor;
-
-    char del = advance();
-    token->size = 1;
-
-    char c;
-    bool closed = false;
-    while ((c = advance()) != '\0') {
-        token->size++;
-
-        if (c == '\\') {
-            if (peek() != '\0') {
-                advance();
-                token->size++;
-            }
-        } else if (c == del) {
-            closed = true;
-            break;
-        }
-    }
-
-    if (!closed) {
-        token->size = 1;
+  char c;
+  while ((c = peek()), is_numeric(&token->kind, c)) {
+    if (c == '.') {
+      if (token->kind == LIT_INT)
+        token->kind = LIT_FLOAT;
+      else {
         token->kind = ILLEGAL;
+        break;
+      }
     }
 
-    return token;
+    advance();
+    token->size++;
+  }
+
+  return token;
 }
 
-via::Token* via::Lexer::read_identifier()
-{
-    Token* token = m_alloc.emplace<Token>();
-    token->kind = IDENTIFIER;
-    token->lexeme = m_cursor;
-    token->size = 0;
+via::Token* via::Lexer::read_string() {
+  Token* token = m_alloc.emplace<Token>();
+  token->kind = LIT_STRING;
+  token->lexeme = m_cursor;
 
-    char c;
-    while ((c = peek()), is_identifier(c)) {
+  char del = advance();
+  token->size = 1;
+
+  char c;
+  bool closed = false;
+  while ((c = advance()) != '\0') {
+    token->size++;
+
+    if (c == '\\') {
+      if (peek() != '\0') {
         advance();
         token->size++;
+      }
+    } else if (c == del) {
+      closed = true;
+      break;
     }
+  }
 
-    for (const auto& kw: KEYWORDS) {
-        if (strlen(kw.str) != token->size)
-            continue;
+  if (!closed) {
+    token->size = 1;
+    token->kind = ILLEGAL;
+  }
 
-        if (strncmp(kw.str, token->lexeme, token->size) == 0) {
-            token->kind = kw.kind;
-            break;
-        }
-    }
-
-    if (token->size == strlen("nil") && strncmp(token->lexeme, "nil", token->size) == 0)
-        token->kind = LIT_NIL;
-    else if (token->size == strlen("true") &&
-             strncmp(token->lexeme, "true", token->size) == 0)
-        token->kind = LIT_TRUE;
-    else if (token->size == strlen("false") &&
-             strncmp(token->lexeme, "false", token->size) == 0)
-        token->kind = LIT_FALSE;
-
-    return token;
+  return token;
 }
 
-via::Token* via::Lexer::read_operator()
-{
-    Token* token = m_alloc.emplace<Token>();
-    token->lexeme = m_cursor;
-    token->kind = ILLEGAL;
-    token->size = 1;
+via::Token* via::Lexer::read_identifier() {
+  Token* token = m_alloc.emplace<Token>();
+  token->kind = IDENTIFIER;
+  token->lexeme = m_cursor;
+  token->size = 0;
 
-    size_t match_size = 0;
-    auto match_kind = ILLEGAL;
+  char c;
+  while ((c = peek()), is_identifier(c)) {
+    advance();
+    token->size++;
+  }
 
-    char buf[4] = {};
+  for (const auto& kw : KEYWORDS) {
+    if (strlen(kw.str) != token->size) continue;
 
-    for (size_t len = max_operator_length(); len >= 1; --len) {
-        for (size_t i = 0; i < len; ++i) {
-            buf[i] = m_cursor[i];
-        }
-
-        buf[len] = '\0';
-
-        for (const auto& symbol: OPERATORS) {
-            if (len == strlen(symbol.str) && strcmp(buf, symbol.str) == 0) {
-                match_kind = symbol.kind;
-                match_size = len;
-                goto found;
-            }
-        }
+    if (strncmp(kw.str, token->lexeme, token->size) == 0) {
+      token->kind = kw.kind;
+      break;
     }
+  }
+
+  if (token->size == strlen("nil") &&
+      strncmp(token->lexeme, "nil", token->size) == 0)
+    token->kind = LIT_NIL;
+  else if (token->size == strlen("true") &&
+           strncmp(token->lexeme, "true", token->size) == 0)
+    token->kind = LIT_TRUE;
+  else if (token->size == strlen("false") &&
+           strncmp(token->lexeme, "false", token->size) == 0)
+    token->kind = LIT_FALSE;
+
+  return token;
+}
+
+via::Token* via::Lexer::read_operator() {
+  Token* token = m_alloc.emplace<Token>();
+  token->lexeme = m_cursor;
+  token->kind = ILLEGAL;
+  token->size = 1;
+
+  size_t match_size = 0;
+  auto match_kind = ILLEGAL;
+
+  char buf[4] = {};
+
+  for (size_t len = max_operator_length(); len >= 1; --len) {
+    for (size_t i = 0; i < len; ++i) {
+      buf[i] = m_cursor[i];
+    }
+
+    buf[len] = '\0';
+
+    for (const auto& symbol : OPERATORS) {
+      if (len == strlen(symbol.str) && strcmp(buf, symbol.str) == 0) {
+        match_kind = symbol.kind;
+        match_size = len;
+        goto found;
+      }
+    }
+  }
 
 found:
-    if (match_kind != ILLEGAL) {
-        token->kind = match_kind;
-        token->size = match_size;
+  if (match_kind != ILLEGAL) {
+    token->kind = match_kind;
+    token->size = match_size;
 
-        for (size_t i = 0; i < match_size; ++i) {
-            advance();
-        }
-    } else {
-        advance(); // advance one char if no match
+    for (size_t i = 0; i < match_size; ++i) {
+      advance();
     }
+  } else {
+    advance();  // advance one char if no match
+  }
 
-    return token;
+  return token;
 }
 
-bool via::Lexer::skip_comment()
-{
-    if (peek() != '/') {
-        return false;
-    }
-
-    char next = peek(1);
-    if (next == '/') {
-        advance(2); // consume first '//'
-
-        while (char c = peek()) {
-            if (c == '\n' || c == '\0')
-                break;
-
-            advance();
-        }
-
-        return true;
-    }
-
-    if (next == '*') {
-        advance(2); // consume '/*'
-
-        while (true) {
-            char c = peek();
-            if (c == '\0')
-                break; // EOF without closing */
-
-            if (c == '*' && peek(1) == '/') {
-                advance(2); // consume '*/'
-                break;
-            }
-
-            advance();
-        }
-
-        return true;
-    }
-
+bool via::Lexer::skip_comment() {
+  if (peek() != '/') {
     return false;
-}
+  }
 
-via::TokenTree via::Lexer::tokenize()
-{
-    TokenTree toks;
+  char next = peek(1);
+  if (next == '/') {
+    advance(2);  // consume first '//'
 
-    char c;
-    while ((c = peek()), c != '\0') {
-        if (isspace(c)) {
-            advance();
-            continue;
-        }
+    while (char c = peek()) {
+      if (c == '\n' || c == '\0') break;
 
-        if (skip_comment())
-            continue;
-
-        Token* token;
-
-        if (std::isdigit(c))
-            token = read_number();
-        else if (is_identifier_start(c))
-            token = read_identifier();
-        else if (is_string_delim(c))
-            token = read_string();
-        else
-            token = read_operator();
-
-        toks.push_back(token);
+      advance();
     }
 
-    Token* eof = m_alloc.emplace<Token>();
-    eof->kind = EOF_;
-    eof->lexeme = m_cursor;
-    eof->size = 0;
+    return true;
+  }
 
-    toks.push_back(eof);
-    return toks;
+  if (next == '*') {
+    advance(2);  // consume '/*'
+
+    while (true) {
+      char c = peek();
+      if (c == '\0') break;  // EOF without closing */
+
+      if (c == '*' && peek(1) == '/') {
+        advance(2);  // consume '*/'
+        break;
+      }
+
+      advance();
+    }
+
+    return true;
+  }
+
+  return false;
 }
 
-std::string via::to_string(const via::TokenTree& tt)
-{
-    std::ostringstream oss;
-    oss << via::ansi::format(
-        "[disassembly of tokens]:\n",
-        ansi::Foreground::YELLOW,
-        ansi::Background::NONE,
-        ansi::Style::UNDERLINE
-    );
+via::TokenTree via::Lexer::tokenize() {
+  TokenTree toks;
 
-    for (const auto* tk: tt)
-        oss << tk->to_string() << "\n";
-    return oss.str();
+  char c;
+  while ((c = peek()), c != '\0') {
+    if (isspace(c)) {
+      advance();
+      continue;
+    }
+
+    if (skip_comment()) continue;
+
+    Token* token;
+
+    if (std::isdigit(c))
+      token = read_number();
+    else if (is_identifier_start(c))
+      token = read_identifier();
+    else if (is_string_delim(c))
+      token = read_string();
+    else
+      token = read_operator();
+
+    toks.push_back(token);
+  }
+
+  Token* eof = m_alloc.emplace<Token>();
+  eof->kind = EOF_;
+  eof->lexeme = m_cursor;
+  eof->size = 0;
+
+  toks.push_back(eof);
+  return toks;
+}
+
+std::string via::to_string(const via::TokenTree& tt) {
+  std::ostringstream oss;
+  oss << via::ansi::format("[disassembly of tokens]:\n",
+                           ansi::Foreground::YELLOW, ansi::Background::NONE,
+                           ansi::Style::UNDERLINE);
+  oss << ansi::format(
+      "  kind        value           \n"
+      "  ----------  -------\n",
+      ansi::Foreground::NONE, ansi::Background::NONE, ansi::Style::FAINT);
+
+  for (const auto* tk : tt) oss << tk->get_dump() << "\n";
+  return oss.str();
 }

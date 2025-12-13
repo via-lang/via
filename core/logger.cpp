@@ -8,33 +8,33 @@
 ** ===================================================== */
 
 #include "logger.hpp"
+
 #include "debug.hpp"
 #include "support/ansi.hpp"
 
-static std::optional<std::string> get_level_string(via::LogLevel level)
-{
-    using enum via::LogLevel;
-    using namespace via::ansi;
+static std::optional<std::string> get_level_string(via::LogLevel level) {
+  using enum via::LogLevel;
+  using namespace via::ansi;
 
-    switch (level) {
+  switch (level) {
     case INFO:
-        return format("info:", Foreground::BLUE, Background::NONE, Style::BOLD);
+      return format("info:", Foreground::BLUE, Background::NONE, Style::BOLD);
     case WARN:
-        return format("warning:", Foreground::YELLOW, Background::NONE, Style::BOLD);
+      return format("warning:", Foreground::YELLOW, Background::NONE,
+                    Style::BOLD);
     case ERROR:
-        return format("error:", Foreground::RED, Background::NONE, Style::BOLD);
+      return format("error:", Foreground::RED, Background::NONE, Style::BOLD);
     default:
-        break;
-    }
+      break;
+  }
 
-    return std::nullopt;
+  return std::nullopt;
 }
 
-void via::Logger::log(via::LogLevel level, std::string string)
-{
-    if (auto header = get_level_string(level)) {
-        m_file << *header << " " << string;
-    } else {
-        m_file << string;
-    }
+void via::Logger::log(via::LogLevel level, std::string string) {
+  if (auto header = get_level_string(level)) {
+    m_file << *header << " " << string << std::endl;
+  } else {
+    m_file << string << std::endl;
+  }
 }

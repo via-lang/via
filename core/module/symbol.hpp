@@ -13,32 +13,31 @@
 #include <deque>
 #include <sstream>
 #include <string>
-#include "support/intern.hpp"
+
+#include "support/intern_table.hpp"
 
 namespace via {
 
 using SymbolId = uint64_t;
 using QualName = std::deque<std::string>;
 
-inline std::string to_string(const QualName& path)
-{
-    std::ostringstream oss;
-    for (size_t i = 0; i < path.size(); i++) {
-        if (i > 0) {
-            oss << "::";
-        }
-        oss << path[i];
+inline std::string to_string(const QualName& path) {
+  std::ostringstream oss;
+  for (size_t i = 0; i < path.size(); i++) {
+    if (i > 0) {
+      oss << "::";
     }
-    return oss.str();
+    oss << path[i];
+  }
+  return oss.str();
 }
 
-class SymbolTable final: public InternTable<std::string, SymbolId>
-{
-  public:
-    using InternTable::intern;
+class SymbolTable final : public InternTable<std::string, SymbolId> {
+ public:
+  using InternTable::intern;
 
-    SymbolId intern(const QualName& path) { return intern(via::to_string(path)); }
-    std::string to_string() const noexcept;
+  SymbolId intern(const QualName& path) { return intern(via::to_string(path)); }
+  std::string to_string() const noexcept;
 };
 
-} // namespace via
+}  // namespace via

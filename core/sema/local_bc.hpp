@@ -11,39 +11,33 @@
 
 #include <cstddef>
 #include <via/config.hpp>
+
 #include "module/symbol.hpp"
 
 namespace via {
 
-class BytecodeLocal final
-{
-  public:
-    struct Ref
-    {
-        uint16_t id;
-        BytecodeLocal* local;
+class BytecodeLocal final {
+ public:
+  struct Ref {
+    uint16_t id;
+    BytecodeLocal* local;
 
-        Ref() = default;
-        Ref(uint16_t id, BytecodeLocal* local) noexcept
-            : id(id),
-              local(local)
-        {}
-    };
+    Ref() = default;
+    Ref(uint16_t id, BytecodeLocal* local) noexcept : id(id), local(local) {}
+  };
 
-  public:
-    BytecodeLocal() = default;
-    BytecodeLocal(SymbolId symbol, size_t version)
-        : m_symbol(symbol),
-          m_version(version)
-    {}
+ public:
+  BytecodeLocal() = default;
+  BytecodeLocal(SymbolId symbol, size_t version)
+      : m_symbol(symbol), m_version(version) {}
 
-  public:
-    SymbolId get_symbol() const noexcept { return m_symbol; }
-    size_t get_version() const noexcept { return m_version; }
+ public:
+  SymbolId get_symbol() const noexcept { return m_symbol; }
+  size_t get_version() const noexcept { return m_version; }
 
-  protected:
-    SymbolId m_symbol;
-    size_t m_version;
+ protected:
+  SymbolId m_symbol;
+  size_t m_version;
 };
 
-} // namespace via
+}  // namespace via

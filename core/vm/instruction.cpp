@@ -8,29 +8,29 @@
 ** ===================================================== */
 
 #include "instruction.hpp"
+
 #include <array>
 #include <iomanip>
+
 #include "support/ansi.hpp"
 #include "support/bit.hpp"
 
 using OpCode = via::OpCode;
 
-enum Operand
-{
-    UNUSED,
-    LITERAL,
-    REGISTER,
-    CONSTANT,
-    HIGH,
-    LOW,
-    OFFSET_HIGH,
-    OFFSET_LOW,
+enum Operand {
+  UNUSED,
+  LITERAL,
+  REGISTER,
+  CONSTANT,
+  HIGH,
+  LOW,
+  OFFSET_HIGH,
+  OFFSET_LOW,
 };
 
-struct OpInfo
-{
-    OpCode op;
-    Operand a = UNUSED, b = UNUSED, c = UNUSED;
+struct OpInfo {
+  OpCode op;
+  Operand a = UNUSED, b = UNUSED, c = UNUSED;
 };
 
 static OpInfo OPERAND_INFO_MAP[] = {
@@ -158,85 +158,82 @@ static OpInfo OPERAND_INFO_MAP[] = {
     {OpCode::GETIMPORT, REGISTER, LITERAL, LITERAL},
 };
 
-std::string via::Instruction::to_string(bool color, size_t pc) const
-{
-    std::string opcode(via::to_string(op));
-    std::array<int, 3> operands{a, b, c};
+std::string via::Instruction::to_string(bool color, size_t pc) const {
+  std::string opcode(via::to_string(op));
+  std::array<int, 3> operands{a, b, c};
 
-    std::ostringstream oss;
-    oss << std::left << std::setw(color ? 24 : 16) << std::setfill(' ')
-        << (color ? ansi::format(
-                        opcode,
-                        ansi::Foreground::MAGENTA,
-                        ansi::Background::NONE,
-                        ansi::Style::BOLD
-                    )
-                  : opcode)
-        << "  ";
+  std::ostringstream oss;
+  oss << std::left << std::setw(color ? 24 : 16) << std::setfill(' ')
+      << (color ? ansi::format(opcode, ansi::Foreground::MAGENTA,
+                               ansi::Background::NONE, ansi::Style::BOLD)
+                : opcode)
+      << "  ";
 
-    OpInfo info;
-    bool found = false;
+  OpInfo info;
+  bool found = false;
 
-    for (const auto& pair: OPERAND_INFO_MAP) {
-        if (pair.op == op) {
-            info = pair;
-            found = true;
-            break;
-        }
+  for (const auto& pair : OPERAND_INFO_MAP) {
+    if (pair.op == op) {
+      info = pair;
+      found = true;
+      break;
     }
+  }
 
-    if (!found) {
-        oss << std::right << std::setw(3) << a << std::setw(3) << b << std::setw(3) << c;
-        oss << ansi::format(" <info error>", ansi::Foreground::RED);
-        return oss.str();
-    }
-
-    std::array<Operand, 3> operand_types = {info.a, info.b, info.c};
-
-    for (int i = 0; i < 3; ++i) {
-        auto type = operand_types[i];
-        if (type == UNUSED) {
-            break;
-        }
-
-        oss << std::right;
-
-        if (type == HIGH && i + 1 < 3 && operand_types[i + 1] == LOW) {
-            uint16_t hi = operands[i];
-            uint16_t lo = operands[i + 1];
-            oss << std::setw(3) << std::hex << "0x"
-                << std::to_string(pack_halves<uint32_t>(hi, lo));
-            ++i; // Skip the LOW operand since it's consumed together
-        } else if (type == OFFSET_HIGH && i + 1 < 3 &&
-                   operand_types[i + 1] == OFFSET_LOW) {
-            int64_t sign = (op == OpCode::JMPBACK || op == OpCode::JMPBACKIF ||
-                            op == OpCode::JMPBACKIFX)
-                               ? -1
-                               : 1;
-            uint16_t hi = operands[i];
-            uint16_t lo = operands[i + 1];
-            oss << std::setw(3) << std::hex << "#0x"
-                << (pc + sign * pack_halves<uint32_t>(hi, lo)) * 8;
-            ++i; // Skip the LOW operand since it's consumed together
-        } else {
-            switch (type) {
-            case LITERAL:
-                oss << std::setw(3) << std::dec << std::to_string(operands[i]);
-                break;
-            case REGISTER:
-                oss << std::setw(3) << std::dec << 'R' << std::to_string(operands[i]);
-                break;
-            case CONSTANT:
-                oss << std::setw(3) << std::dec << 'K' << std::to_string(operands[i]);
-                break;
-            default:
-                oss << std::setw(3) << std::hex << "0x" << std::to_string(operands[i]);
-                break;
-            }
-        }
-        if (i < 2 && operand_types[i + 1] != UNUSED) {
-            oss << ", ";
-        }
-    }
+  if (!found) {
+    oss << std::right << std::setw(3) << a << std::setw(3) << b << std::setw(3)
+        << c;
+    oss << ansi::format(" <info error>", ansi::Foreground::RED);
     return oss.str();
+  }
+
+  std::array<Operand, 3> operand_types = {info.a, info.b, info.c};
+
+  for (int i = 0; i < 3; ++i) {
+    auto type = operand_types[i];
+    if (type == UNUSED) {
+      break;
+    }
+
+    oss << std::right;
+
+    if (type == HIGH && i + 1 < 3 && operand_types[i + 1] == LOW) {
+      uint16_t hi = operands[i];
+      uint16_t lo = operands[i + 1];
+      oss << std::setw(3) << std::hex << "0x"
+          << std::to_string(pack_halves<uint32_t>(hi, lo));
+      ++i;  // Skip the LOW operand since it's consumed together
+    } else if (type == OFFSET_HIGH && i + 1 < 3 &&
+               operand_types[i + 1] == OFFSET_LOW) {
+      int64_t sign = (op == OpCode::JMPBACK || op == OpCode::JMPBACKIF ||
+                      op == OpCode::JMPBACKIFX)
+                         ? -1
+                         : 1;
+      uint16_t hi = operands[i];
+      uint16_t lo = operands[i + 1];
+      oss << std::setw(3) << std::hex << "#0x"
+          << (pc + sign * pack_halves<uint32_t>(hi, lo)) * 8;
+      ++i;  // Skip the LOW operand since it's consumed together
+    } else {
+      switch (type) {
+        case LITERAL:
+          oss << std::setw(3) << std::dec << std::to_string(operands[i]);
+          break;
+        case REGISTER:
+          oss << std::setw(3) << std::dec << 'R' << std::to_string(operands[i]);
+          break;
+        case CONSTANT:
+          oss << std::setw(3) << std::dec << 'K' << std::to_string(operands[i]);
+          break;
+        default:
+          oss << std::setw(3) << std::hex << "0x"
+              << std::to_string(operands[i]);
+          break;
+      }
+    }
+    if (i < 2 && operand_types[i + 1] != UNUSED) {
+      oss << ", ";
+    }
+  }
+  return oss.str();
 }

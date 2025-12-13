@@ -9,36 +9,18 @@
 
 #include <cmath>
 #include <via/via.hpp>
-#include "sema/types.hpp"
 
-namespace math {
+VIA_MODULE_ENTRY(math, manager) {
+  via::ModuleBuilder b(*manager);
 
-VIA_MODULE_FUNCTION(sin, vm, call_info)
-{
-    auto x = call_info.args.at(0);
-    auto result = std::sin(x->float_value());
-    return via::ValueRef(vm, result);
-}
+  b.function("sin")
+      .returns(b.float_t())
+      .parameter(b.float_t())
+      .implement([](via::VirtualMachine* vm, via::CallInfo& ci) {
+        auto x = ci.args.at(0);
+        auto result = std::sin(x->unwrap<via::FLOAT>());
+        return via::ValueRef(vm, result);
+      });
 
-} // namespace math
-
-VIA_MODULE_ENTRY(math, manager)
-{
-    auto& types = manager->type_context();
-    auto& symbol = manager->symbol_table();
-
-    static via::DefTable table = {
-        via::Def::function(
-            *manager,
-            "sin",
-            via::BuiltinType::instance(types, via::BuiltinKind::FLOAT),
-            {
-                {symbol.intern("__x"),
-                 via::BuiltinType::instance(types, via::BuiltinKind::FLOAT)},
-            },
-            math::sin
-        ),
-    };
-
-    return via::NativeModuleInfo::create(manager->allocator(), table);
+  return b.build();
 }

@@ -27,7 +27,7 @@
   <a href="#credits">Credits</a>
 </p>
 
->[!WARNING]
+> [!WARNING]
 > This is an **experimental** project and not yet production-ready. Most features are under conception/development and may be incomplete/unstable. Implementations are subject to change as the project evolves.
 
 # Introduction
@@ -37,14 +37,14 @@
 # Features
 
 - Non-intrusive static typing
-- No garbage collector*
+- No garbage collector\*
 - Modern, clean and sane standard library and syntax
 - Built-in types for strings, arrays, maps, tuples, optionals, unions, etc.
 - Powerful metaprogramming
 - Advanced compiler hints & intrinsics
 - Multi-paradigm design, including object-oriented and functional programming
 - High performance
-- Platform independence*
+- Platform independence\*
 - Rich C++ interface
 
 # Installation
@@ -54,18 +54,21 @@
 ### From source
 
 Install the following binaries with your systems official package manager:
+
 - `git`
 - `g++` (15.x+)
 - `cmake`
 - `ninja` (`ninja-build` in some repos)
 
 Clone the official git repository and `cd` into it:
+
 ```sh
 git clone --recursive https://github.com/XnLogicaL/via-lang.git /path/to/via
 cd /path/to/via
 ```
 
 Now generate build files using `cmake` and build & install the binaries:
+
 ```sh
 cmake -B build -G Ninja
 cmake --build build # -j$(nproc) <- optional but recommended, as it significantly speeds up build times
@@ -74,6 +77,7 @@ cmake --install build
 ```
 
 You can test your installation with this command:
+
 ```sh
 which via
 #> /bin/via

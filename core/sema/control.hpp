@@ -11,10 +11,12 @@
 
 #include <vector>
 #include <via/config.hpp>
-#include "ir/ir.hpp"
+
+#include "ir/tree.hpp"
 
 namespace via {
 
-std::vector<const ir::Term*> get_control_paths(const ir::StmtBlock* entry) noexcept;
+std::vector<const ir::Term*> get_control_paths(
+    const ir::StmtBlock* entry) noexcept;
 
-} // namespace via
+}  // namespace via

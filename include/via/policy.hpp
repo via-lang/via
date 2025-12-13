@@ -11,9 +11,9 @@
 #include "config.hpp"
 
 #ifdef VIA_PLATFORM_UNKNOWN
-    #error unsupported platform
+#error unsupported platform
 #endif
 
 #ifdef VIA_COMPILER_UNKNOWN
-    #error unsupported compiler
+#error unsupported compiler
 #endif

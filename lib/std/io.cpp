@@ -9,76 +9,46 @@
 
 #include <iostream>
 #include <via/via.hpp>
-#include "sema/types.hpp"
 
-namespace io {
+#include "sema/const_value.hpp"
+#include "vm/closure.hpp"
+#include "vm/machine.hpp"
 
-VIA_MODULE_FUNCTION(input, vm, call_info)
-{
-    auto& alloc = vm->allocator();
-    auto string = call_info.args.at(0);
+VIA_MODULE_ENTRY(io, manager) {
+  via::ModuleBuilder b(*manager);
 
-    std::string in;
-    std::cout << string->string_value();
-    std::cin >> in;
+  b.function("print")
+      .returns(b.nil_t())
+      .parameter(b.string_t())
+      .implement([](via::VirtualMachine* vm, via::CallInfo& ci) {
+        auto str = ci.args.at(0);
+        std::cout << str->unwrap<via::STRING>();
+        return via::ValueRef(vm);
+      });
 
-    char* cstring = alloc.strdup(in.c_str());
-    return via::ValueRef(vm, cstring);
-}
+  b.function("printn")
+      .returns(b.nil_t())
+      .parameter(b.string_t())
+      .implement([](via::VirtualMachine* vm, via::CallInfo& ci) {
+        auto str = ci.args.at(0);
+        std::cout << str->unwrap<via::STRING>() << "\n";
+        return via::ValueRef(vm);
+      });
 
-VIA_MODULE_FUNCTION(print, vm, call_info)
-{
-    auto str = call_info.args.at(0);
-    std::cout << str->string_value();
-    return via::ValueRef(vm);
-}
+  b.function("input")
+      .returns(b.string_t())
+      .parameter(b.string_t())
+      .implement([](via::VirtualMachine* vm, via::CallInfo& ci) {
+        auto& alloc = vm->allocator();
+        auto string = ci.args.at(0);
 
-VIA_MODULE_FUNCTION(printn, vm, call_info)
-{
-    auto str = call_info.args.at(0);
-    std::cout << str->string_value() << "\n";
-    return via::ValueRef(vm);
-}
+        std::string in;
+        std::cout << string->unwrap<via::STRING>();
+        std::cin >> in;
 
-} // namespace io
+        char* cstring = alloc.strdup(in.c_str());
+        return via::ValueRef(vm, cstring);
+      });
 
-VIA_MODULE_ENTRY(io, manager)
-{
-    auto& types = manager->type_context();
-    auto& symbol = manager->symbol_table();
-
-    static via::DefTable table = {
-        via::Def::function(
-            *manager,
-            "input",
-            via::BuiltinType::instance(types, via::BuiltinKind::STRING),
-            {
-                {symbol.intern("__str"),
-                 via::BuiltinType::instance(types, via::BuiltinKind::STRING)},
-            },
-            io::input
-        ),
-        via::Def::function(
-            *manager,
-            "print",
-            via::BuiltinType::instance(types, via::BuiltinKind::NIL),
-            {
-                {symbol.intern("__str"),
-                 via::BuiltinType::instance(types, via::BuiltinKind::STRING)},
-            },
-            io::print
-        ),
-        via::Def::function(
-            *manager,
-            "printn",
-            via::BuiltinType::instance(types, via::BuiltinKind::NIL),
-            {
-                {symbol.intern("__str"),
-                 via::BuiltinType::instance(types, via::BuiltinKind::STRING)},
-            },
-            io::printn
-        ),
-    };
-
-    return via::NativeModuleInfo::create(manager->allocator(), table);
+  return b.build();
 }

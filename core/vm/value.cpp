@@ -8,201 +8,97 @@
 ** ===================================================== */
 
 #include "value.hpp"
+
 #include "debug.hpp"
-#include "sema/const.hpp"
+#include "sema/const_value.hpp"
 #include "support/conv.hpp"
 #include "support/memory.hpp"
 
 // clang-format off
 via::Value* via::Value::create(VirtualMachine* vm)
-    { return create(vm, ValueKind::NIL); }
+    { return create(vm, NIL); }
 via::Value* via::Value::create(VirtualMachine* vm, int64_t integer)
-    { return create(vm, ValueKind::INT, {.integer = integer}); }
+    { return create(vm, INT, {.integer = integer}); }
 via::Value* via::Value::create(VirtualMachine* vm, float64 float_)
-    { return create(vm, ValueKind::FLOAT, {.float_ = float_}); }
+    { return create(vm, FLOAT, {.float_ = float_}); }
 via::Value* via::Value::create(VirtualMachine* vm, bool boolean)
-    { return create(vm, ValueKind::BOOL, {.boolean = boolean}); }
+    { return create(vm, BOOL, {.boolean = boolean}); }
 // clang-format on
 
-via::Value* via::Value::create(VirtualMachine* vm, char* string)
-{
-    debug::require(
-        vm->allocator().owns(string),
-        "Value construction via string requires it to be allocated by "
-        "the corresponding Value::vm"
-    );
-    return create(vm, ValueKind::STRING, {.string = string});
+via::Value* via::Value::create(VirtualMachine* vm, char* string) {
+  debug::require(vm->allocator().owns(string),
+                 "Value construction via string requires it to be allocated by "
+                 "the corresponding Value::vm");
+  return create(vm, STRING, {.string = string});
 }
 
-via::Value* via::Value::create(VirtualMachine* vm, Closure* closure)
-{
-    debug::require(
-        vm->allocator().owns(closure),
-        "Value construction via closure object requires it to be allocated by "
-        "the corresponding Value::vm"
-    );
-    return create(vm, ValueKind::FUNCTION, {.function = closure});
+via::Value* via::Value::create(VirtualMachine* vm, Closure* closure) {
+  debug::require(
+      vm->allocator().owns(closure),
+      "Value construction via closure object requires it to be allocated by "
+      "the corresponding Value::vm");
+  return create(vm, FUNCTION, {.function = closure});
 }
 
-via::Value* via::Value::create(VirtualMachine* vm, const ConstValue& cv)
-{
-    auto& alloc = vm->allocator();
+via::Value* via::Value::create(VirtualMachine* vm, const ConstValue& cv) {
+  auto& alloc = vm->allocator();
 
-    switch (cv.kind()) {
-    case ValueKind::NIL:
-        return create(vm);
-    case ValueKind::BOOL:
-        return create(vm, cv.value<ValueKind::BOOL>());
-    case ValueKind::INT:
-        return create(vm, cv.value<ValueKind::INT>());
-    case ValueKind::FLOAT:
-        return create(vm, cv.value<ValueKind::FLOAT>());
-    case ValueKind::STRING: {
-        auto string = cv.value<ValueKind::STRING>();
-        auto buffer = alloc.strdup(string.c_str());
-        return create(vm, buffer);
+  switch (cv.kind()) {
+    case NIL:
+      return create(vm);
+    case BOOL:
+      return create(vm, cv.unwrap<BOOL>());
+    case INT:
+      return create(vm, cv.unwrap<INT>());
+    case FLOAT:
+      return create(vm, cv.unwrap<FLOAT>());
+    case STRING: {
+      auto string = cv.unwrap<STRING>();
+      auto buffer = alloc.strdup(string.c_str());
+      return create(vm, buffer);
     }
     default:
-        break;
-    }
-    debug::unimplemented();
+      break;
+  }
+  debug::unimplemented();
 }
 
-bool via::Value::unref() noexcept
-{
-    m_rc--;
-    [[unlikely]] if (m_rc == 0) {
-        free();
-        return true;
-    }
-    return false;
+bool via::Value::unref() noexcept {
+  m_rc--;
+  [[unlikely]] if (m_rc == 0) {
+    free();
+    return true;
+  }
+  return false;
 }
 
-void via::Value::free() noexcept
-{
-    switch (m_kind) {
-    case ValueKind::STRING:
-    case ValueKind::FUNCTION:
-        m_vm->allocator().free(std::bit_cast<void*>(m_data));
-        break;
+void via::Value::free() noexcept {
+  switch (m_kind) {
+    case STRING:
+    case FUNCTION:
+      m_vm->allocator().free(std::bit_cast<void*>(m_data));
+      break;
     default:
-        // Trivial types don't require explicit destruction
-        break;
-    }
+      // Trivial types don't require explicit destruction
+      break;
+  }
 
-    m_kind = ValueKind::NIL;
+  m_kind = NIL;
 }
 
-via::Value* via::Value::clone() noexcept
-{
-    return create(m_vm, m_kind, m_data);
+via::Value* via::Value::clone() noexcept {
+  return create(m_vm, m_kind, m_data);
 }
 
-std::optional<int64_t> via::Value::as_cint() const
-{
-    switch (m_kind) {
-    case ValueKind::FLOAT:
-        return (int64_t) float_value();
-    case ValueKind::BOOL:
-        return (int64_t) bool_value();
-    case ValueKind::INT:
-        return int_value();
-    default:
-        return std::nullopt;
-    }
+std::string via::Value::to_string() const noexcept {
+  return std::format("&{} {}({}) ", m_rc, via::to_string(m_kind),
+                     as_c<STRING>());
 }
 
-std::optional<via::float64> via::Value::as_cfloat() const
-{
-    switch (m_kind) {
-    case ValueKind::INT:
-        return (float64) int_value();
-    case ValueKind::FLOAT:
-        return float_value();
-    case ValueKind::STRING:
-        return stof<float64>(string_value());
-    default:
-        std::cout << std::format(
-            "as_cfloat({} 0x{:x})\n",
-            via::to_string(m_kind),
-            (int) m_kind
-        );
-        return std::nullopt;
-    }
-}
-
-bool via::Value::as_cbool() const
-{
-    switch (m_kind) {
-    case ValueKind::NIL:
-        return false;
-    case ValueKind::BOOL:
-        return bool_value();
-    default:
-        return true;
-    }
-}
-
-std::string via::Value::as_cstring() const
-{
-    switch (m_kind) {
-    case ValueKind::NIL:
-        return "nil";
-    case ValueKind::BOOL:
-        return std::to_string(m_data.boolean);
-    case ValueKind::INT:
-        return std::to_string(m_data.integer);
-    case ValueKind::FLOAT:
-        return std::to_string(m_data.float_);
-    case ValueKind::STRING:
-        return m_data.string;
-    case ValueKind::FUNCTION:
-        return std::format(
-            "closure<{}>@{}",
-            m_data.function->is_native() ? "native" : "bytecode",
-            reinterpret_cast<void*>(m_data.function)
-        );
-    }
-    debug::unimplemented();
-}
-
-via::Value* via::Value::as_int() const
-{
-    auto val = as_cint();
-    debug::require(val.has_value());
-    return create(m_vm, *val);
-}
-
-via::Value* via::Value::as_float() const
-{
-    auto val = as_cfloat();
-    debug::require(val.has_value());
-    return create(m_vm, *val);
-}
-
-via::Value* via::Value::as_bool() const
-{
-    return Value::create(m_vm, as_cbool());
-}
-
-via::Value* via::Value::as_string() const
-{
-    auto& alloc = m_vm->allocator();
-    auto string = as_cstring();
-    auto buffer = alloc.strdup(string.c_str());
-    return Value::create(m_vm, buffer);
-}
-
-std::string via::Value::to_string() const noexcept
-{
-    return std::format("&{} {}({}) ", m_rc, via::to_string(m_kind), as_cstring());
-}
-
-via::Value* via::Value::create(VirtualMachine* vm, ValueKind kind, Union data)
-{
-    Value* ptr = vm->allocator().emplace<Value>();
-    ptr->m_kind = kind;
-    ptr->m_data = data;
-    ptr->m_vm = vm;
-    return ptr;
+via::Value* via::Value::create(VirtualMachine* vm, ValueKind kind, Union data) {
+  Value* ptr = vm->allocator().emplace<Value>();
+  ptr->m_kind = kind;
+  ptr->m_data = data;
+  ptr->m_vm = vm;
+  return ptr;
 }

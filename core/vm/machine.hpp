@@ -15,6 +15,7 @@
 #include <ostream>
 #include <string>
 #include <via/config.hpp>
+
 #include "debug.hpp"
 #include "executable.hpp"
 #include "instruction.hpp"
@@ -26,47 +27,39 @@ namespace via {
 namespace config {
 namespace vm {
 
-VIA_CONSTANT size_t REGISTER_COUNT = std::numeric_limits<uint16_t>::max() + 1;
+constexpr size_t REGISTER_COUNT = std::numeric_limits<uint16_t>::max() + 1;
 
 }
-} // namespace config
+}  // namespace config
 
 class Closure;
 class ValueRef;
 class VirtualMachine;
 
-#define FOR_EACH_INTERRUPT(X)                                                            \
-    X(NONE)                                                                              \
-    X(ERROR)
+#define FOR_EACH_INTERRUPT(X) \
+  X(NONE)                     \
+  X(ERROR)
 
-enum class Interrupt : uint8_t
-{
-    FOR_EACH_INTERRUPT(DEFINE_ENUM)
+enum class Interrupt : uint8_t { FOR_EACH_INTERRUPT(DEFINE_ENUM) };
+
+enum class IntAction {
+  RESUME,
+  REINTERP,
+  EXIT,
 };
 
-enum class IntAction
-{
-    RESUME,
-    REINTERP,
-    EXIT,
-};
-
-enum class CallFlags : uint8_t
-{
-    NONE = 0,
-    PROTECT = 1 << 0,
-    ALL = 0xFF,
+enum class CallFlags : uint8_t {
+  NONE = 0,
+  PROTECT = 1 << 0,
+  ALL = 0xFF,
 };
 
 DEFINE_TO_STRING(Interrupt, FOR_EACH_INTERRUPT(DEFINE_CASE_TO_STRING));
 
 using InterruptHook = void (*)(VirtualMachine*, Interrupt, void*);
-using StackUnwindCallback = std::function<bool(
-    const uintptr_t* fp,
-    const Instruction* pc,
-    const CallFlags flags,
-    ValueRef callee
-)>;
+using StackUnwindCallback =
+    std::function<bool(const uintptr_t* fp, const Instruction* pc,
+                       const CallFlags flags, ValueRef callee)>;
 
 namespace detail {
 
@@ -76,96 +69,92 @@ void execute(VirtualMachine* vm);
 template <Interrupt Int>
 IntAction handle_interrupt(VirtualMachine* vm);
 
-} // namespace detail
+}  // namespace detail
 
 class Value;
-class Snapshot
-{
-  public:
-    explicit Snapshot(VirtualMachine* vm) noexcept;
+class Snapshot {
+ public:
+  explicit Snapshot(VirtualMachine* vm) noexcept;
 
-  public:
-    std::string to_string() const noexcept;
+ public:
+  std::string to_string() const noexcept;
 
-  public:
-    const uintptr_t stack_ptr;
-    const uintptr_t frame_ptr;
-    const Instruction* program_counter;
-    const size_t rel_program_counter;
-    const std::vector<uintptr_t> stack;
-    const std::vector<Value*> registers;
+ public:
+  const uintptr_t stack_ptr;
+  const uintptr_t frame_ptr;
+  const Instruction* program_counter;
+  const size_t rel_program_counter;
+  const std::vector<uintptr_t> stack;
+  const std::vector<Value*> registers;
 };
 
-struct ErrorInt
-{
-    std::string msg;
-    std::ostream* out;
-    const uintptr_t* fp;
-    const Instruction* pc;
+struct ErrorInt {
+  std::string msg;
+  std::ostream* out;
+  const uintptr_t* fp;
+  const Instruction* pc;
 };
 
 class ValueRef;
 class ModuleManager;
-class VirtualMachine final
-{
-  public:
-    template <bool, bool>
-    friend void detail::execute(VirtualMachine*);
+class VirtualMachine final {
+ public:
+  template <bool, bool>
+  friend void detail::execute(VirtualMachine*);
 
-    template <Interrupt>
-    friend IntAction detail::handle_interrupt(VirtualMachine*);
+  template <Interrupt>
+  friend IntAction detail::handle_interrupt(VirtualMachine*);
 
-    friend class Snapshot;
-    friend class Debugger;
+  friend class Snapshot;
+  friend class Debugger;
 
-  public:
-    explicit VirtualMachine(Module* module, const Executable* exe)
-        : m_exe(exe),
-          m_alloc(),
-          m_module(module),
-          m_bp(exe->bytecode().data()),
-          m_pc(m_bp),
-          m_stack(m_alloc),
-          m_registers(std::make_unique<Value*[]>(config::vm::REGISTER_COUNT))
-    {
-        debug::require(!exe->bytecode().empty(), "illformed header");
-    }
+ public:
+  explicit VirtualMachine(Module* module, const Executable* exe)
+      : m_exe(exe),
+        m_alloc(),
+        m_module(module),
+        m_bp(exe->bytecode().data()),
+        m_pc(m_bp),
+        m_stack(m_alloc),
+        m_registers(std::make_unique<Value*[]>(config::vm::REGISTER_COUNT)) {
+    debug::require(!exe->bytecode().empty(), "illformed header");
+  }
 
-  public:
-    Stack<uintptr_t>& get_stack() { return m_stack; }
-    ScopedAllocator& allocator() { return m_alloc; }
-    ValueRef get_import(SymbolId module_id, SymbolId key_id);
-    ValueRef get_constant(uint16_t id);
-    void set_interrupt_hook(InterruptHook hook) { m_int_hook = hook; }
-    void set_interrupt(Interrupt code, void* arg = nullptr) noexcept;
-    void push_local(ValueRef val);
-    ValueRef get_local(size_t sp);
-    void call(ValueRef callee, CallFlags flags = CallFlags::NONE);
-    void return_(ValueRef value);
-    void raise(std::string msg, std::ostream& out = std::cerr);
-    void execute();
-    void execute_once();
+ public:
+  Stack<uintptr_t>& get_stack() { return m_stack; }
+  ScopedAllocator& allocator() { return m_alloc; }
+  ValueRef get_import(SymbolId module_id, SymbolId key_id);
+  ValueRef get_constant(uint16_t id);
+  void set_interrupt_hook(InterruptHook hook) { m_int_hook = hook; }
+  void set_interrupt(Interrupt code, void* arg = nullptr) noexcept;
+  void push_local(ValueRef val);
+  ValueRef get_local(size_t sp);
+  void call(ValueRef callee, CallFlags flags = CallFlags::NONE);
+  void return_(ValueRef value);
+  void raise(std::string msg, std::ostream& out = std::cerr);
+  void execute();
+  void execute_once();
 
-  protected:
-    void save_stack();
-    void restore_stack();
-    Closure* unwind_stack(StackUnwindCallback pred);
-    bool has_interrupt() const { return m_int != Interrupt::NONE; }
-    IntAction handle_interrupt();
+ protected:
+  void save_stack();
+  void restore_stack();
+  Closure* unwind_stack(StackUnwindCallback pred);
+  bool has_interrupt() const { return m_int != Interrupt::NONE; }
+  IntAction handle_interrupt();
 
-  protected:
-    const Executable* m_exe;
-    ScopedAllocator m_alloc;
-    Module* m_module;
-    uintptr_t* m_sp;           // Saved stack pointer
-    uintptr_t* m_fp = nullptr; // Frame pointer
-    const Instruction* m_bp;   // Program base pointer
-    const Instruction* m_pc;   // Program counter
-    Interrupt m_int = Interrupt::NONE;
-    InterruptHook m_int_hook = nullptr;
-    void* m_int_arg;
-    Stack<uintptr_t> m_stack;
-    std::unique_ptr<Value*[]> m_registers;
+ protected:
+  const Executable* m_exe;
+  ScopedAllocator m_alloc;
+  Module* m_module;
+  uintptr_t* m_sp;            // Saved stack pointer
+  uintptr_t* m_fp = nullptr;  // Frame pointer
+  const Instruction* m_bp;    // Program base pointer
+  const Instruction* m_pc;    // Program counter
+  Interrupt m_int = Interrupt::NONE;
+  InterruptHook m_int_hook = nullptr;
+  void* m_int_arg;
+  Stack<uintptr_t> m_stack;
+  std::unique_ptr<Value*[]> m_registers;
 };
 
-} // namespace via
+}  // namespace via

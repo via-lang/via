@@ -1,0 +1,9 @@
+[submodule "thirdparty/cpptrace"]
+	path = thirdparty/cpptrace
+	url = https://github.com/jeremy-rifkin/cpptrace.git
+[submodule "thirdparty/argvx"]
+	path = thirdparty/argvx
+	url = https://github.com/XnLogicaL/argvx.git
+[submodule "thirdparty/mimalloc"]
+	path = thirdparty/mimalloc
+	url = https://github.com/microsoft/mimalloc.git

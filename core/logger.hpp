@@ -15,39 +15,37 @@
 
 namespace via {
 
-enum class LogLevel
-{
-    NONE,
-    INFO,
-    WARN,
-    ERROR,
+enum class LogLevel {
+  NONE,
+  INFO,
+  WARN,
+  ERROR,
 };
 
-class Logger
-{
-  public:
-    Logger() = delete;
-    Logger(std::ostream& file)
-        : m_file(file)
-    {}
+class Logger {
+ public:
+  Logger() = delete;
+  Logger(std::ostream& file) : m_file(file) {}
 
-    static Logger& stdout_logger()
-    {
-        static Logger logger(std::cout);
-        return logger;
-    }
+  static Logger& stdout_logger() {
+    static Logger logger(std::cout);
+    return logger;
+  }
 
-    static Logger& stderr_logger()
-    {
-        static Logger logger(std::cerr);
-        return logger;
-    }
+  static Logger& stderr_logger() {
+    static Logger logger(std::cerr);
+    return logger;
+  }
 
-  public:
-    // clang-format off
-    template<typename... Args>
+ public:
+  // clang-format off
+    template<typename ...Args>
     void log(LogLevel level, std::format_string<Args...> fmt, Args&&... args)
         { log(level, std::format(fmt, std::forward<Args>(args)...)); }
+
+    template<LogLevel L = LogLevel::NONE, typename... Args>
+    void log(std::format_string<Args...> fmt, Args&&... args)
+        { log(L, std::format(fmt, std::forward<Args>(args)...)); }
 
     template <typename... Args>
     void info(std::format_string<Args...> fmt, Args&&... args)
@@ -60,13 +58,13 @@ class Logger
     template <typename... Args>
     void error(std::format_string<Args...> fmt, Args&&... args)
         { log(LogLevel::ERROR, std::format(fmt, std::forward<Args>(args)...)); }
-    // clang-format on
+  // clang-format on
 
-  private:
-    void log(LogLevel level, std::string string);
+ private:
+  void log(LogLevel level, std::string string);
 
-  private:
-    std::ostream& m_file;
+ private:
+  std::ostream& m_file;
 };
 
-} // namespace via
+}  // namespace via

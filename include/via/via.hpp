@@ -10,26 +10,27 @@
 #pragma once
 
 #if 1
-    #include "config.hpp"
-    #include "policy.hpp"
+#include "config.hpp"
+#include "policy.hpp"
 #endif
 
-#include <ast/ast.hpp>
+#include <ast/tree.hpp>
 #include <init.hpp>
 #include <lexer/lexer.hpp>
 #include <lexer/token.hpp>
 #include <logger.hpp>
-#include <module/defs.hpp>
+#include <module/builder.hpp>
+#include <module/declaration.hpp>
 #include <module/manager.hpp>
 #include <module/module.hpp>
 #include <module/symbol.hpp>
 #include <parser/parser.hpp>
-#include <sema/const.hpp>
+#include <sema/const_value.hpp>
 #include <sema/register.hpp>
 #include <support/ansi.hpp>
 #include <vm/executable.hpp>
 #include <vm/instruction.hpp>
 #include <vm/machine.hpp>
-#include <vm/ref.hpp>
+#include <vm/reference.hpp>
 #include <vm/stack.hpp>
 #include <vm/value.hpp>

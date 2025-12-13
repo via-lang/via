@@ -16,12 +16,12 @@ namespace via {
 namespace config {
 
 #ifdef NDEBUG
-VIA_CONSTANT bool DEBUG_ENABLED = false;
+constexpr bool DEBUG_ENABLED = false;
 #else
-VIA_CONSTANT bool DEBUG_ENABLED = true;
+constexpr bool DEBUG_ENABLED = true;
 #endif
 
-} // namespace config
+}  // namespace config
 
 namespace debug {
 
@@ -33,5 +33,5 @@ void require(bool cond, std::string msg = "<no-message>") noexcept;
 [[noreturn]] void todo(std::string msg = "<no-message>") noexcept;
 [[noreturn]] void unimplemented(std::string msg = "<no-message>") noexcept;
 
-} // namespace debug
-} // namespace via
+}  // namespace debug
+}  // namespace via

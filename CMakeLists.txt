@@ -31,6 +31,7 @@ endif()
 
 add_subdirectory(thirdparty/mimalloc)
 add_subdirectory(thirdparty/cpptrace)
+add_subdirectory(thirdparty/argvx)
 
 # Modules
 add_subdirectory(core)

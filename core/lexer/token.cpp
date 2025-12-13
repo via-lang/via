@@ -8,14 +8,12 @@
 ** ===================================================== */
 
 #include "token.hpp"
-#include <format>
-#include "source.hpp"
 
-std::string via::Token::get_dump() const
-{
-    return std::format(
-        "[{} '{}']",
-        via::to_string(kind),
-        (*lexeme == '\0') ? "<eof>" : to_string()
-    );
+#include <format>
+
+#include "lexer/source_buffer.hpp"
+
+std::string via::Token::get_dump() const {
+  return std::format("[{} '{}']", via::to_string(kind),
+                     (*lexeme == '\0') ? "<eof>" : to_string());
 }

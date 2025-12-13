@@ -8,51 +8,51 @@
 ** ===================================================== */
 
 #include "init.hpp"
-#include <cpptrace/cpptrace.hpp>
+
 #include <fmt/base.h>
-#include <iostream>
 #include <mimalloc.h>
+
+#include <cpptrace/cpptrace.hpp>
+#include <iostream>
+
 #include "debug.hpp"
 #include "logger.hpp"
 
-static void mimalloc_error_handler(int err, void* arg)
-{
-    via::Logger::stderr_logger().error("mimalloc: error code {}", err);
-    cpptrace::generate_trace().print(std::cerr);
+static void mimalloc_error_handler(int err, void* arg) {
+  via::Logger::stderr_logger().error("mimalloc: error code {}", err);
+  cpptrace::generate_trace().print(std::cerr);
 }
 
-static void init_mimalloc(uint8_t verbosity) noexcept
-{
-    mi_option_set(mi_option_reserve_os_memory, via::config::PREALLOC_SIZE);
+static void init_mimalloc(uint8_t verbosity) noexcept {
+  mi_option_set(mi_option_reserve_os_memory, via::config::PREALLOC_SIZE);
 
-    mi_option_set(mi_option_large_os_pages, 0);
-    mi_option_set(mi_option_reserve_huge_os_pages, 0);
-    mi_option_set(mi_option_reserve_huge_os_pages_at, -1); // any NUMA node
+  mi_option_set(mi_option_large_os_pages, 0);
+  mi_option_set(mi_option_reserve_huge_os_pages, 0);
+  mi_option_set(mi_option_reserve_huge_os_pages_at, -1);  // any NUMA node
 
-    mi_option_set(mi_option_eager_commit, 0);
-    mi_option_set(mi_option_eager_commit_delay, 4); // commit lazily in 4-page steps
+  mi_option_set(mi_option_eager_commit, 0);
+  mi_option_set(mi_option_eager_commit_delay,
+                4);  // commit lazily in 4-page steps
 
-    mi_option_set(mi_option_reset_delay, 0); // Disable page reset delay
-    mi_option_set(mi_option_show_errors, via::config::DEBUG_ENABLED);
-    mi_option_set(mi_option_show_stats, verbosity > 1);
-    mi_option_set(mi_option_verbose, verbosity > 2);
+  mi_option_set(mi_option_reset_delay, 0);  // Disable page reset delay
+  mi_option_set(mi_option_show_errors, via::config::DEBUG_ENABLED);
+  mi_option_set(mi_option_show_stats, verbosity > 1);
+  mi_option_set(mi_option_verbose, verbosity > 2);
 
-    mi_register_error(mimalloc_error_handler, nullptr);
+  mi_register_error(mimalloc_error_handler, nullptr);
 
-    if (verbosity > 1) {
-        mi_stats_print(nullptr);
-    }
+  if (verbosity > 1) {
+    mi_stats_print(nullptr);
+  }
 }
 
-static void trap_call() noexcept
-{
-    static bool called = false;
-    via::debug::require(!called, "init() called twice");
-    called = true;
+static void trap_call() noexcept {
+  static bool called = false;
+  via::debug::require(!called, "init() called twice");
+  called = true;
 }
 
-void via::init(uint8_t verbosity) noexcept
-{
-    trap_call();
-    init_mimalloc(verbosity);
+void via::init(uint8_t verbosity) noexcept {
+  trap_call();
+  init_mimalloc(verbosity);
 }

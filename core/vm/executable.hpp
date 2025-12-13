@@ -15,19 +15,20 @@
 #include <limits>
 #include <optional>
 #include <via/config.hpp>
+
 #include "diagnostics.hpp"
 #include "instruction.hpp"
-#include "ir/ir.hpp"
-#include "sema/const.hpp"
+#include "ir/tree.hpp"
+#include "sema/const_value.hpp"
 #include "sema/local_bc.hpp"
 #include "sema/register.hpp"
 #include "sema/stack.hpp"
-#include "support/traits.hpp"
+#include "support/type.hpp"
 
 namespace via {
 namespace config {
 
-VIA_CONSTANT uint32_t MAGIC = 0x2E766961; // .via
+constexpr uint32_t MAGIC = 0x2E766961;  // .via
 
 }
 
@@ -35,127 +36,107 @@ class Executable;
 
 namespace detail {
 
-void set_null_dst_trap(Executable& exe, const std::optional<uint16_t>& dst) noexcept;
+void set_null_dst_trap(Executable& exe,
+                       const std::optional<uint16_t>& dst) noexcept;
 
 template <derived_from<ir::Expr> Expr>
-void ir_lower_expr(
-    Executable& exe,
-    const Expr* expr,
-    std::optional<uint16_t> dst
-) noexcept
-{
-    debug::todo(std::format("lower_expr<{}>()", VIA_TYPENAME(Expr)));
+void ir_lower_expr(Executable& exe, const Expr* expr,
+                   std::optional<uint16_t> dst) noexcept {
+  debug::todo(std::format("lower_expr<{}>()", VIA_TYPENAME(Expr)));
 }
 
 template <derived_from<ir::Stmt> Stmt>
-void ir_lower_stmt(Executable& exe, const Stmt* stmt) noexcept
-{
-    debug::todo(std::format("lower_stmt<{}>()", VIA_TYPENAME(Stmt)));
+void ir_lower_stmt(Executable& exe, const Stmt* stmt) noexcept {
+  debug::todo(std::format("lower_stmt<{}>()", VIA_TYPENAME(Stmt)));
 }
 
 template <derived_from<ir::Term> Term>
-void ir_lower_term(Executable& exe, const Term* term) noexcept
-{
-    debug::todo(std::format("lower_term<{}>()", VIA_TYPENAME(Term)));
+void ir_lower_term(Executable& exe, const Term* term) noexcept {
+  debug::todo(std::format("lower_term<{}>()", VIA_TYPENAME(Term)));
 }
 
-} // namespace detail
+}  // namespace detail
 
-enum ExeFlags : uint64_t
-{
-    NONE = 0,
+enum ExeFlags : uint64_t {
+  NONE = 0,
 };
 
 class Module;
-class Executable final
-{
-  public:
-    friend void
-    detail::set_null_dst_trap(Executable&, const std::optional<uint16_t>& dst) noexcept;
+class Executable final {
+ public:
+  friend void detail::set_null_dst_trap(
+      Executable&, const std::optional<uint16_t>& dst) noexcept;
 
-    template <derived_from<ir::Expr> Expr>
-    friend void
-    detail::ir_lower_expr(Executable&, const Expr*, std::optional<uint16_t>) noexcept;
+  template <derived_from<ir::Expr> Expr>
+  friend void detail::ir_lower_expr(Executable&, const Expr*,
+                                    std::optional<uint16_t>) noexcept;
 
-    template <derived_from<ir::Stmt> Stmt>
-    friend void detail::ir_lower_stmt(Executable&, const Stmt*) noexcept;
+  template <derived_from<ir::Stmt> Stmt>
+  friend void detail::ir_lower_stmt(Executable&, const Stmt*) noexcept;
 
-    template <derived_from<ir::Term> Term>
-    friend void detail::ir_lower_term(Executable&, const Term*) noexcept;
+  template <derived_from<ir::Term> Term>
+  friend void detail::ir_lower_term(Executable&, const Term*) noexcept;
 
-  public:
-    Executable(DiagContext& diags)
-        : m_reg_state(diags)
-    {
-        m_stack.emplace();
-    }
+ public:
+  Executable(Diagnostics& diags) : m_reg_state(diags) { m_stack.emplace(); }
 
-    static Executable* build_from_ir(
-        Module* module,
-        DiagContext& diags,
-        const IRTree& ir_tree,
-        ExeFlags flags = ExeFlags::NONE
-    ) noexcept;
+  static Executable* build_from_ir(Module* module, Diagnostics& diags,
+                                   const IRTree& ir_tree,
+                                   ExeFlags flags = ExeFlags::NONE) noexcept;
 
-    static Executable* build_from_binary(
-        Module* module,
-        DiagContext& diags,
-        std::ostream& bytes,
-        ExeFlags flags = ExeFlags::NONE
-    ) noexcept;
+  static Executable* build_from_binary(
+      Module* module, Diagnostics& diags, std::ostream& bytes,
+      ExeFlags flags = ExeFlags::NONE) noexcept;
 
-  public:
-    auto flags() const noexcept { return m_flags; }
-    auto& constants() const noexcept { return m_constants; }
-    auto& bytecode() const noexcept { return m_bytecode; }
-    std::string to_string() const;
+ public:
+  auto flags() const noexcept { return m_flags; }
+  auto& constants() const noexcept { return m_constants; }
+  auto& bytecode() const noexcept { return m_bytecode; }
+  std::string to_string() const;
 
-  private:
-    size_t program_counter() const noexcept { return m_bytecode.size() - 1; }
-    size_t constant_id() const noexcept { return m_constants.size() - 1; }
-    size_t set_label(size_t id) noexcept
-    {
-        m_labels[id] = program_counter();
-        return m_labels.size() - 1;
-    }
+ private:
+  size_t program_counter() const noexcept { return m_bytecode.size() - 1; }
+  size_t constant_id() const noexcept { return m_constants.size() - 1; }
+  size_t set_label(size_t id) noexcept {
+    m_labels[id] = program_counter();
+    return m_labels.size() - 1;
+  }
 
-    void push_constant(ConstValue cv) noexcept
-    {
-        debug::require(
-            m_constants.size() < (size_t) std::numeric_limits<uint16_t>::max(),
-            "Constant count exceeds limit"
-        );
-        m_constants.push_back(std::move(cv));
-    }
+  void push_constant(ConstValue cv) noexcept {
+    debug::require(
+        m_constants.size() < (size_t)std::numeric_limits<uint16_t>::max(),
+        "Constant count exceeds limit");
+    m_constants.push_back(std::move(cv));
+  }
 
-    size_t push_instruction(OpCode op, std::array<uint16_t, 3> ops = {}) noexcept
-    {
-        m_bytecode.emplace_back(op, ops[0], ops[1], ops[2]);
-        return program_counter();
-    }
+  size_t push_instruction(OpCode op,
+                          std::array<uint16_t, 3> ops = {}) noexcept {
+    m_bytecode.emplace_back(op, ops[0], ops[1], ops[2]);
+    return program_counter();
+  }
 
-    void set_instruction(size_t pc, OpCode op, std::array<uint16_t, 3> ops = {}) noexcept
-    {
-        auto& insn = m_bytecode[pc];
-        insn.op = op;
-        insn.a = ops[0];
-        insn.b = ops[1];
-        insn.c = ops[2];
-    }
+  void set_instruction(size_t pc, OpCode op,
+                       std::array<uint16_t, 3> ops = {}) noexcept {
+    auto& insn = m_bytecode[pc];
+    insn.op = op;
+    insn.a = ops[0];
+    insn.b = ops[1];
+    insn.c = ops[2];
+  }
 
-    void lower_expr(const ir::Expr* expr, std::optional<uint16_t> dst) noexcept;
-    void lower_stmt(const ir::Stmt* stmt) noexcept;
-    void lower_term(const ir::Term* term) noexcept;
-    void lower_jumps() noexcept;
+  void lower_expr(const ir::Expr* expr, std::optional<uint16_t> dst) noexcept;
+  void lower_stmt(const ir::Stmt* stmt) noexcept;
+  void lower_term(const ir::Term* term) noexcept;
+  void lower_jumps() noexcept;
 
-  private:
-    Module* m_module;
-    ExeFlags m_flags;
-    RegisterState m_reg_state;
-    StackState<BytecodeLocal> m_stack;
-    std::vector<Instruction> m_bytecode;
-    std::vector<ConstValue> m_constants;
-    std::unordered_map<size_t, size_t> m_labels;
+ private:
+  Module* m_module;
+  ExeFlags m_flags;
+  RegisterState m_reg_state;
+  StackState<BytecodeLocal> m_stack;
+  std::vector<Instruction> m_bytecode;
+  std::vector<ConstValue> m_constants;
+  std::unordered_map<size_t, size_t> m_labels;
 };
 
-} // namespace via
+}  // namespace via

@@ -8,30 +8,31 @@
 ** ===================================================== */
 
 #include "control.hpp"
-#include <unordered_set>
-#include "ast/ast.hpp"
 
-std::vector<const via::ir::Term*> via::get_control_paths(const ir::StmtBlock* entry
-) noexcept
-{
-    std::unordered_set<const ir::StmtBlock*> visited;
-    std::vector<const ir::Term*> terms;
-    std::function<void(const ir::StmtBlock*)> dfs = [&](const ir::StmtBlock* block) {
-        if (!block || !visited.insert(block).second)
-            return;
+#include <unordered_set>
+
+#include "ast/tree.hpp"
+
+std::vector<const via::ir::Term*> via::get_control_paths(
+    const ir::StmtBlock* entry) noexcept {
+  std::unordered_set<const ir::StmtBlock*> visited;
+  std::vector<const ir::Term*> terms;
+  std::function<void(const ir::StmtBlock*)> dfs =
+      [&](const ir::StmtBlock* block) {
+        if (!block || !visited.insert(block).second) return;
 
         if TRY_COERCE (const ir::TrReturn, ret, block->term) {
-            terms.push_back(ret);
+          terms.push_back(ret);
         } else if TRY_COERCE (const ir::TrBranch, br, block->term) {
-            dfs(br->target);
+          dfs(br->target);
         } else if TRY_COERCE (const ir::TrCondBranch, cbr, block->term) {
-            dfs(cbr->iftrue);
-            dfs(cbr->iffalse);
+          dfs(cbr->iftrue);
+          dfs(cbr->iffalse);
         } else {
-            debug::bug("unmapped dfs block terminator");
+          debug::bug("unmapped dfs block terminator");
         }
-    };
+      };
 
-    dfs(entry);
-    return terms;
+  dfs(entry);
+  return terms;
 }

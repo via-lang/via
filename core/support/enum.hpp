@@ -10,128 +10,113 @@
 #pragma once
 
 #include <via/config.hpp>
-#include "traits.hpp"
+
+#include "type.hpp"
 
 namespace via {
 inline namespace operators {
 
 template <scoped_enum Enum>
-constexpr auto operator~(Enum a) noexcept
-{
-    using T = std::underlying_type_t<Enum>;
-    return ~static_cast<T>(a);
+constexpr auto operator~(Enum a) noexcept {
+  using T = std::underlying_type_t<Enum>;
+  return ~static_cast<T>(a);
 }
 
 template <scoped_enum Enum>
-constexpr auto operator&(Enum a, Enum b) noexcept
-{
-    using T = std::underlying_type_t<Enum>;
-    return static_cast<T>(a) & static_cast<T>(b);
+constexpr auto operator&(Enum a, Enum b) noexcept {
+  using T = std::underlying_type_t<Enum>;
+  return static_cast<T>(a) & static_cast<T>(b);
 }
 
 template <scoped_enum Enum>
-constexpr auto operator&(std::underlying_type_t<Enum> a, Enum b) noexcept
-{
-    using T = std::underlying_type_t<Enum>;
-    return a & static_cast<T>(b);
+constexpr auto operator&(std::underlying_type_t<Enum> a, Enum b) noexcept {
+  using T = std::underlying_type_t<Enum>;
+  return a & static_cast<T>(b);
 }
 
 template <scoped_enum Enum>
-constexpr auto operator&(Enum a, std::underlying_type_t<Enum> b) noexcept
-{
-    using T = std::underlying_type_t<Enum>;
-    return static_cast<T>(a) & b;
+constexpr auto operator&(Enum a, std::underlying_type_t<Enum> b) noexcept {
+  using T = std::underlying_type_t<Enum>;
+  return static_cast<T>(a) & b;
 }
 
 template <scoped_enum Enum>
-constexpr Enum& operator&=(Enum& a, Enum b) noexcept
-{
-    using T = std::underlying_type_t<Enum>;
-    a = static_cast<Enum>(static_cast<T>(a) & static_cast<T>(b));
-    return a;
+constexpr Enum& operator&=(Enum& a, Enum b) noexcept {
+  using T = std::underlying_type_t<Enum>;
+  a = static_cast<Enum>(static_cast<T>(a) & static_cast<T>(b));
+  return a;
 }
 
 template <scoped_enum Enum>
-constexpr Enum& operator&=(Enum& a, std::underlying_type_t<Enum> b) noexcept
-{
-    using T = std::underlying_type_t<Enum>;
-    a = static_cast<Enum>(static_cast<T>(a) & b);
-    return a;
+constexpr Enum& operator&=(Enum& a, std::underlying_type_t<Enum> b) noexcept {
+  using T = std::underlying_type_t<Enum>;
+  a = static_cast<Enum>(static_cast<T>(a) & b);
+  return a;
 }
 
 template <scoped_enum Enum>
-constexpr auto operator|(Enum a, Enum b) noexcept
-{
-    using T = std::underlying_type_t<Enum>;
-    return static_cast<T>(a) | static_cast<T>(b);
+constexpr auto operator|(Enum a, Enum b) noexcept {
+  using T = std::underlying_type_t<Enum>;
+  return static_cast<T>(a) | static_cast<T>(b);
 }
 
 template <scoped_enum Enum>
-constexpr auto operator|(std::underlying_type_t<Enum> a, Enum b) noexcept
-{
-    using T = std::underlying_type_t<Enum>;
-    return a | static_cast<T>(b);
+constexpr auto operator|(std::underlying_type_t<Enum> a, Enum b) noexcept {
+  using T = std::underlying_type_t<Enum>;
+  return a | static_cast<T>(b);
 }
 
 template <scoped_enum Enum>
-constexpr auto operator|(Enum a, std::underlying_type_t<Enum> b) noexcept
-{
-    using T = std::underlying_type_t<Enum>;
-    return static_cast<T>(a) | b;
+constexpr auto operator|(Enum a, std::underlying_type_t<Enum> b) noexcept {
+  using T = std::underlying_type_t<Enum>;
+  return static_cast<T>(a) | b;
 }
 
 template <scoped_enum Enum>
-constexpr Enum& operator|=(Enum& a, Enum b) noexcept
-{
-    using T = std::underlying_type_t<Enum>;
-    a = static_cast<Enum>(static_cast<T>(a) | static_cast<T>(b));
-    return a;
+constexpr Enum& operator|=(Enum& a, Enum b) noexcept {
+  using T = std::underlying_type_t<Enum>;
+  a = static_cast<Enum>(static_cast<T>(a) | static_cast<T>(b));
+  return a;
 }
 
 template <scoped_enum Enum>
-constexpr Enum& operator|=(Enum& a, std::underlying_type_t<Enum> b) noexcept
-{
-    using T = std::underlying_type_t<Enum>;
-    a = static_cast<Enum>(static_cast<T>(a) | b);
-    return a;
+constexpr Enum& operator|=(Enum& a, std::underlying_type_t<Enum> b) noexcept {
+  using T = std::underlying_type_t<Enum>;
+  a = static_cast<Enum>(static_cast<T>(a) | b);
+  return a;
 }
 
 template <scoped_enum Enum>
-constexpr auto operator^(Enum a, Enum b) noexcept
-{
-    using T = std::underlying_type_t<Enum>;
-    return static_cast<T>(a) ^ static_cast<T>(b);
+constexpr auto operator^(Enum a, Enum b) noexcept {
+  using T = std::underlying_type_t<Enum>;
+  return static_cast<T>(a) ^ static_cast<T>(b);
 }
 
 template <scoped_enum Enum>
-constexpr auto operator^(std::underlying_type_t<Enum> a, Enum b) noexcept
-{
-    using T = std::underlying_type_t<Enum>;
-    return a ^ static_cast<T>(b);
+constexpr auto operator^(std::underlying_type_t<Enum> a, Enum b) noexcept {
+  using T = std::underlying_type_t<Enum>;
+  return a ^ static_cast<T>(b);
 }
 
 template <scoped_enum Enum>
-constexpr auto operator^(Enum a, std::underlying_type_t<Enum> b) noexcept
-{
-    using T = std::underlying_type_t<Enum>;
-    return static_cast<T>(a) ^ b;
+constexpr auto operator^(Enum a, std::underlying_type_t<Enum> b) noexcept {
+  using T = std::underlying_type_t<Enum>;
+  return static_cast<T>(a) ^ b;
 }
 
 template <scoped_enum Enum>
-constexpr Enum& operator^=(Enum& a, Enum b) noexcept
-{
-    using T = std::underlying_type_t<Enum>;
-    a = static_cast<Enum>(static_cast<T>(a) ^ static_cast<T>(b));
-    return a;
+constexpr Enum& operator^=(Enum& a, Enum b) noexcept {
+  using T = std::underlying_type_t<Enum>;
+  a = static_cast<Enum>(static_cast<T>(a) ^ static_cast<T>(b));
+  return a;
 }
 
 template <scoped_enum Enum>
-constexpr Enum& operator^=(Enum& a, std::underlying_type_t<Enum> b) noexcept
-{
-    using T = std::underlying_type_t<Enum>;
-    a = static_cast<Enum>(static_cast<T>(a) ^ b);
-    return a;
+constexpr Enum& operator^=(Enum& a, std::underlying_type_t<Enum> b) noexcept {
+  using T = std::underlying_type_t<Enum>;
+  a = static_cast<Enum>(static_cast<T>(a) ^ b);
+  return a;
 }
 
-} // namespace operators
-} // namespace via
+}  // namespace operators
+}  // namespace via

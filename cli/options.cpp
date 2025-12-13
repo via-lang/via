@@ -8,42 +8,30 @@
 ** ===================================================== */
 
 #include "options.hpp"
+
 #include <numeric>
 
-void via::cli::ProgramOptions::register_to(ArgumentParser& parser)
-{}
-
-std::string via::cli::ProgramOptions::to_string() const
-{
-    return std::format(
-        "ProgramOptions:\n"
-        "  verbosity:   {}\n"
-        "  no_execute:  {}\n"
-        "  debugger:    {}\n"
-        "  input:       {}\n"
-        "  dump:        [{}]\n"
-        "  imports:     [{}]",
-        verbosity,
-        no_execute,
-        debugger,
-        input.string(),
-        dump.empty() ? ""
-                     : std::accumulate(
-                           std::next(dump.begin()),
-                           dump.end(),
-                           *dump.begin(),
-                           [](std::string a, const std::string& b) {
-                               return std::move(a) + ", " + b;
-                           }
-                       ),
-        imports.empty() ? ""
-                        : std::accumulate(
-                              std::next(imports.begin()),
-                              imports.end(),
-                              *imports.begin(),
-                              [](std::string a, const std::string& b) {
-                                  return std::move(a) + ", " + b;
-                              }
-                          )
-    );
+std::string via::cli::ProgramOptions::to_string() const {
+  return std::format(
+      "ProgramOptions:\n"
+      "  verbosity:   {}\n"
+      "  no_execute:  {}\n"
+      "  debugger:    {}\n"
+      "  input:       {}\n"
+      "  dump:        [{}]\n"
+      "  imports:     [{}]",
+      verbosity, no_execute, debugger, input.string(),
+      dump.empty()
+          ? ""
+          : std::accumulate(std::next(dump.begin()), dump.end(), *dump.begin(),
+                            [](std::string a, const std::string& b) {
+                              return std::move(a) + ", " + b;
+                            }),
+      imports.empty()
+          ? ""
+          : std::accumulate(std::next(imports.begin()), imports.end(),
+                            *imports.begin(),
+                            [](std::string a, const std::string& b) {
+                              return std::move(a) + ", " + b;
+                            }));
 }

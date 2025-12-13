@@ -18,18 +18,18 @@
 namespace via {
 namespace cli {
 
-struct ProgramOptions
-{
-    uint8_t verbosity = 0;
-    bool no_execute = false;
-    bool debugger = false;
-    bool supress_missing_core_warning = false;
-    std::filesystem::path input;
-    std::set<std::string> dump;
-    std::vector<std::string> imports;
+struct ProgramOptions {
+  uint8_t verbosity = 0;
+  bool no_execute = false;
+  bool debugger = false;
+  bool dump_all = false;
+  bool supress_missing_core_warning = false;
+  std::filesystem::path input;
+  std::set<std::string> dump;
+  std::vector<std::string> imports;
 
-    std::string to_string() const;
+  std::string to_string() const;
 };
 
-} // namespace cli
-} // namespace via
+}  // namespace cli
+}  // namespace via

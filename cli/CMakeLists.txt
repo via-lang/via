@@ -7,6 +7,7 @@ target_include_directories(via-cli
 )
 target_link_libraries(via-cli
     PUBLIC
+        argvx
         via::core
 )
 add_executable(via::cli ALIAS via-cli)

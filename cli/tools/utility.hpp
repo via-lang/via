@@ -16,4 +16,4 @@ namespace via {
 std::filesystem::path get_home_dir();
 std::filesystem::path get_lang_dir();
 
-} // namespace via
+}  // namespace via
