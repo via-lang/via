@@ -35,8 +35,7 @@ class Executable;
 
 namespace detail {
 
-void set_null_dst_trap(Executable& exe,
-                       const std::optional<uint16_t>& dst) noexcept;
+void set_null_dst_trap(Executable& exe, const std::optional<uint16_t>& dst);
 
 }  // namespace detail
 
@@ -47,8 +46,8 @@ enum ExeFlags : uint64_t {
 class Module;
 class Executable final {
  public:
-  friend void detail::set_null_dst_trap(
-      Executable&, const std::optional<uint16_t>& dst) noexcept;
+  friend void detail::set_null_dst_trap(Executable&,
+                                        const std::optional<uint16_t>& dst);
 
  public:
   Executable(Diagnostics& diags) : m_reg_state(diags) { m_stack.emplace(); }
@@ -62,54 +61,37 @@ class Executable final {
                            ExeFlags flags = ExeFlags::NONE);
 
  public:
-  auto flags() const noexcept { return m_flags; }
-  auto& constants() const noexcept { return m_constants; }
-  auto& bytecode() const noexcept { return m_bytecode; }
+  auto flags() const { return m_flags; }
+  auto& constants() const { return m_constants; }
+  auto& bytecode() const { return m_bytecode; }
   std::string to_string() const;
 
  private:
-  size_t program_counter() const noexcept { return m_bytecode.size() - 1; }
-  size_t constant_id() const noexcept { return m_constants.size() - 1; }
-  size_t set_label(size_t id) noexcept {
-    m_labels[id] = program_counter();
-    return m_labels.size() - 1;
-  }
-
-  void push_constant(ConstValue cvalue) noexcept {
-    DEBUG_ASSERT(
-        m_constants.size() < (size_t)std::numeric_limits<uint16_t>::max(),
-        "Constant count exceeds limit");
-    m_constants.push_back(std::move(cvalue));
-  }
-
-  size_t push_instruction(OpCode op,
-                          std::array<uint16_t, 3> ops = {}) noexcept {
-    m_bytecode.emplace_back(op, ops[0], ops[1], ops[2]);
-    return program_counter();
-  }
-
-  void set_instruction(size_t pc, OpCode op,
-                       std::array<uint16_t, 3> ops = {}) noexcept {
-    auto& insn = m_bytecode[pc];
-    insn.op = op;
-    insn.a = ops[0];
-    insn.b = ops[1];
-    insn.c = ops[2];
-  }
-
+  size_t pc() const { return m_bytecode.size() - 1; }
+  size_t constant_id() const { return m_constants.size() - 1; }
+  size_t label(size_t id);
+  void push(ConstValue cvalue);
+  size_t push(OpCode op, std::array<uint16_t, 3> ops = {});
+  void modify(size_t pc, OpCode op, std::array<uint16_t, 3> ops = {});
   void lower(const ir::Expr* expr, std::optional<uint16_t> dst);
   void lower(const ir::Stat* stat);
   void lower(const ir::Term* term);
   void lower_jumps();
 
   template <derived_from<ir::Expr> Expr>
-  void lower_expr(const Expr* expr, std::optional<uint16_t> dst) {}
+  void lower_expr(const Expr* expr, std::optional<uint16_t> dst) {
+    UNREACHABLE(VIA_TYPENAME(Expr));
+  }
 
   template <derived_from<ir::Stat> Stat>
-  void lower_stat(const Stat* stat) {}
+  void lower_stat(const Stat* stat) {
+    UNREACHABLE(VIA_TYPENAME(Stat));
+  }
 
   template <derived_from<ir::Term> Term>
-  void lower_term(const Term* term) {}
+  void lower_term(const Term* term) {
+    UNREACHABLE(VIA_TYPENAME(Term));
+  }
 
  private:
   Module* m_module;

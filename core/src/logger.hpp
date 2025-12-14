@@ -39,25 +39,25 @@ class Logger {
 
  public:
   // clang-format off
-    template<typename ...Args>
-    void log(LogLevel level, std::format_string<Args...> fmt, Args&&... args)
-        { log(level, std::format(fmt, std::forward<Args>(args)...)); }
+  template<typename ...Args>
+  void log(LogLevel level, std::format_string<Args...> fmt, Args&&... args)
+  { log(level, std::format(fmt, std::forward<Args>(args)...)); }
 
-    template<LogLevel L = LogLevel::NONE, typename... Args>
-    void log(std::format_string<Args...> fmt, Args&&... args)
-        { log(L, std::format(fmt, std::forward<Args>(args)...)); }
+  template<LogLevel L = LogLevel::NONE, typename... Args>
+  void log(std::format_string<Args...> fmt, Args&&... args)
+  { log(L, std::format(fmt, std::forward<Args>(args)...)); }
 
-    template <typename... Args>
-    void info(std::format_string<Args...> fmt, Args&&... args)
-        { log(LogLevel::INFO, std::format(fmt, std::forward<Args>(args)...)); }
+  template <typename... Args>
+  void info(std::format_string<Args...> fmt, Args&&... args)
+  { log(LogLevel::INFO, std::format(fmt, std::forward<Args>(args)...)); }
 
-    template <typename... Args>
-    void warn(std::format_string<Args...> fmt, Args&&... args)
-        { log(LogLevel::WARN, std::format(fmt, std::forward<Args>(args)...)); }
+  template <typename... Args>
+  void warn(std::format_string<Args...> fmt, Args&&... args)
+  { log(LogLevel::WARN, std::format(fmt, std::forward<Args>(args)...)); }
 
-    template <typename... Args>
-    void error(std::format_string<Args...> fmt, Args&&... args)
-        { log(LogLevel::ERROR, std::format(fmt, std::forward<Args>(args)...)); }
+  template <typename... Args>
+  void error(std::format_string<Args...> fmt, Args&&... args)
+  { log(LogLevel::ERROR, std::format(fmt, std::forward<Args>(args)...)); }
   // clang-format on
 
  private:

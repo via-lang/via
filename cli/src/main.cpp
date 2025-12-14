@@ -7,7 +7,7 @@
 **         https://github.com/XnLogicaL/via-lang         **
 ** ===================================================== */
 
-#include <argvx/paser.hpp>
+#include <argvx/parser.hpp>
 #include <support/ansi.hpp>
 #include <via/via.hpp>
 

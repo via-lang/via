@@ -73,7 +73,7 @@ Now generate build files using `cmake` and build & install the binaries:
 cmake -B build -G Ninja
 cmake --build build # -j$(nproc) <- optional but recommended, as it significantly speeds up build times
 # Optional:
-cmake --install build
+cmake --install build # --prefix ~/.local <- optional
 ```
 
 You can test your installation with this command:

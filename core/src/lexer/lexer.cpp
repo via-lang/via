@@ -10,6 +10,7 @@
 #include "lexer.hpp"
 
 #include <cstring>
+#include <iomanip>
 
 #include "support/ansi.hpp"
 
@@ -363,10 +364,14 @@ std::string via::to_string(const via::TokenTree& tt) {
                            ansi::Foreground::YELLOW, ansi::Background::NONE,
                            ansi::Style::UNDERLINE);
   oss << ansi::format(
-      "  kind        value           \n"
-      "  ----------  -------\n",
+      "  kind            value           \n"
+      "  --------------  -------\n",
       ansi::Foreground::NONE, ansi::Background::NONE, ansi::Style::FAINT);
 
-  for (const auto* tk : tt) oss << tk->get_dump() << "\n";
+  for (const auto* tk : tt) {
+    oss << "  " << std::left << std::setw(14) << std::setfill(' ')
+        << via::to_string(tk->kind);
+    oss << "  \"" << tk->to_view() << "\"\n";
+  }
   return oss.str();
 }
