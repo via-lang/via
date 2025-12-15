@@ -11,6 +11,7 @@
 
 #include <ansi.hpp>
 #include <cstring>
+#include <libassert/assert.hpp>
 
 #include "token.hpp"
 
@@ -55,24 +56,19 @@ static constexpr TokenReprPair OPERATORS[] = {
 
 static consteval size_t string_length(const char* str) {
   size_t len = 0;
-  while (str[len] != '\0') {
-    ++len;
-  }
-
+  while (str[len] != '\0') ++len;
   return len;
 }
 
 static consteval size_t max_operator_length() {
-  size_t maxSize = 0;
-
+  size_t max = 0;
   for (const auto& symbol : OPERATORS) {
     size_t size = string_length(symbol.str);
-    if (size > maxSize) {
-      maxSize = size;
+    if (size > max) {
+      max = size;
     }
   }
-
-  return maxSize;
+  return max;
 }
 
 static bool is_numeric(via::TokenKind* kind, char c) {
@@ -86,14 +82,11 @@ static bool is_numeric(via::TokenKind* kind, char c) {
     default:
       break;
   }
-
   return false;
 }
 
 static bool is_identifier_start(char c) { return isalpha(c) || c == '_'; }
-
 static bool is_identifier(char c) { return isalnum(c) || c == '_'; }
-
 static bool is_string_delim(char c) {
   return c == '"' || c == '\'' || c == '`';
 }
@@ -141,7 +134,6 @@ decimal:
     advance();
     token->size++;
   }
-
   return token;
 }
 
@@ -157,7 +149,6 @@ via::Token* via::Lexer::read_string() {
   bool closed = false;
   while ((c = advance()) != '\0') {
     token->size++;
-
     if (c == '\\') {
       if (peek() != '\0') {
         advance();
@@ -173,7 +164,6 @@ via::Token* via::Lexer::read_string() {
     token->size = 1;
     token->kind = ILLEGAL;
   }
-
   return token;
 }
 
@@ -215,14 +205,10 @@ via::Token* via::Lexer::read_operator() {
 
   size_t match_size = 0;
   auto match_kind = ILLEGAL;
-
   char buf[4] = {};
 
   for (size_t len = max_operator_length(); len >= 1; --len) {
-    for (size_t i = 0; i < len; ++i) {
-      buf[i] = m_cursor[i];
-    }
-
+    for (size_t i = 0; i < len; ++i) buf[i] = m_cursor[i];
     buf[len] = '\0';
 
     for (const auto& symbol : OPERATORS) {
@@ -245,7 +231,6 @@ found:
   } else {
     advance();  // advance one char if no match
   }
-
   return token;
 }
 
@@ -260,10 +245,8 @@ bool via::Lexer::skip_comment() {
 
     while (char c = peek()) {
       if (c == '\n' || c == '\0') break;
-
       advance();
     }
-
     return true;
   }
 
@@ -273,18 +256,14 @@ bool via::Lexer::skip_comment() {
     while (true) {
       char c = peek();
       if (c == '\0') break;  // EOF without closing */
-
       if (c == '*' && peek(1) == '/') {
         advance(2);  // consume '*/'
         break;
       }
-
       advance();
     }
-
     return true;
   }
-
   return false;
 }
 
@@ -301,7 +280,6 @@ via::TokenTree via::Lexer::tokenize() {
     if (skip_comment()) continue;
 
     Token* token;
-
     if (std::isdigit(c))
       token = read_number();
     else if (is_identifier_start(c))
@@ -311,6 +289,7 @@ via::TokenTree via::Lexer::tokenize() {
     else
       token = read_operator();
 
+    DEBUG_ASSERT_VAL(token, "lexed token is NULL");
     toks.push_back(token);
   }
 

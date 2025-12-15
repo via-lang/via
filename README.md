@@ -2,6 +2,7 @@
   <a href="https://github.com/XnLogicaL/via-lang">
     <img src="https://i.imgur.com/9WjzQ98.png" alt="via Language Logo"/>
   </a>
+  <p>The via Programming Language</p>
 </h1>
 
 <p align="center">
@@ -28,7 +29,7 @@
 </p>
 
 > [!WARNING]
-> This is an **experimental** project and not yet production-ready. Most features are under conception/development and may be incomplete/unstable. Implementations are subject to change as the project evolves. That said, by no means is it a non-serious project.
+> This is an **experimental** project and currently not production-ready. Most features are under conception/development and may be incomplete/unstable. Implementations are subject to change as the project evolves. That said, by no means is it a non-serious project.
 
 # Introduction
 
@@ -63,32 +64,30 @@ Install the following binaries with your systems official package manager:
 Clone the official git repository and `cd` into it:
 
 ```sh
-git clone --recursive https://github.com/XnLogicaL/via-lang.git /path/to/via
-cd /path/to/via
+git clone --recursive https://github.com/via-lang/via.git
+cd via
 ```
 
 Now generate build files using `cmake` and build & install the binaries:
 
 ```sh
 cmake -B build -G Ninja
-cmake --build build # -j$(nproc) <- optional but recommended, as it significantly speeds up build times
-# Optional:
-cmake --install build # --prefix ~/.local <- optional
+cmake --build build
+sudo cmake --install build
 ```
 
 You can test your installation with this command:
 
 ```sh
 which via
-#> /bin/via
+# /bin/via
 via
-#> error: no input files
+# error: missing required positional: input
 ```
 
 If you get a warning about the language core directory not being found or don't get output from one or more command, it probably means that the installation process failed. Try restarting your shell or creating an issue with appropriate information attached.
 
 # Credits
 
-- **@XnLogicaL** – Lead developer
-- **@KasenDaniels** – Project name and banner design
-- [MF TOOL - JAVA](https://github.com/ankitwasankar/mftool-java) – README layout inspiration
+- **@XnLogicaL** – Lead developer/maintainer
+- **Kasen L. Daniels** – Project name and banner design

@@ -15,13 +15,13 @@
 #include "token.hpp"
 #include "type.hpp"
 
-#define SAVE_FIRST()       \
-  auto* first = advance(); \
-  auto loc = m_source.location(*first);
+#define SAVE()          \
+  auto* first = peek(); \
+  auto first_loc = m_source.location(*first);
 
-#define SAVE_FIRST_DONT_ADVANCE_THO() \
-  auto* first = peek();               \
-  auto loc = m_source.location(*first);
+#define SAVE_AND_ADVANCE() \
+  auto* first = advance(); \
+  auto first_loc = m_source.location(*first);
 
 using enum via::TokenKind;
 
@@ -92,9 +92,7 @@ static int bin_prec(via::TokenKind kind) {
 }
 
 const via::Token* via::Parser::peek(int ahead) { return m_cursor[ahead]; }
-
 const via::Token* via::Parser::advance() { return *(m_cursor++); }
-
 bool via::Parser::match(TokenKind kind, int ahead) {
   return peek(ahead)->kind == kind;
 }
@@ -104,7 +102,6 @@ bool via::Parser::optional(TokenKind kind) {
     advance();
     return true;
   }
-
   return false;
 }
 
@@ -113,10 +110,9 @@ const via::Token* via::Parser::expect(TokenKind kind, const char* task) {
     const Token& unexp = *peek();
     throw ParserError(
         m_source.location(unexp),
-        std::format("Unexpected token '{}' ({}) while {}", unexp.to_string(),
+        std::format("unexpected token '{}' ({}) while {}", unexp.to_string(),
                     to_string(unexp.kind), task));
   }
-
   return advance();
 }
 
@@ -143,34 +139,33 @@ const via::ast::Expr* via::Parser::parse_lvalue() {
   if (is_lvalue(expr)) {
     return expr;
   } else {
-    throw ParserError(expr->loc, "Unexpected expression while parsing lvalue");
+    throw ParserError(expr->loc, "unexpected expression while parsing lvalue");
   }
 }
 
 const via::ast::Parameter* via::Parser::parse_parameter() {
-  SAVE_FIRST()
+  SAVE_AND_ADVANCE();
 
   auto* par = m_alloc.emplace<ast::Parameter>();
   par->symbol = first;
 
   if (optional(COLON)) {
     par->type = parse_type();
-    par->loc = {loc.begin, par->type->loc.end};
+    par->loc = {first_loc.begin, par->type->loc.end};
   } else {
-    par->loc = loc;
+    par->loc = first_loc;
   }
-
   return par;
 }
 
 const via::ast::Scope* via::Parser::parse_scope() {
-  SAVE_FIRST()
+  SAVE_AND_ADVANCE();
 
   auto scope = m_alloc.emplace<ast::Scope>();
 
   if (first->kind == COLON) {
     scope->stats.push_back(parse_stat());
-    scope->loc = {loc.begin, scope->stats.back()->loc.end};
+    scope->loc = {first_loc.begin, scope->stats.back()->loc.end};
   } else if (first->kind == BRACE_OPEN) {
     while (!match(BRACE_CLOSE)) {
       scope->stats.push_back(parse_stat());
@@ -181,12 +176,12 @@ const via::ast::Scope* via::Parser::parse_scope() {
         m_source.location(*first).begin,
         m_source.location(*last).end,
     };
-  } else
-    throw ParserError(loc,
-                      std::format("Unexpected token '{}' while parsing scope",
+  } else {
+    throw ParserError(first_loc,
+                      std::format("unexpected token '{}' while parsing scope",
                                   first->to_string()),
                       Note(Note::HINT, "Expected ':' | '{'"));
-
+  }
   return scope;
 }
 
@@ -205,7 +200,7 @@ const via::ast::ExprSymbol* via::Parser::parse_expr_symbol() {
 }
 
 const via::ast::Expr* via::Parser::parse_expr_group_or_tuple() {
-  auto loc = m_source.location(*advance());
+  auto first_loc = m_source.location(*advance());
   auto* first = parse_expr();
 
   if (match(COMMA)) {
@@ -221,7 +216,7 @@ const via::ast::Expr* via::Parser::parse_expr_group_or_tuple() {
 
     auto* tup = m_alloc.emplace<ast::ExprTuple>();
     tup->values = std::move(vals);
-    tup->loc = {loc.begin, m_source.location(*peek(-1)).end};
+    tup->loc = {first_loc.begin, m_source.location(*peek(-1)).end};
     return reinterpret_cast<const ast::Expr*>(tup);
   }
 
@@ -229,7 +224,7 @@ const via::ast::Expr* via::Parser::parse_expr_group_or_tuple() {
 
   auto* group = m_alloc.emplace<ast::ExprGroup>();
   group->expr = first;
-  group->loc = {loc.begin, m_source.location(*peek(-1)).end};
+  group->loc = {first_loc.begin, m_source.location(*peek(-1)).end};
   return reinterpret_cast<const ast::Expr*>(group);
 }
 
@@ -274,8 +269,9 @@ const via::ast::ExprCall* via::Parser::parse_expr_call(const ast::Expr* expr) {
     while (match(COMMA) && advance());
 
     expect(PAREN_CLOSE, "parsing function call");
-  } else
+  } else {
     advance();  // consume ')'
+  }
 
   auto* call = m_alloc.emplace<ast::ExprCall>();
   call->callee = expr;
@@ -325,7 +321,7 @@ const via::ast::ExprTernary* via::Parser::parse_expr_ternary(
 }
 
 const via::ast::ExprArray* via::Parser::parse_expr_array() {
-  auto loc = m_source.location(*peek());
+  auto first_loc = m_source.location(*peek());
   auto* arr = m_alloc.emplace<ast::ExprArray>();
 
   if (!match(BRACKET_CLOSE)) {
@@ -342,12 +338,12 @@ const via::ast::ExprArray* via::Parser::parse_expr_array() {
   }
 
   auto* last = expect(BRACKET_CLOSE, "terminating array initializer");
-  arr->loc = {loc.begin, m_source.location(*last).end};
+  arr->loc = {first_loc.begin, m_source.location(*last).end};
   return arr;
 }
 
 const via::ast::ExprLambda* via::Parser::parse_expr_lambda() {
-  auto loc = m_source.location(*peek());
+  auto first_loc = m_source.location(*peek());
   auto* fn = m_alloc.emplace<ast::ExprLambda>();
 
   expect(PAREN_OPEN, "parsing lambda parameter list");
@@ -367,12 +363,12 @@ const via::ast::ExprLambda* via::Parser::parse_expr_lambda() {
   }
 
   fn->body = parse_scope();
-  fn->loc = {loc.begin, fn->body->loc.end};
+  fn->loc = {first_loc.begin, fn->body->loc.end};
   return fn;
 }
 
 const via::ast::Expr* via::Parser::parse_expr_primary() {
-  SAVE_FIRST_DONT_ADVANCE_THO()
+  SAVE();
 
   switch (first->kind) {
     // Literal expression
@@ -395,9 +391,9 @@ const via::ast::Expr* via::Parser::parse_expr_primary() {
       return (const ast::Expr*)parse_expr_lambda();
     default:
       throw ParserError(
-          loc,
+          first_loc,
           std::format(
-              "Unexpected token '{}' ({}) while parsing primary expression",
+              "unexpected token '{}' ({}) while parsing primary expression",
               first->to_string(), to_string(first->kind)),
           Note(Note::HINT,
                "Expected INT | BINARY_INT | HEX_INT | 'nil' | FLOAT | 'true' "
@@ -448,9 +444,9 @@ const via::ast::Expr* via::Parser::parse_expr_affix() {
 }
 
 const via::ast::Expr* via::Parser::parse_expr(int min_prec) {
+  int prec;
   auto* lhs = parse_expr_affix();
 
-  int prec;
   while ((prec = bin_prec(peek()->kind), prec >= min_prec)) {
     auto bin = m_alloc.emplace<ast::ExprBinary>();
     bin->op = advance();
@@ -459,49 +455,43 @@ const via::ast::Expr* via::Parser::parse_expr(int min_prec) {
     bin->loc = {lhs->loc.begin, bin->rhs->loc.end};
     lhs = (const ast::Expr*)bin;
   }
-
   return lhs;
 }
 
 const via::ast::TypeBuiltin* via::Parser::parse_type_builtin() {
-  SAVE_FIRST()
+  SAVE_AND_ADVANCE();
 
   auto* bt = m_alloc.emplace<ast::TypeBuiltin>();
   bt->token = first;
-  bt->loc = loc;
+  bt->loc = first_loc;
   return bt;
 }
 
 const via::ast::TypeArray* via::Parser::parse_type_array() {
-  SAVE_FIRST();
+  SAVE_AND_ADVANCE();
 
   auto* at = m_alloc.emplace<ast::TypeArray>();
   at->type = parse_type();
-
   auto* end = expect(BRACKET_CLOSE, "terminating array type");
-
-  at->loc = {loc.begin, m_source.location(*end).end};
+  at->loc = {first_loc.begin, m_source.location(*end).end};
   return at;
 }
 
 const via::ast::TypeMap* via::Parser::parse_type_map() {
-  SAVE_FIRST();
+  SAVE_AND_ADVANCE();
 
   auto* dt = m_alloc.emplace<ast::TypeMap>();
   dt->key = parse_type();
-
   expect(COLON, "parsing map type");
-
   dt->value = parse_type();
 
   auto* end = expect(BRACE_CLOSE, "terminating map type");
-
   dt->loc = {m_source.location(*first).begin, m_source.location(*end).end};
   return dt;
 }
 
 const via::ast::TypeFunc* via::Parser::parse_type_function() {
-  SAVE_FIRST()
+  SAVE_AND_ADVANCE();
   expect(PAREN_OPEN, "parsing function type parameter list");
 
   auto* fn = m_alloc.emplace<ast::TypeFunc>();
@@ -514,7 +504,7 @@ const via::ast::TypeFunc* via::Parser::parse_type_function() {
   expect(ARROW, "parsing function type return type");
 
   fn->ret = parse_type();
-  fn->loc = {loc.begin, fn->ret->loc.end};
+  fn->loc = {first_loc.begin, fn->ret->loc.end};
   return fn;
 }
 
@@ -536,18 +526,18 @@ const via::ast::Type* via::Parser::parse_type_primary() {
     default:
       throw ParserError(
           m_source.location(*tok),
-          std::format("Unexpected token '{}' ({}) while parsing type",
+          std::format("unexpected token '{}' ({}) while parsing type",
                       tok->to_string(), to_string(tok->kind)),
           Note(Note::HINT,
-               "Expected 'nil' | 'bool' | 'int' | 'float' | "
+               "expected 'nil' | 'bool' | 'int' | 'float' | "
                "'string' | '[' | '{' | 'fn'"));
   }
 }
 
 const via::ast::Type* via::Parser::parse_type() {
-  SAVE_FIRST_DONT_ADVANCE_THO();
+  SAVE();
 
-  TypeQualifier quals = TypeQualifier::NONE;
+  auto quals = TypeQualifier::NONE;
 
   while (true) {
     auto* tok = peek();
@@ -556,8 +546,8 @@ const via::ast::Type* via::Parser::parse_type() {
         if (quals & TypeQualifier::CONST)
           m_diags.report<Level::WARNING>(
               m_source.location(*tok),
-              "Duplicate 'const' qualifier will be ignored",
-              Note(Note::SUGGESTION, "Remove 'const'"));
+              "duplicate 'const' qualifier will be ignored",
+              Note(Note::SUGGESTION, "remove 'const'"));
         quals |= TypeQualifier::CONST;
         advance();
         break;
@@ -565,16 +555,16 @@ const via::ast::Type* via::Parser::parse_type() {
         if (quals & TypeQualifier::STRONG)
           m_diags.report<Level::WARNING>(
               m_source.location(*tok),
-              "Duplicate 'strong' qualifier will be ignored",
-              Note(Note::SUGGESTION, "Remove 'strong'"));
+              "duplicate 'strong' qualifier will be ignored",
+              Note(Note::SUGGESTION, "remove 'strong'"));
         quals |= TypeQualifier::STRONG;
         advance();
         break;
       case OP_AMP:
         if (quals & TypeQualifier::REFERENCE)
           throw ParserError(m_source.location(*tok),
-                            "Nested reference qualifier not allowed",
-                            Note(Note::SUGGESTION, "Remove '&'"));
+                            "nested reference qualifier not allowed",
+                            Note(Note::SUGGESTION, "remove '&'"));
         quals |= TypeQualifier::REFERENCE;
         advance();
         break;
@@ -585,13 +575,13 @@ const via::ast::Type* via::Parser::parse_type() {
 
 done:
   auto* primary = const_cast<ast::Type*>(parse_type_primary());
-  primary->loc = {loc.begin, primary->loc.end};
+  primary->loc = {first_loc.begin, primary->loc.end};
   primary->quals = quals;
   return primary;
 }
 
 const via::ast::StatVarDecl* via::Parser::parse_stat_var_decl(bool semicolon) {
-  SAVE_FIRST()
+  SAVE_AND_ADVANCE();
 
   auto vars = m_alloc.emplace<ast::StatVarDecl>();
   vars->decl = first;
@@ -606,7 +596,7 @@ const via::ast::StatVarDecl* via::Parser::parse_stat_var_decl(bool semicolon) {
   expect(OP_EQ, "parsing variable declaration");
 
   vars->rval = parse_expr();
-  vars->loc = {loc.begin, vars->rval->loc.end};
+  vars->loc = {first_loc.begin, vars->rval->loc.end};
 
   if (semicolon) {
     optional(SEMICOLON);
@@ -616,7 +606,7 @@ const via::ast::StatVarDecl* via::Parser::parse_stat_var_decl(bool semicolon) {
 }
 
 const via::ast::StatFor* via::Parser::parse_stat_for() {
-  SAVE_FIRST()
+  SAVE_AND_ADVANCE();
 
   auto fors = m_alloc.emplace<ast::StatFor>();
   fors->init = parse_stat_var_decl(false);
@@ -636,12 +626,12 @@ const via::ast::StatFor* via::Parser::parse_stat_for() {
   }
 
   fors->body = parse_scope();
-  fors->loc = {loc.begin, fors->body->loc.end};
+  fors->loc = {first_loc.begin, fors->body->loc.end};
   return fors;
 }
 
 const via::ast::StatForEach* via::Parser::parse_stat_for_each() {
-  SAVE_FIRST()
+  SAVE_AND_ADVANCE();
 
   auto fors = m_alloc.emplace<ast::StatForEach>();
   fors->name = parse_lvalue();
@@ -650,14 +640,14 @@ const via::ast::StatForEach* via::Parser::parse_stat_for_each() {
 
   fors->expr = parse_expr();
   fors->body = parse_scope();
-  fors->loc = {loc.begin, fors->body->loc.end};
+  fors->loc = {first_loc.begin, fors->body->loc.end};
   return fors;
 }
 
 const via::ast::StatIf* via::Parser::parse_stat_if() {
   using Branch = ast::StatIf::Branch;
 
-  SAVE_FIRST()
+  SAVE_AND_ADVANCE();
 
   Branch br;
   br.cond = parse_expr();
@@ -682,17 +672,17 @@ const via::ast::StatIf* via::Parser::parse_stat_if() {
     ifs->branches.push_back(br);
   }
 
-  ifs->loc = {loc.begin, br.body->loc.end};
+  ifs->loc = {first_loc.begin, br.body->loc.end};
   return ifs;
 }
 
 const via::ast::StatWhile* via::Parser::parse_stat_while() {
-  SAVE_FIRST()
+  SAVE_AND_ADVANCE();
 
   auto* whs = m_alloc.emplace<ast::StatWhile>();
   whs->cond = parse_expr();
   whs->body = parse_scope();
-  whs->loc = {loc.begin, whs->body->loc.end};
+  whs->loc = {first_loc.begin, whs->body->loc.end};
   return whs;
 }
 
@@ -708,16 +698,16 @@ const via::ast::StatAssign* via::Parser::parse_stat_assign(
 }
 
 const via::ast::StatReturn* via::Parser::parse_stat_return() {
-  SAVE_FIRST()
+  SAVE_AND_ADVANCE();
 
   auto* ret = m_alloc.emplace<ast::StatReturn>();
 
   if (is_expr_start(peek()->kind)) {
     ret->expr = parse_expr();
-    ret->loc = {loc.begin, ret->expr->loc.end};
+    ret->loc = {first_loc.begin, ret->expr->loc.end};
   } else {
     ret->expr = nullptr;
-    ret->loc = loc;
+    ret->loc = first_loc;
   }
 
   optional(SEMICOLON);
@@ -725,7 +715,7 @@ const via::ast::StatReturn* via::Parser::parse_stat_return() {
 }
 
 const via::ast::StatEnum* via::Parser::parse_stat_enum() {
-  SAVE_FIRST()
+  SAVE_AND_ADVANCE();
 
   auto ens = m_alloc.emplace<ast::StatEnum>();
   ens->symbol = advance();
@@ -748,12 +738,12 @@ const via::ast::StatEnum* via::Parser::parse_stat_enum() {
     expect(COMMA, "parsing enumerator pair");
   }
 
-  ens->loc = {loc.begin, m_source.location(*advance()).end};
+  ens->loc = {first_loc.begin, m_source.location(*advance()).end};
   return ens;
 }
 
 const via::ast::StatImport* via::Parser::parse_stat_import() {
-  SAVE_FIRST()
+  SAVE_AND_ADVANCE();
 
   size_t end;
   auto imp = m_alloc.emplace<ast::StatImport>();
@@ -770,13 +760,13 @@ const via::ast::StatImport* via::Parser::parse_stat_import() {
     }
   }
 
-  imp->loc = {loc.begin, end};
+  imp->loc = {first_loc.begin, end};
   optional(SEMICOLON);
   return imp;
 }
 
 const via::ast::StatFunctionDecl* via::Parser::parse_stat_func_decl() {
-  SAVE_FIRST()
+  SAVE_AND_ADVANCE();
 
   auto* fn = m_alloc.emplace<ast::StatFunctionDecl>();
   fn->name = expect(IDENTIFIER, "parsing function name");
@@ -803,22 +793,22 @@ const via::ast::StatFunctionDecl* via::Parser::parse_stat_func_decl() {
   }
 
   fn->body = parse_scope();
-  fn->loc = {loc.begin, fn->body->loc.end};
+  fn->loc = {first_loc.begin, fn->body->loc.end};
   return fn;
 }
 
 const via::ast::StatStructDecl* via::Parser::parse_stat_struct_decl() {
-  SAVE_FIRST()
+  SAVE_AND_ADVANCE();
 
   auto* strc = m_alloc.emplace<ast::StatStructDecl>();
   strc->name = expect(IDENTIFIER, "parsing struct name");
   strc->body = parse_scope();
-  strc->loc = {loc.begin, strc->loc.end};
+  strc->loc = {first_loc.begin, strc->loc.end};
   return strc;
 }
 
 const via::ast::StatTypeDecl* via::Parser::parse_stat_type_decl() {
-  SAVE_FIRST()
+  SAVE_AND_ADVANCE();
 
   auto* ty = m_alloc.emplace<ast::StatTypeDecl>();
   ty->symbol = advance();
@@ -826,7 +816,7 @@ const via::ast::StatTypeDecl* via::Parser::parse_stat_type_decl() {
   expect(OP_EQ, "parsing type declaration");
 
   ty->type = parse_type();
-  ty->loc = {loc.begin, ty->type->loc.end};
+  ty->loc = {first_loc.begin, ty->type->loc.end};
 
   optional(SEMICOLON);
   return ty;
@@ -842,10 +832,11 @@ const via::ast::Stat* via::Parser::parse_stat() {
     case KW_CONST:
       return (const ast::Stat*)parse_stat_var_decl(true);
     case KW_DO: {
-      SAVE_FIRST();
+      SAVE_AND_ADVANCE();
+      ;
       auto* scope = m_alloc.emplace<ast::StatScope>();
       scope->body = parse_scope();
-      scope->loc = {loc.begin, scope->body->loc.end};
+      scope->loc = {first_loc.begin, scope->body->loc.end};
       return (const ast::Stat*)scope;
     }
     case KW_FOR:
@@ -878,7 +869,7 @@ const via::ast::Stat* via::Parser::parse_stat() {
   unexpected_token:
     throw ParserError(
         m_source.location(*first),
-        std::format("Unexpected token '{}' ({}) while parsing statement",
+        std::format("unexpected token '{}' ({}) while parsing statement",
                     first->to_string(), to_string(first->kind)));
   }
 
