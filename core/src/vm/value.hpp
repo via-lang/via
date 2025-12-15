@@ -9,16 +9,16 @@
 
 #pragma once
 
+#include <compiler/value.hpp>
+#include <config.hpp>
+#include <conversion.hpp>
 #include <cstdint>
 #include <libassert/assert.hpp>
 #include <optional>
 #include <stdfloat>
-#include <via/config.hpp>
 
 #include "closure.hpp"
 #include "machine.hpp"
-#include "sema/const_value.hpp"
-#include "support/conv.hpp"
 
 namespace via {
 

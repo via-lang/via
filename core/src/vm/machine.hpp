@@ -9,19 +9,19 @@
 
 #pragma once
 
+#include <compiler/executable.hpp>
+#include <config.hpp>
 #include <cstddef>
 #include <functional>
 #include <iostream>
 #include <libassert/assert.hpp>
+#include <module/symbol.hpp>
 #include <ostream>
 #include <string>
-#include <via/config.hpp>
+#include <utility.hpp>
 
-#include "executable.hpp"
 #include "instruction.hpp"
-#include "module/symbol.hpp"
 #include "stack.hpp"
-#include "support/utility.hpp"
 
 namespace via {
 namespace config {

@@ -9,8 +9,8 @@
 
 #pragma once
 
+#include <config.hpp>
 #include <filesystem>
-#include <via/config.hpp>
 
 #include "module.hpp"
 #include "symbol.hpp"

@@ -9,9 +9,9 @@
 
 #pragma once
 
+#include <config.hpp>
 #include <cstddef>
 #include <vector>
-#include <via/config.hpp>
 
 #include "instruction.hpp"
 #include "machine.hpp"

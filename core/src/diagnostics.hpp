@@ -9,11 +9,11 @@
 
 #pragma once
 
-#include <via/config.hpp>
+#include <config.hpp>
 
-#include "lexer/source_buffer.hpp"
+#include "compiler/source-buffer.hpp"
 #include "logger.hpp"
-#include "support/utility.hpp"
+#include "utility.hpp"
 
 namespace via {
 

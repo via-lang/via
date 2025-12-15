@@ -9,7 +9,7 @@
 
 #include "logger.hpp"
 
-#include "support/ansi.hpp"
+#include "ansi.hpp"
 
 static std::optional<std::string> get_level_string(via::LogLevel level) {
   using enum via::LogLevel;

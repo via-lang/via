@@ -9,21 +9,21 @@
 
 #pragma once
 
+#include <compiler/executable.hpp>
+#include <compiler/parser.hpp>
+#include <compiler/source-buffer.hpp>
+#include <config.hpp>
 #include <expected>
 #include <filesystem>
+#include <memory.hpp>
 #include <optional>
-#include <parser/parser.hpp>
+#include <os/dl.hpp>
 #include <span>
 #include <string>
-#include <via/config.hpp>
+#include <vm/machine.hpp>
+#include <vm/reference.hpp>
 
 #include "binding.hpp"
-#include "lexer/source_buffer.hpp"
-#include "os/dl.hpp"
-#include "support/memory.hpp"
-#include "vm/executable.hpp"
-#include "vm/machine.hpp"
-#include "vm/reference.hpp"
 
 #define VIA_MODULE_ENTRY_PREFIX viainit_
 

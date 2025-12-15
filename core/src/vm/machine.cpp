@@ -10,12 +10,12 @@
 #include "machine.hpp"
 
 #include <libassert/assert.hpp>
+#include <module/binding.hpp>
+#include <module/manager.hpp>
+#include <module/module.hpp>
 #include <ostream>
 
 #include "closure.hpp"
-#include "module/binding.hpp"
-#include "module/manager.hpp"
-#include "module/module.hpp"
 #include "reference.hpp"
 #include "value.hpp"
 

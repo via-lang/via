@@ -10,10 +10,10 @@
 #include <cstring>
 #include <libassert/assert.hpp>
 
+#include "bit.hpp"
 #include "machine.hpp"
 #include "module/manager.hpp"
 #include "reference.hpp"
-#include "support/bit.hpp"
 #include "value.hpp"
 
 #if defined(VIA_COMPILER_GCC) || defined(VIA_COMPILER_CLANG)

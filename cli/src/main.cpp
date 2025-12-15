@@ -8,7 +8,6 @@
 ** ===================================================== */
 
 #include <argvx/parser.hpp>
-#include <support/ansi.hpp>
 #include <via/via.hpp>
 
 #include "options.hpp"

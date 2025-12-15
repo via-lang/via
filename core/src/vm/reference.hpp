@@ -9,9 +9,9 @@
 
 #pragma once
 
+#include <config.hpp>
 #include <cstddef>
 #include <libassert/assert.hpp>
-#include <via/config.hpp>
 
 #include "value.hpp"
 

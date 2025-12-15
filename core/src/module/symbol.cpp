@@ -9,7 +9,7 @@
 
 #include "symbol.hpp"
 
-#include "support/ansi.hpp"
+#include "ansi.hpp"
 
 std::string via::SymbolTable::to_string() const noexcept {
   std::ostringstream oss;

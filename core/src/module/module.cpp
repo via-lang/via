@@ -9,20 +9,20 @@
 
 #include "module.hpp"
 
+#include <compiler/source-buffer.hpp>
 #include <expected>
 #include <format>
 #include <fstream>
 #include <iostream>
+#include <ir/builder.hpp>
+#include <ir/tree.hpp>
 #include <libassert/assert.hpp>
+#include <os/dl.hpp>
+#include <vm/debugger.hpp>
+#include <vm/machine.hpp>
 
-#include "ir/builder.hpp"
-#include "ir/tree.hpp"
-#include "lexer/source_buffer.hpp"
 #include "manager.hpp"
-#include "os/dl.hpp"
 #include "symbol.hpp"
-#include "vm/debugger.hpp"
-#include "vm/machine.hpp"
 
 // Read a file into a string
 // clang-format off
@@ -189,7 +189,7 @@ std::expected<via::Module*, std::string> via::Module::load_source_file(
     // Map intermediate representation nodes to definitions
     for (const auto& node : module->m_ir) {
       // Check if the node has an identity
-      if (auto symbol = node->get_symbol()) {
+      if (auto symbol = node->symbol()) {
         module->m_defs[*symbol] = Binding::from(manager, node);
       }
     }

@@ -9,11 +9,10 @@
 
 #pragma once
 
+#include <config.hpp>
 #include <cstddef>
 #include <libassert/assert.hpp>
-#include <via/config.hpp>
-
-#include "support/memory.hpp"
+#include <memory.hpp>
 
 namespace via {
 namespace config {

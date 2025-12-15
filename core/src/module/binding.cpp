@@ -11,11 +11,12 @@
 
 #include <sstream>
 
-#include "ast/tree.hpp"
+#include "ansi.hpp"
+#include "compiler/ir-tree.hpp"
+#include "compiler/syntax-tree.hpp"
+#include "compiler/type.hpp"
+#include "compiler/value.hpp"
 #include "manager.hpp"
-#include "sema/const_value.hpp"
-#include "sema/type.hpp"
-#include "support/ansi.hpp"
 #include "symbol.hpp"
 
 VIA_NOINLINE via::Binding* via::Binding::from(ModuleManager& manager,

@@ -9,15 +9,15 @@
 
 #include "debugger.hpp"
 
+#include <ansi.hpp>
 #include <iomanip>
 #include <libassert/assert.hpp>
 #include <print>
 #include <sstream>
 
-#include "support/ansi.hpp"
+#include "instruction.hpp"
+#include "machine.hpp"
 #include "value.hpp"
-#include "vm/instruction.hpp"
-#include "vm/machine.hpp"
 
 static std::vector<std::string> tokenize_command(const std::string& line) {
   std::istringstream iss(line);

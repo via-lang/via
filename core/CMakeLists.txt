@@ -15,9 +15,8 @@ add_library(via SHARED ${VIA_CORE_SOURCES})
 
 # Add include directories
 target_include_directories(via
-  PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/
-    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+  PUBLIC     ${CMAKE_CURRENT_SOURCE_DIR}/src
+  INTERFACE  ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 # Add dependencies

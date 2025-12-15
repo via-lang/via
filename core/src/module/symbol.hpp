@@ -11,10 +11,9 @@
 
 #include <cstdint>
 #include <deque>
+#include <intern-table.hpp>
 #include <sstream>
 #include <string>
-
-#include "support/intern_table.hpp"
 
 namespace via {
 

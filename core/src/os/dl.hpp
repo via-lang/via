@@ -9,12 +9,11 @@
 
 #pragma once
 
+#include <config.hpp>
 #include <expected>
 #include <filesystem>
 #include <type_traits>
-#include <via/config.hpp>
-
-#include "support/utility.hpp"
+#include <utility.hpp>
 
 // We assume that the <dlfcn.h> header is the proper POSIX dynamic library API
 // Everything should be fine as long as the implementation is not cooked

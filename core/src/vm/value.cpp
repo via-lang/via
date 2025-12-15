@@ -9,10 +9,9 @@
 
 #include "value.hpp"
 
+#include <compiler/value.hpp>
 #include <libassert/assert.hpp>
-
-#include "sema/const_value.hpp"
-#include "support/memory.hpp"
+#include <memory.hpp>
 
 // clang-format off
 via::Value* via::Value::create(VirtualMachine* vm)

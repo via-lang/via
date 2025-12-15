@@ -13,8 +13,8 @@
 #include <cmath>
 #include <libassert/assert.hpp>
 
+#include "ansi.hpp"
 #include "logger.hpp"
-#include "support/ansi.hpp"
 
 std::string via::to_string(Note::Kind kind) noexcept {
   switch (kind) {

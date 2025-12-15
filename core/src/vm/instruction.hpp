@@ -9,11 +9,10 @@
 
 #pragma once
 
+#include <config.hpp>
 #include <cstdint>
 #include <string>
-#include <via/config.hpp>
-
-#include "support/utility.hpp"
+#include <utility.hpp>
 
 namespace via {
 

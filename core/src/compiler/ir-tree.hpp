@@ -1,0 +1,250 @@
+/* ===================================================== **
+**  This file is a part of the via Programming Language  **
+** ----------------------------------------------------- **
+**           Copyright (C) XnLogicaL 2024-2025           **
+**              Licensed under GNU GPLv3.0               **
+** ----------------------------------------------------- **
+**         https://github.com/XnLogicaL/via-lang         **
+** ===================================================== */
+
+#pragma once
+
+#include <config.hpp>
+#include <cstddef>
+#include <module/symbol.hpp>
+#include <optional>
+#include <utility.hpp>
+#include <vm/instruction.hpp>
+
+#include "type.hpp"
+#include "value.hpp"
+
+namespace via {
+
+#define FOR_EACH_IMPL_KIND(X) \
+  X(SOURCE)                   \
+  X(BINARY)                   \
+  X(NATIVE)
+
+enum class ImplKind { FOR_EACH_IMPL_KIND(DEFINE_ENUM) };
+
+DEFINE_TO_STRING(ImplKind, FOR_EACH_IMPL_KIND(DEFINE_CASE_TO_STRING));
+
+class Module;
+class Binding;
+
+#define FOR_EACH_UNARY_OP(X) \
+  X(NEG)                     \
+  X(NOT)                     \
+  X(BNOT)
+
+#define FOR_EACH_BINARY_OP(X) \
+  X(ADD)                      \
+  X(SUB)                      \
+  X(MUL)                      \
+  X(DIV)                      \
+  X(POW)                      \
+  X(MOD)                      \
+  X(AND)                      \
+  X(OR)                       \
+  X(BAND)                     \
+  X(BOR)                      \
+  X(BXOR)                     \
+  X(BSHL)                     \
+  X(BSHR)
+
+enum class UnaryOp { FOR_EACH_UNARY_OP(DEFINE_ENUM) };
+
+enum class BinaryOp { FOR_EACH_BINARY_OP(DEFINE_ENUM) };
+
+DEFINE_TO_STRING(UnaryOp, FOR_EACH_UNARY_OP(DEFINE_CASE_TO_STRING));
+DEFINE_TO_STRING(BinaryOp, FOR_EACH_BINARY_OP(DEFINE_CASE_TO_STRING));
+
+UnaryOp to_unary_op(TokenKind kind) noexcept;
+BinaryOp to_binary_op(TokenKind kind) noexcept;
+
+namespace ir {
+
+struct Expr {
+  SourceLoc loc;
+  QualType type;
+  virtual ~Expr() = default;
+  virtual std::string to_string(const SymbolTable* sym_tab,
+                                size_t depth = 0) const = 0;
+};
+
+struct Stat {
+  SourceLoc loc;
+  virtual ~Stat() = default;
+  virtual std::optional<SymbolId> symbol() const { return std::nullopt; }
+  virtual std::string to_string(const SymbolTable* sym_tab,
+                                size_t depth = 0) const = 0;
+};
+
+struct Term {
+  SourceLoc loc;
+  virtual ~Term() = default;
+  virtual std::string to_string(const SymbolTable* sym_tab,
+                                size_t depth = 0) const = 0;
+};
+
+#define NODE_FIELDS(BASE)                                         \
+  std::string to_string(const SymbolTable* sym_tab, size_t depth) \
+      const override;
+
+struct TrReturn : public Term {
+  NODE_FIELDS(Term)
+  bool implicit;
+  const Expr* val;
+  QualType type;
+};
+
+struct TrContinue : public Term {
+  NODE_FIELDS(Term)
+};
+
+struct TrBreak : public Term {
+  NODE_FIELDS(Term)
+};
+
+struct StatBlock;
+
+struct TrBranch : public Term {
+  NODE_FIELDS(Term)
+  StatBlock* target;
+};
+
+struct TrCondBranch : public Term {
+  NODE_FIELDS(Term)
+  const Expr* cnd;
+  StatBlock *iftrue, *iffalse;
+};
+
+struct Parameter {
+  SymbolId symbol;
+  QualType type;
+  std::string to_string(const SymbolTable* sym_tab, size_t depth = 0) const;
+};
+
+struct ExprConstant : public Expr {
+  NODE_FIELDS(Expr)
+  ConstValue value;
+};
+
+struct ExprSymbol : public Expr {
+  NODE_FIELDS(Expr)
+  SymbolId symbol;
+};
+
+struct ExprAccess : public Expr {
+  NODE_FIELDS(Expr)
+
+  enum class Kind {
+    STATIC,
+    DYNAMIC,
+  } kind;
+
+  const Expr* root;
+  SymbolId index;
+};
+
+struct ExprModuleAccess : public Expr {
+  NODE_FIELDS(Expr)
+  Module* module;
+  SymbolId mod_id, key_id;
+  const Binding* bind;
+};
+
+struct ExprUnary : public Expr {
+  NODE_FIELDS(Expr)
+  UnaryOp op;
+  const Expr* expr;
+};
+
+struct ExprBinary : public Expr {
+  NODE_FIELDS(Expr)
+  BinaryOp op;
+  const Expr *lhs, *rhs;
+};
+
+struct ExprCall : public Expr {
+  NODE_FIELDS(Expr)
+  const Expr* callee;
+  std::vector<const Expr*> args;
+};
+
+struct ExprSubscript : public Expr {
+  NODE_FIELDS(Expr)
+  const Expr *expr, *idx;
+};
+
+struct ExprCast : public Expr {
+  NODE_FIELDS(Expr)
+  const Expr* expr;
+  QualType cast;
+};
+
+struct ExprTernary : public Expr {
+  NODE_FIELDS(Expr)
+  const Expr *cnd, *iftrue, *iffalse;
+};
+
+struct ExprArray : public Expr {
+  NODE_FIELDS(Expr)
+  std::vector<const Expr*> exprs;
+};
+
+struct ExprTuple : public Expr {
+  NODE_FIELDS(Expr)
+  std::vector<const Expr*> init;
+};
+
+struct Function;
+struct ExprLambda : public Expr {
+  NODE_FIELDS(Expr)
+};
+
+struct StatVarDecl : public Stat {
+  NODE_FIELDS()
+  SymbolId symbol;
+  const Expr* expr;
+  QualType type;
+};
+
+struct StatBlock;
+struct StatFuncDecl : public Stat {
+  NODE_FIELDS()
+
+  ImplKind kind;
+  SymbolId ident;
+  QualType ret;
+  std::vector<Parameter> parms;
+  const StatBlock* body;
+
+  std::optional<SymbolId> symbol() const override { return ident; }
+};
+
+struct StatInstruction : public Stat {
+  NODE_FIELDS()
+  Instruction instr;
+};
+
+struct StatBlock : public Stat {
+  NODE_FIELDS()
+  uint32_t id;
+  std::vector<const Stat*> stats;
+  const Term* term;
+};
+
+struct StatExpr : public Stat {
+  NODE_FIELDS()
+  const Expr* expr;
+};
+
+}  // namespace ir
+
+using IRTree = std::vector<const ir::Stat*>;
+
+std::string to_string(const SymbolTable& sym_tab, const IRTree& ir_tree);
+
+}  // namespace via

@@ -9,13 +9,13 @@
 
 #pragma once
 
+#include <compiler/type.hpp>
+#include <config.hpp>
 #include <vector>
-#include <via/config.hpp>
 
+#include "binding.hpp"
 #include "manager.hpp"
 #include "module.hpp"
-#include "module/binding.hpp"
-#include "sema/type.hpp"
 
 namespace via {
 

@@ -9,8 +9,6 @@
 
 #include "manager.hpp"
 
-#include "module/module.hpp"
-
 bool via::ModuleManager::has_module(std::filesystem::path name) {
   return m_modules.find(name) != m_modules.end();
 }

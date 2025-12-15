@@ -9,14 +9,14 @@
 
 #pragma once
 
+#include <compiler/ir-tree.hpp>
+#include <compiler/type.hpp>
+#include <compiler/value.hpp>
+#include <config.hpp>
 #include <string>
-#include <via/config.hpp>
+#include <vm/closure.hpp>
 
-#include "ir/tree.hpp"
-#include "sema/const_value.hpp"
-#include "sema/type.hpp"
 #include "symbol.hpp"
-#include "vm/closure.hpp"
 
 namespace via {
 
