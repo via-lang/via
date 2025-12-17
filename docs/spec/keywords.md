@@ -6,11 +6,7 @@ via defines keywords in a liberal and strong manner. It does not have any pseudo
 
 - `var`
 - `mut`
-- `const`
-- `strong`
-- `static`
 - `fn`
-- `type`
 - `match`
 - `while`
 - `whilex`
@@ -19,7 +15,6 @@ via defines keywords in a liberal and strong manner. It does not have any pseudo
 - `ifx`
 - `in`
 - `as`
-- `of`
 - `else`
 - `do`
 - `return`
@@ -27,6 +22,8 @@ via defines keywords in a liberal and strong manner. It does not have any pseudo
 - `spawn`
 - `import`
 - `struct`
+- `self`
+- `Self`
 - `enum`
 - `use`
 - `none`

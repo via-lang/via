@@ -6,7 +6,7 @@ via uses generic C-style comments.
 
 Line comments are prefixed with `//` and continue until the end of the current line.
 
-```
+```ts
 // This is a comment
 ```
 
@@ -14,7 +14,7 @@ Line comments are prefixed with `//` and continue until the end of the current l
 
 Multi-line comments are prefixed with `/*` and suffixed with `*/`.
 
-```
+```ts
 /*
 This is a multi-line comment!
 */

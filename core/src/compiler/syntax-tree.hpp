@@ -71,6 +71,16 @@ struct ExprLiteral : public Expr {
   const Token* tok;
 };
 
+struct ExprArray : public Expr {
+  NODE_FIELDS(ExprArray);
+  std::vector<const Expr*> values;
+};
+
+struct ExprTuple : public Expr {
+  NODE_FIELDS(ExprTuple);
+  std::vector<const Expr*> values;
+};
+
 struct ExprSymbol : public Expr {
   NODE_FIELDS(ExprSymbol);
   const Token* symbol;
@@ -125,16 +135,6 @@ struct ExprCast : public Expr {
 struct ExprTernary : public Expr {
   NODE_FIELDS(ExprTernary);
   const Expr *cond, *lhs, *rhs;
-};
-
-struct ExprArray : public Expr {
-  NODE_FIELDS(ExprArray);
-  std::vector<const Expr*> values;
-};
-
-struct ExprTuple : public Expr {
-  NODE_FIELDS(ExprTuple);
-  std::vector<const Expr*> values;
 };
 
 struct ExprLambda : public Expr {
