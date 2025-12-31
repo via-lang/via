@@ -9,39 +9,42 @@
 
 #include "machine.hpp"
 
-#include <libassert/assert.hpp>
+#include <compiler/value.hpp>
 #include <module/binding.hpp>
 #include <module/manager.hpp>
 #include <module/module.hpp>
-#include <ostream>
 
 #include "closure.hpp"
-#include "reference.hpp"
+#include "utility.hpp"
+#include "value-ref.hpp"
 #include "value.hpp"
+
+via::VirtualMachine::VirtualMachine(Module& module, const Executable& exe)
+  : m_exe(exe),
+    m_alloc(),
+    m_module(module),
+    m_bp(exe.bytecode().data()),
+    m_pc(m_bp),
+    m_stack(m_alloc),
+    m_registers(m_alloc.emplace_array<Value*>(config::vm::REGISTER_COUNT)),
+    none(m_alloc.emplace<Value>(*this)) {}
 
 template <>
 via::IntAction via::VirtualMachine::m_handle<via::Interrupt::ERROR>() {
   Closure* handler = m_unwind_stack(
-      [&](auto, auto, auto flags, auto) { return flags & CallFlags::PROTECT; });
-
-  if (handler == nullptr) {
-    auto* error = reinterpret_cast<ErrorInt*>(m_int_arg);
-    (*error->out) << error->msg;
-    return IntAction::EXIT;
-  }
-  return IntAction::RESUME;
+      [](auto, auto, auto flags, auto) { return flags & CallFlags::PROTECT; });
+  return handler ? IntAction::RESUME : IntAction::EXIT;
 }
 
-via::Snapshot::Snapshot(VirtualMachine* vm) noexcept
-    : stack_ptr(vm->m_sp - vm->m_stack.base()),
-      frame_ptr(vm->m_fp ? vm->m_fp - vm->m_stack.base() : 0),
-      program_counter(vm->m_pc),
-      rel_program_counter(vm->m_pc - vm->m_bp),
-      stack(vm->m_stack.begin(), vm->m_stack.end()),
-      registers(vm->m_registers.get(),
-                vm->m_registers.get() + config::vm::REGISTER_COUNT) {}
+via::Snapshot::Snapshot(VirtualMachine* vm)
+  : sp(vm->m_sp - vm->m_stack.base()),
+    fp(vm->m_fp ? vm->m_fp - vm->m_stack.base() : 0),
+    pc(vm->m_pc),
+    rpc(vm->m_pc - vm->m_bp),
+    stack(vm->m_stack.begin(), vm->m_stack.end()),
+    registers(vm->m_registers, vm->m_registers + config::vm::REGISTER_COUNT) {}
 
-std::string via::Snapshot::to_string() const noexcept {
+std::string via::Snapshot::to_string() const {
   std::ostringstream oss;
   return oss.str();
 }
@@ -50,7 +53,7 @@ void via::VirtualMachine::m_save_stack() { m_sp = m_stack.end(); }
 void via::VirtualMachine::m_restore_stack() {
   for (auto* ptr = m_stack.end() - 1; ptr > m_sp; ptr--) {
     auto* value = reinterpret_cast<Value*>(*ptr);
-    value->unref();
+    value->release();
   }
   m_stack.jump(m_sp);
 }
@@ -79,11 +82,11 @@ via::Closure* via::VirtualMachine::m_unwind_stack(StackUnwindCallback pred) {
     auto flags = static_cast<CallFlags>(m_stack.pop());
     auto* callee = reinterpret_cast<Value*>(m_stack.pop());
 
-    if (pred(this_fp, this_pc, flags, ValueRef(this, callee))) {
-      return callee->unwrap<FUNCTION>();
+    if (pred(this_fp, this_pc, flags, ValueRef(callee))) {
+      return &callee->unwrap<FUNCTION>();
     } else {
       fp = this_fp;
-      callee->unref();
+      callee->release();
     }
   }
   return nullptr;
@@ -91,30 +94,24 @@ via::Closure* via::VirtualMachine::m_unwind_stack(StackUnwindCallback pred) {
 
 via::ValueRef via::VirtualMachine::get_import(SymbolId module_id,
                                               SymbolId key_id) {
-  auto& manager = m_module->manager();
+  auto& manager = m_module.manager();
   if (auto module = manager.get_module_by_name(module_id)) {
     if (auto bind = module->lookup(key_id)) {
-      if TRY_COERCE (const FunctionBinding, fn_def, *bind) {
-        size_t argc = fn_def->m_params.size();
-        Closure* closure;
-
-        if (fn_def->m_kind == ImplKind::NATIVE) {
-          closure = Closure::create(this, argc, fn_def->m_impl.native);
-        } else {
-          goto error;
-        }
-
-        return ValueRef(this, Value::create(this, closure));
+      if VIA_TRY_COERCE (const FunctionBinding, fn_def, *bind) {
+        if (fn_def->m_kind != ImplKind::NATIVE) goto error;
+        auto argc = fn_def->m_params.size();
+        auto closure = Closure(argc, fn_def->m_impl.native);
+        return value<FUNCTION>(closure);
       }
     }
   }
 
 // TODO: Better error handling
 error:
-  PANIC("invalid call to VirtualMachine::get_import");
+  VIA_PANIC("invalid call to VirtualMachine::get_import");
 }
 
-void via::VirtualMachine::set_interrupt(Interrupt code, void* arg) noexcept {
+void via::VirtualMachine::interrupt(Interrupt code, void* arg) {
   if (m_int_arg != nullptr) m_alloc.free(m_int_arg);
   m_int = code;
   m_int_arg = arg;
@@ -123,91 +120,81 @@ void via::VirtualMachine::set_interrupt(Interrupt code, void* arg) noexcept {
 void via::VirtualMachine::push_local(ValueRef val) {
   val->m_rc++;  // Manually increment reference count as the stack is managed
                 // manually
-  m_stack.push((uintptr_t)val.get());  // Push the value onto the stack
+  m_stack.push((uintptr_t)val.unwrap());  // Push the value onto the stack
 }
 
 via::ValueRef via::VirtualMachine::get_local(size_t sp) {
   // Ensure the stack pointer is within bounds
-  DEBUG_ASSERT(sp < m_stack.size(), "bad stack pointer");
-  return ValueRef(this, (Value*)m_stack.at(sp));
+  VIA_DEBUG_ASSERT(sp < m_stack.size(), "bad stack pointer");
+  return ValueRef((Value*)m_stack.at(sp));
 }
 
 via::ValueRef via::VirtualMachine::get_constant(uint16_t id) {
-  auto cv = m_exe->constants().at(id);  // Get the constant value
-  auto* val = Value::create(this, cv);  // Create a new value from the constant
-  return ValueRef(this, val);
+  const auto& cvalue = m_exe.constants().at(id);  // Get the constant value
+  return m_alloc.emplace<Value>(*this, cvalue);
 }
 
 void via::VirtualMachine::call(ValueRef callee, CallFlags flags) {
   callee->m_rc++;  // Keep callee alive just in case
 
-  // Get the closure from the callee value
-  auto* closure = callee->unwrap<FUNCTION>();
+  auto& closure = callee->unwrap<FUNCTION>();
   auto* base = &m_stack.top();
 
-  m_stack.push((uintptr_t)callee.get());                  // Save callee pointer
-  m_stack.push((uintptr_t)flags);                         // Save flags
-  m_stack.push((uintptr_t)m_pc + !closure->is_native());  // Save return PC
-  m_stack.push((uintptr_t)m_fp);                          // Save old FP
+  m_stack.push((uintptr_t)callee.unwrap());
+  m_stack.push((uintptr_t)flags);
+  m_stack.push((uintptr_t)m_pc + !closure.is_native());
+  m_stack.push((uintptr_t)m_fp);
 
-  // Set the new frame pointer
   m_fp = &m_stack.top();
 
-  if (closure->is_native()) {
-    CallInfo call_info;  // Initialize the CallInfo structure
-    call_info.callee = callee.get();
-    call_info.flags = flags;  // Propagate flags
+  if (closure.is_native()) {
+    CallInfo call_info;
+    call_info.callee = callee.unwrap();
+    call_info.flags = flags;
 
-    for (uintptr_t* ptr = base; ptr > base - (ptrdiff_t)closure->argc();
-         --ptr) {
+    for (uintptr_t* ptr = base; ptr > base - (ptrdiff_t)closure.argc(); --ptr) {
       Value* arg = reinterpret_cast<Value*>(*ptr);
-      call_info.args.push_back(ValueRef(this, arg));
+      call_info.args.push_back(ValueRef(arg));
     }
 
-    auto result = closure->get_callback()(this, call_info);
-    return_(result);  // Return the result of the native function call
+    auto result = closure.callback()(this, call_info);
+    return_(result);
   } else {
-    m_pc = closure->get_bytecode();
+    m_pc = closure.bytecode();
   }
 }
 
 void via::VirtualMachine::return_(ValueRef value) {
-  // Check if the frame pointer is valid
-  DEBUG_ASSERT(m_fp != nullptr, "bad internal frame pointer during return");
+  VIA_DEBUG_ASSERT(
+      m_fp != nullptr,
+      "bad internal frame pointer while returning from function call");
 
-  // Get the top of the stack
   uintptr_t* top = &m_stack.top();
 
-  // Iterate over locals inside the stack frame
   for (uintptr_t* local = top; local > m_fp; --local) {
-    // Check if the local is not null
     if (*local) {
-      // Unreference the local value
       auto* val = reinterpret_cast<Value*>(local);
-      val->unref();
+      val->release();
     }
   }
 
-  // Jump stack to frame pointer
   m_stack.jump(m_fp + 1);
 
-  m_fp = reinterpret_cast<uintptr_t*>(
-      m_stack.pop());  // Old FP (as a pointer value)
-  m_pc = reinterpret_cast<const Instruction*>(m_stack.pop());  // Saved PC
+  m_fp = reinterpret_cast<uintptr_t*>(m_stack.pop());
+  m_pc = reinterpret_cast<const Instruction*>(m_stack.pop());
 
-  auto flags = static_cast<CallFlags>(m_stack.pop());      // Saved flags
-  auto* callee = reinterpret_cast<Value*>(m_stack.pop());  // Callee
-  callee->unref();  // Unreference the callee
+  auto flags = static_cast<CallFlags>(m_stack.pop());
+  auto* callee = reinterpret_cast<Value*>(m_stack.pop());
+  callee->release();
 
-  // Push return value
-  push_local(value.is_null() ? ValueRef(this, Value::create(this)) : value);
+  push_local(value.is_null() ? none : value);
 }
 
-void via::VirtualMachine::raise(std::string msg, std::ostream& out) {
-  auto* error = m_alloc.emplace<ErrorInt>();
-  error->msg = msg;
-  error->out = &out;
-  error->fp = m_fp;
-  error->pc = m_pc;
-  set_interrupt(Interrupt::ERROR, error);
+void via::VirtualMachine::raise(ValueRef error) {
+  auto* payload = m_alloc.emplace<ExecutionError>();
+  payload->err = std::move(error);
+  payload->fp = m_fp;
+  payload->pc = m_pc;
+
+  interrupt(Interrupt::ERROR, (void*)payload);
 }

@@ -16,31 +16,23 @@
 #include <compiler/type.hpp>
 #include <compiler/value.hpp>
 #include <diagnostics.hpp>
-#include <iomanip>
-#include <iostream>
-#include <libassert/assert.hpp>
 #include <limits>
 #include <module/manager.hpp>
 #include <module/module.hpp>
 #include <unordered_map>
 #include <vm/instruction.hpp>
 
-void via::detail::set_null_dst_trap(via::Executable& exe,
-                                    const std::optional<uint16_t>& dst) {
-  DEBUG_ASSERT_VAL(dst,
-                   "destination register must not be null in this context");
-}
-
 template <>
-void via::Executable::lower_expr<via::ir::ExprConstant>(
-    const ir::ExprConstant* ir_expr_constant, std::optional<uint16_t> dst) {
-  detail::set_null_dst_trap(*this, dst);
+void via::Executable::lower_expr<via::ir::Expr::Constant>(
+    const ir::Expr::Constant* ir_expr_constant, std::optional<uint16_t> dst) {
+  VIA_DEBUG_ASSERT(dst != std::nullopt,
+                   "destination register must not be null in this context");
 
   const ConstValue& cvalue = ir_expr_constant->value;
 
   switch (cvalue.kind()) {
-    case NIL:
-      push(OpCode::LOADNIL, {*dst});
+    case NONE:
+      push(OpCode::LOADNONE, {*dst});
       break;
     case BOOL:
       push(cvalue.unwrap<BOOL>() ? OpCode::LOADTRUE : OpCode::LOADFALSE,
@@ -66,24 +58,25 @@ void via::Executable::lower_expr<via::ir::ExprConstant>(
 }
 
 template <>
-void via::Executable::lower_expr<via::ir::ExprSymbol>(
-    const ir::ExprSymbol* ir_expr_symbol, std::optional<uint16_t> dst) {
-  detail::set_null_dst_trap(*this, dst);
+void via::Executable::lower_expr<via::ir::Expr::Symbol>(
+    const ir::Expr::Symbol* ir_expr_symbol, std::optional<uint16_t> dst) {
+  VIA_DEBUG_ASSERT(dst != std::nullopt,
+                   "destination register must not be null in this context");
 
   auto& frame = m_stack.top();
   if (auto lref = frame.get_local(ir_expr_symbol->symbol)) {
     push(OpCode::GETLOCAL, {*dst, lref->id});
     return;
   }
-
-  UNREACHABLE("unimplemented ir symbol lookup");
+  VIA_PANIC("unimplemented ir symbol lookup");
 }
 
 template <>
-void via::Executable::lower_expr<via::ir::ExprModuleAccess>(
-    const ir::ExprModuleAccess* ir_expr_module_access,
+void via::Executable::lower_expr<via::ir::Expr::ModuleAccess>(
+    const ir::Expr::ModuleAccess* ir_expr_module_access,
     std::optional<uint16_t> dst) {
-  detail::set_null_dst_trap(*this, dst);
+  VIA_DEBUG_ASSERT(dst != std::nullopt,
+                   "destination register must not be null in this context");
 
   push(OpCode::GETIMPORT,
        {
@@ -94,9 +87,10 @@ void via::Executable::lower_expr<via::ir::ExprModuleAccess>(
 }
 
 template <>
-void via::Executable::lower_expr<via::ir::ExprBinary>(
-    const ir::ExprBinary* ir_expr_binary, std::optional<uint16_t> dst) {
-  detail::set_null_dst_trap(*this, dst);
+void via::Executable::lower_expr<via::ir::Expr::Binary>(
+    const ir::Expr::Binary* ir_expr_binary, std::optional<uint16_t> dst) {
+  VIA_DEBUG_ASSERT(dst != std::nullopt,
+                   "destination register must not be null in this context");
 
   uint16_t opid = static_cast<uint16_t>(ir_expr_binary->op);
   uint16_t rlhs = m_reg_state.alloc(), rrhs = m_reg_state.alloc();
@@ -146,8 +140,8 @@ void via::Executable::lower_expr<via::ir::ExprBinary>(
 }
 
 template <>
-void via::Executable::lower_expr<via::ir::ExprCall>(
-    const ir::ExprCall* ir_expr_call, std::optional<uint16_t> dst) {
+void via::Executable::lower_expr<via::ir::Expr::Call>(
+    const ir::Expr::Call* ir_expr_call, std::optional<uint16_t> dst) {
   uint16_t callee = m_reg_state.alloc();
   auto args = ir_expr_call->args;
   std::reverse(args.begin(), args.end());
@@ -168,11 +162,13 @@ void via::Executable::lower_expr<via::ir::ExprCall>(
 }
 
 template <>
-void via::Executable::lower_expr<via::ir::ExprCast>(
-    const ir::ExprCast* ir_expr_cast, std::optional<uint16_t> dst) {
+void via::Executable::lower_expr<via::ir::Expr::Cast>(
+    const ir::Expr::Cast* ir_expr_cast, std::optional<uint16_t> dst) {
   using enum BuiltinKind;
 
-  detail::set_null_dst_trap(*this, dst);
+  VIA_DEBUG_ASSERT(dst != std::nullopt,
+                   "destination register must not be null in this context");
+
   lower(ir_expr_cast->expr, dst);
 
   if (ir_expr_cast->cast == ir_expr_cast->expr->type) {
@@ -180,12 +176,12 @@ void via::Executable::lower_expr<via::ir::ExprCast>(
     return;
   }
 
-  auto& type_ctx = m_module->manager().type_context();
+  auto& type_ctx = m_module.manager().type_context();
 
-  if TRY_COERCE (const BuiltinType, cast_bultin_type,
-                 ir_expr_cast->cast.unwrap()) {
-    if TRY_COERCE (const BuiltinType, expr_builtin_type,
-                   ir_expr_cast->expr->type.unwrap()) {
+  if VIA_TRY_COERCE (const BuiltinType, cast_bultin_type,
+                     ir_expr_cast->cast.unwrap()) {
+    if VIA_TRY_COERCE (const BuiltinType, expr_builtin_type,
+                       ir_expr_cast->expr->type.unwrap()) {
       static std::unordered_map<const Type*, OpCode> cast_rules = {
           {type_ctx.instance<BuiltinType>(BuiltinKind::INT), OpCode::TOINT},
           {type_ctx.instance<BuiltinType>(BuiltinKind::FLOAT), OpCode::TOFLOAT},
@@ -197,37 +193,38 @@ void via::Executable::lower_expr<via::ir::ExprCast>(
       if (auto it = cast_rules.find(cast_bultin_type); it != cast_rules.end()) {
         push(it->second, {*dst, *dst});
       } else {
-        UNREACHABLE("unmapped builtin cast directive");
+        VIA_PANIC("unmapped builtin cast directive");
       }
     }
   }
 }
 
 void via::Executable::lower(const ir::Expr* expr, std::optional<uint16_t> dst) {
-#define VISIT_EXPR(TYPE) \
-  if TRY_COERCE (const TYPE, _INNER, expr) return lower_expr<TYPE>(_INNER, dst);
+#define VISIT_EXPR(TYPE)                       \
+  if VIA_TRY_COERCE (const TYPE, _INNER, expr) \
+    return lower_expr<TYPE>(_INNER, dst);
 
-  VISIT_EXPR(ir::ExprConstant);
-  VISIT_EXPR(ir::ExprSymbol);
-  VISIT_EXPR(ir::ExprAccess);
-  VISIT_EXPR(ir::ExprModuleAccess);
-  VISIT_EXPR(ir::ExprUnary);
-  VISIT_EXPR(ir::ExprBinary);
-  VISIT_EXPR(ir::ExprCall);
-  VISIT_EXPR(ir::ExprSubscript);
-  VISIT_EXPR(ir::ExprCast);
-  VISIT_EXPR(ir::ExprTernary);
-  VISIT_EXPR(ir::ExprArray);
-  VISIT_EXPR(ir::ExprTuple);
-  VISIT_EXPR(ir::ExprLambda);
+  VISIT_EXPR(ir::Expr::Constant);
+  VISIT_EXPR(ir::Expr::Symbol);
+  VISIT_EXPR(ir::Expr::Access);
+  VISIT_EXPR(ir::Expr::ModuleAccess);
+  VISIT_EXPR(ir::Expr::Unary);
+  VISIT_EXPR(ir::Expr::Binary);
+  VISIT_EXPR(ir::Expr::Call);
+  VISIT_EXPR(ir::Expr::Subscript);
+  VISIT_EXPR(ir::Expr::Cast);
+  VISIT_EXPR(ir::Expr::Ternary);
+  VISIT_EXPR(ir::Expr::Array);
+  VISIT_EXPR(ir::Expr::Tuple);
+  VISIT_EXPR(ir::Expr::Lambda);
 #undef VISIT_EXPR
 
-  UNREACHABLE(VIA_TYPENAME(*expr));
+  VIA_PANIC(VIA_TYPENAME(*expr));
 }
 
 template <>
-void via::Executable::lower_stat<via::ir::StatVarDecl>(
-    const ir::StatVarDecl* ir_stat_var_decl) {
+void via::Executable::lower_stat<via::ir::Stmt::VarDecl>(
+    const ir::Stmt::VarDecl* ir_stat_var_decl) {
   auto dst = m_reg_state.alloc();
   lower(ir_stat_var_decl->expr, dst);
   push(OpCode::PUSH, {dst});
@@ -239,14 +236,14 @@ void via::Executable::lower_stat<via::ir::StatVarDecl>(
 }
 
 template <>
-void via::Executable::lower_stat<via::ir::StatInstruction>(
-    const ir::StatInstruction* ir_stat_instr) {
+void via::Executable::lower_stat<via::ir::Stmt::Instruction>(
+    const ir::Stmt::Instruction* ir_stat_instr) {
   m_bytecode.push_back(ir_stat_instr->instr);
 }
 
 template <>
-void via::Executable::lower_stat<via::ir::StatBlock>(
-    const ir::StatBlock* ir_stat_block) {
+void via::Executable::lower_stat<via::ir::Stmt::Block>(
+    const ir::Stmt::Block* ir_stat_block) {
   label(ir_stat_block->id);
   for (const auto& stat : ir_stat_block->stats) {
     lower(stat);
@@ -257,8 +254,8 @@ void via::Executable::lower_stat<via::ir::StatBlock>(
 }
 
 template <>
-void via::Executable::lower_stat<via::ir::StatFuncDecl>(
-    const ir::StatFuncDecl* ir_stat_func_decl) {
+void via::Executable::lower_stat<via::ir::Stmt::FuncDecl>(
+    const ir::Stmt::FuncDecl* ir_stat_func_decl) {
   m_stack.push({});
 
   auto dst = m_reg_state.alloc();
@@ -281,49 +278,49 @@ void via::Executable::lower_stat<via::ir::StatFuncDecl>(
 }
 
 template <>
-void via::Executable::lower_stat<via::ir::StatExpr>(
-    const ir::StatExpr* ir_stat_expr) {
+void via::Executable::lower_stat<via::ir::Stmt::Expr>(
+    const ir::Stmt::Expr* ir_stat_expr) {
   lower(ir_stat_expr->expr, std::nullopt);
 }
 
-void via::Executable::lower(const ir::Stat* stat) {
+void via::Executable::lower(const ir::Stmt* stat) {
 #define VISIT_STMT(TYPE) \
-  if TRY_COERCE (const TYPE, _INNER, stat) return lower_stat<TYPE>(_INNER);
+  if VIA_TRY_COERCE (const TYPE, _INNER, stat) return lower_stat<TYPE>(_INNER);
 
-  VISIT_STMT(ir::StatVarDecl)
-  VISIT_STMT(ir::StatFuncDecl)
-  VISIT_STMT(ir::StatInstruction)
-  VISIT_STMT(ir::StatBlock)
-  VISIT_STMT(ir::StatExpr)
+  VISIT_STMT(ir::Stmt::VarDecl)
+  VISIT_STMT(ir::Stmt::FuncDecl)
+  VISIT_STMT(ir::Stmt::Instruction)
+  VISIT_STMT(ir::Stmt::Block)
+  VISIT_STMT(ir::Stmt::Expr)
 #undef VISIT_STMT
 
-  UNREACHABLE(VIA_TYPENAME(*stat));
+  VIA_PANIC(VIA_TYPENAME(*stat));
 }
 
 template <>
-void via::Executable::lower_term<via::ir::TrReturn>(
-    const ir::TrReturn* ir_term_ret) {
+void via::Executable::lower_term<via::ir::Term::Return>(
+    const ir::Term::Return* ir_term_ret) {
   if (ir_term_ret->val) {
     uint16_t reg = m_reg_state.alloc();
     lower(ir_term_ret->val, reg);
     push(OpCode::RET, {reg});
     m_reg_state.free(reg);
   } else {
-    push(OpCode::RETNIL);
+    push(OpCode::RETNONE);
   }
 }
 
 template <>
-void via::Executable::lower_term<via::ir::TrBranch>(
-    const ir::TrBranch* ir_term_branch) {
+void via::Executable::lower_term<via::ir::Term::Branch>(
+    const ir::Term::Branch* ir_term_branch) {
   uint16_t high, low;
   unpack_halves(ir_term_branch->target->id, high, low);
   push(OpCode::JMP, {high, low});
 }
 
 template <>
-void via::Executable::lower_term<via::ir::TrCondBranch>(
-    const ir::TrCondBranch* ir_term_cond_branch) {
+void via::Executable::lower_term<via::ir::Term::CondBranch>(
+    const ir::Term::CondBranch* ir_term_cond_branch) {
   uint16_t thigh, tlow, fhigh, flow;
   unpack_halves(ir_term_cond_branch->iftrue->id, thigh, tlow);
   unpack_halves(ir_term_cond_branch->iffalse->id, fhigh, flow);
@@ -337,16 +334,16 @@ void via::Executable::lower_term<via::ir::TrCondBranch>(
 
 void via::Executable::lower(const ir::Term* term) {
 #define VISIT_TERM(TYPE) \
-  if TRY_COERCE (const TYPE, _INNER, term) return lower_term<TYPE>(_INNER);
+  if VIA_TRY_COERCE (const TYPE, _INNER, term) return lower_term<TYPE>(_INNER);
 
-  VISIT_TERM(ir::TrReturn);
-  VISIT_TERM(ir::TrBranch);
-  VISIT_TERM(ir::TrCondBranch);
-  VISIT_TERM(ir::TrContinue);
-  VISIT_TERM(ir::TrBreak);
+  VISIT_TERM(ir::Term::Return);
+  VISIT_TERM(ir::Term::Branch);
+  VISIT_TERM(ir::Term::CondBranch);
+  VISIT_TERM(ir::Term::Continue);
+  VISIT_TERM(ir::Term::Break);
 #undef VISIT_TERM
 
-  UNREACHABLE(VIA_TYPENAME(*term));
+  VIA_PANIC(VIA_TYPENAME(*term));
 }
 
 size_t via::Executable::label(size_t id) {
@@ -355,7 +352,7 @@ size_t via::Executable::label(size_t id) {
 }
 
 void via::Executable::push(ConstValue cvalue) {
-  DEBUG_ASSERT(
+  VIA_DEBUG_ASSERT(
       m_constants.size() < (size_t)std::numeric_limits<uint16_t>::max(),
       "Constant count exceeds limit");
   m_constants.push_back(std::move(cvalue));
@@ -375,17 +372,13 @@ void via::Executable::modify(size_t pc, OpCode op,
   insn.c = ops[2];
 }
 
-via::Executable* via::Executable::build(Module* module, Diagnostics& diags,
-                                        const IRTree& ir_tree, ExeFlags flags) {
-  auto& alloc = module->allocator();
-  auto* exe = alloc.emplace<Executable>(diags);
-  exe->m_module = module;
+via::Executable* via::Executable::build(Module& module, const IRTree& ir_tree,
+                                        ExeFlags flags) {
+  auto& alloc = module.allocator();
+  auto* exe = alloc.emplace<Executable>(module);
   exe->m_flags = flags;
 
-  for (const auto& stat : ir_tree) {
-    exe->lower(stat);
-  }
-
+  for (const auto& stat : ir_tree) exe->lower(stat);
   exe->lower_jumps();
   exe->push(OpCode::HALT);
   return exe;

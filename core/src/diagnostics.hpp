@@ -51,12 +51,12 @@ class Diagnostics final {
                        const SourceBuffer& source)
       : m_path(path), m_name(name), m_source(source) {}
 
-  NO_COPY(Diagnostics);
+  VIA_NOCOPY(Diagnostics);
 
  public:
   auto& collect() { return m_diags; }
   auto& source() const { return m_source; }
-  void clear() noexcept { m_diags.clear(); }
+  void clear() { m_diags.clear(); }
   bool failed() const;
   void emit(Logger& logger = Logger::stdout_logger()) const;
   void report(Diagnosis diag) { m_diags.push_back(diag); }
@@ -73,6 +73,6 @@ class Diagnostics final {
   std::vector<Diagnosis> m_diags;
 };
 
-std::string to_string(Note::Kind kind) noexcept;
+std::string to_string(Note::Kind kind);
 
 }  // namespace via

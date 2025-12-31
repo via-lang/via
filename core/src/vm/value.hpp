@@ -10,205 +10,283 @@
 #pragma once
 
 #include <compiler/value.hpp>
+#include <concepts>
 #include <config.hpp>
 #include <conversion.hpp>
 #include <cstdint>
-#include <libassert/assert.hpp>
+#include <cstring>
 #include <optional>
 #include <stdfloat>
+#include <utility.hpp>
 
 #include "closure.hpp"
-#include "machine.hpp"
+#include "memory.hpp"
 
 namespace via {
 
 template <>
-struct data_type<STRING> {
-  using type = char*;
+struct DataType<STRING> {
+  using type = std::string;
 };
 
 template <>
-struct data_type<FUNCTION> {
-  using type = Closure*;
+struct DataType<FUNCTION> {
+  using type = Closure;
 };
 
 template <ValueKind Vk>
-struct c_type {
-  using type = data_type_t<Vk>;
+struct CType {
+  using type = DataTypeT<Vk>;
 };
 
 template <>
-struct c_type<INT> {
-  using type = std::optional<data_type_t<INT>>;
+struct CType<BOOL> {
+  using type = std::optional<DataTypeT<BOOL>>;
 };
 
 template <>
-struct c_type<FLOAT> {
-  using type = std::optional<data_type_t<FLOAT>>;
+struct CType<INT> {
+  using type = std::optional<DataTypeT<INT>>;
 };
 
 template <>
-struct c_type<STRING> {
+struct CType<FLOAT> {
+  using type = std::optional<DataTypeT<FLOAT>>;
+};
+
+template <>
+struct CType<STRING> {
   using type = std::string;
 };
 
 template <ValueKind Vk>
-using c_type_t = typename c_type<Vk>::type;
+using CTypeT = typename CType<Vk>::type;
 
 class Value final {
  public:
-  union Union {
-    data_type_t<INT> integer;
-    data_type_t<FLOAT> float_;
-    data_type_t<BOOL> boolean;
-    data_type_t<STRING> string;
-    data_type_t<FUNCTION> function;
+  friend ::via::ValueRef;
+  friend ::via::VirtualMachine;
+  friend ::via::ScopedAllocator;
+  friend ::via::ObjectTracker;
+
+ public:
+  Value(const Value& other) = delete;
+  Value(Value&& other) = delete;
+  ~Value() { free(); }
+
+  Value& operator=(const Value& other) = delete;
+  Value& operator=(Value&& other) = delete;
+
+  bool operator==(const Value& other) const { return compare(other); }
+  bool operator==(const std::string& other) const {
+    return m_kind == STRING && m_payload.string.compare(other) == 0;
+  }
+
+  template <std::integral T>
+  bool operator==(const T& value) const {
+    return m_kind == INT && m_payload.integer == value;
+  }
+
+  template <std::floating_point T>
+  bool operator==(const T& value) const {
+    return m_kind == FLOAT && m_payload.float_ == value;
+  }
+
+  template <size_t N>
+  bool operator==(const char (&value)[N]) const {
+    return m_kind == STRING && std::strncmp(m_payload.string.c_str(), value, N);
+  }
+
+ public:
+  [[nodiscard]] auto kind() const { return m_kind; }
+  [[nodiscard]] auto& unwrap() { return m_payload; }
+  [[nodiscard]] const auto& unwrap() const { return m_payload; }
+  bool release();
+  void free();
+
+  [[nodiscard]] Value* clone();
+  [[nodiscard]] bool compare(const Value& other) const;
+  [[nodiscard]] std::string to_string() const;
+
+  template <ValueKind Vk>
+  [[nodiscard]] DataTypeT<Vk>& unwrap();
+
+  template <ValueKind Vk>
+  [[nodiscard]] const DataTypeT<Vk>& unwrap() const;
+
+  template <ValueKind Vk>
+  [[nodiscard]] CTypeT<Vk> as_c() const;
+
+  template <ValueKind Vk>
+  [[nodiscard]] ValueRef as() const;
+
+ protected:
+  Value(VirtualMachine& vm) : m_vm(vm), m_kind(NONE) {}
+  Value(VirtualMachine& vm, DataTypeT<BOOL> boolean)
+    : m_vm(vm), m_kind(BOOL), m_payload(boolean) {}
+
+  Value(VirtualMachine& vm, DataTypeT<INT> integer)
+    : m_vm(vm), m_kind(INT), m_payload(integer) {}
+
+  Value(VirtualMachine& vm, DataTypeT<FLOAT> float_)
+    : m_vm(vm), m_kind(FLOAT), m_payload(float_) {}
+
+  Value(VirtualMachine& vm, DataTypeT<STRING> string)
+    : m_vm(vm), m_kind(STRING), m_payload(string) {}
+
+  Value(VirtualMachine& vm, DataTypeT<FUNCTION> func)
+    : m_vm(vm), m_kind(FUNCTION), m_payload(func) {}
+
+  Value(VirtualMachine& vm, const ConstValue& cvalue);
+
+ private:
+  union Payload {
+    DataTypeT<INT> integer;
+    DataTypeT<FLOAT> float_;
+    DataTypeT<BOOL> boolean;
+    DataTypeT<STRING> string;
+    DataTypeT<FUNCTION> function;
+
+    ~Payload() {}
+    Payload() {}
+    Payload(DataTypeT<BOOL> boolean) : boolean(boolean) {}
+    Payload(DataTypeT<INT> integer) : integer(integer) {}
+    Payload(DataTypeT<FLOAT> float_) : float_(float_) {}
+    Payload(DataTypeT<STRING> string) : string(string) {}
+    Payload(DataTypeT<FUNCTION> function) : function(function) {}
+    Payload(const Payload&) {}
+    Payload(Payload&&) {}
+    Payload& operator=(const Payload&) { return *this; }
+    Payload& operator=(Payload&&) { return *this; }
   };
 
-  friend class ValueRef;
-  friend class VirtualMachine;
-
- public:
-  static Value* create(VirtualMachine* vm);
-  static Value* create(VirtualMachine* vm, int64_t integer);
-  static Value* create(VirtualMachine* vm, float64 float_);
-  static Value* create(VirtualMachine* vm, bool boolean);
-  static Value* create(VirtualMachine* vm, char* string);
-  static Value* create(VirtualMachine* vm, Closure* closure);
-  static Value* create(VirtualMachine* vm, const ConstValue& cv);
-
- public:
-  auto kind() const { return m_kind; }
-  auto& data() { return m_data; }
-  const auto& data() const { return m_data; }
-  auto* context() const { return m_vm; }
-  bool unref() noexcept;
-  void free() noexcept;
-  Value* clone() noexcept;
-  std::string to_string() const noexcept;
-
-  // clang-format off
-  template <ValueKind Vk> data_type_t<Vk> unwrap() const;
-  template <ValueKind Vk> c_type_t<Vk> as_c() const;
-  template <ValueKind Vk> Value* as() const;
-  // clang-format on
-
  private:
-  static Value* create(VirtualMachine* vm, ValueKind kind, Union data = {});
-
- private:
-  ValueKind m_kind = NIL;
-  Union m_data = {};
+  VirtualMachine& m_vm;
+  ValueKind m_kind = NONE;
+  Payload m_payload = {};
   uint64_t m_rc = 1;
-  VirtualMachine* m_vm;
 };
 
 template <>
-inline data_type_t<BOOL> Value::unwrap<BOOL>() const {
-  return m_data.boolean;
+inline DataTypeT<BOOL>& Value::unwrap<BOOL>() {
+  return m_payload.boolean;
 }
 
 template <>
-inline data_type_t<INT> Value::unwrap<INT>() const {
-  return m_data.integer;
+inline DataTypeT<INT>& Value::unwrap<INT>() {
+  return m_payload.integer;
 }
 
 template <>
-inline data_type_t<FLOAT> Value::unwrap<FLOAT>() const {
-  return m_data.float_;
+inline DataTypeT<FLOAT>& Value::unwrap<FLOAT>() {
+  return m_payload.float_;
 }
 
 template <>
-inline data_type_t<STRING> Value::unwrap<STRING>() const {
-  return m_data.string;
+inline DataTypeT<STRING>& Value::unwrap<STRING>() {
+  return m_payload.string;
 }
 
 template <>
-inline data_type_t<FUNCTION> Value::unwrap<FUNCTION>() const {
-  return m_data.function;
+inline DataTypeT<FUNCTION>& Value::unwrap<FUNCTION>() {
+  return m_payload.function;
 }
 
 template <>
-inline c_type_t<BOOL> Value::as_c<BOOL>() const {
-  // clang-format off
+inline const DataTypeT<BOOL>& Value::unwrap<BOOL>() const {
+  return m_payload.boolean;
+}
+
+template <>
+inline const DataTypeT<INT>& Value::unwrap<INT>() const {
+  return m_payload.integer;
+}
+
+template <>
+inline const DataTypeT<FLOAT>& Value::unwrap<FLOAT>() const {
+  return m_payload.float_;
+}
+
+template <>
+inline const DataTypeT<STRING>& Value::unwrap<STRING>() const {
+  return m_payload.string;
+}
+
+template <>
+inline const DataTypeT<FUNCTION>& Value::unwrap<FUNCTION>() const {
+  return m_payload.function;
+}
+
+template <>
+inline CTypeT<BOOL> Value::as_c<BOOL>() const {
   switch (m_kind) {
-  case NIL:  return false;
-  case BOOL: return unwrap<BOOL>();
-  default:   break;
-  }  // clang-format on
-  return true;
-}
-
-template <>
-inline c_type_t<INT> Value::as_c<INT>() const {
-  using T = data_type_t<INT>;
-  // clang-format off
-  switch (m_kind) {
-    case FLOAT:  return static_cast<T>(m_data.float_);
-    case STRING: return detail::stoi<T>(m_data.string);
-    case BOOL:   return static_cast<T>(m_data.boolean);
-    case INT:    return m_data.integer;
-    default:     break;
-  }  // clang-format on
+    case NONE:
+      return false;
+    case BOOL:
+      return unwrap<BOOL>();
+    default:
+      break;
+  }
   return std::nullopt;
 }
 
 template <>
-inline c_type_t<FLOAT> Value::as_c<FLOAT>() const {
-  using T = data_type_t<FLOAT>;
-  // clang-format off
+inline CTypeT<INT> Value::as_c<INT>() const {
+  using T = DataTypeT<INT>;
   switch (m_kind) {
-    case INT:    return static_cast<T>(m_data.integer);
-    case STRING: return detail::stof<T>(m_data.string);
-    case BOOL:   return static_cast<T>(m_data.boolean);
-    case FLOAT:  return m_data.float_;
-    default:     break;
-  }  // clang-format on
+    case FLOAT:
+      return static_cast<T>(m_payload.float_);
+    case STRING:
+      return detail::stoi<T>(m_payload.string.c_str());
+    case BOOL:
+      return static_cast<T>(m_payload.boolean);
+    case INT:
+      return m_payload.integer;
+    default:
+      break;
+  }
   return std::nullopt;
 }
 
 template <>
-inline c_type_t<STRING> Value::as_c<STRING>() const {
-  // clang-format off
+inline CTypeT<FLOAT> Value::as_c<FLOAT>() const {
+  using T = DataTypeT<FLOAT>;
   switch (m_kind) {
-    case NIL:      return "nil";
-    case BOOL:     return std::to_string(m_data.boolean);
-    case INT:      return std::to_string(m_data.integer);
-    case FLOAT:    return std::to_string(m_data.float_);
-    case STRING:   return m_data.string;
-    case FUNCTION: return std::format("closure<{}>@{}",
-                      m_data.function->is_native() ? "native" : "bytecode",
-                      reinterpret_cast<void*>(m_data.function));
-    default:       break;
-  }  // clang-format on
-  UNREACHABLE(via::to_string(m_kind));
+    case INT:
+      return static_cast<T>(m_payload.integer);
+    case STRING:
+      return detail::stof<T>(m_payload.string.c_str());
+    case BOOL:
+      return static_cast<T>(m_payload.boolean);
+    case FLOAT:
+      return m_payload.float_;
+    default:
+      break;
+  }
+  return std::nullopt;
 }
 
 template <>
-inline Value* Value::as<INT>() const {
-  auto val = as_c<INT>();
-  DEBUG_ASSERT_VAL(val);
-  return create(m_vm, *val);
-}
-
-template <>
-inline Value* Value::as<FLOAT>() const {
-  auto val = as_c<FLOAT>();
-  DEBUG_ASSERT_VAL(val);
-  return create(m_vm, *val);
-}
-
-template <>
-inline Value* Value::as<BOOL>() const {
-  return Value::create(m_vm, as_c<BOOL>());
-}
-
-template <>
-inline Value* Value::as<STRING>() const {
-  auto& alloc = m_vm->allocator();
-  auto string = as_c<STRING>();
-  auto buffer = alloc.strdup(string.c_str());
-  return Value::create(m_vm, buffer);
+inline CTypeT<STRING> Value::as_c<STRING>() const {
+  switch (m_kind) {
+    case NONE:
+      return "none";
+    case BOOL:
+      return std::to_string(m_payload.boolean);
+    case INT:
+      return std::to_string(m_payload.integer);
+    case FLOAT:
+      return std::to_string(m_payload.float_);
+    case STRING:
+      return m_payload.string;
+    case FUNCTION:
+      return std::format("closure<{}>@{}",
+                         m_payload.function.is_native() ? "native" : "bytecode",
+                         reinterpret_cast<const void*>(&m_payload.function));
+    default:
+      break;
+  }
+  VIA_PANIC(via::to_string(m_kind));
 }
 
 }  // namespace via

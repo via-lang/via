@@ -12,28 +12,29 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   set(MI_DEBUG_FULL $<$<CONFIG:Debug>:ON>)
 
   add_compile_options(
-        -fdiagnostics-color=always
-        -Wextra
-        -Wall
-        # Disable useless warnings
-        -Wno-unused-parameter
-        -Wno-unused-variable
-        -Wno-unused-but-set-variable
-        # $<$<CONFIG:Debug>:-fsanitize=address,undefined,leak>
-    )
+    -fdiagnostics-color=always
+    -Wextra
+    -Wall
+    # Disable useless warnings
+    -Wno-unused-parameter
+    -Wno-unused-variable
+    -Wno-unused-but-set-variable
+    # $<$<CONFIG:Debug>:-fsanitize=address,undefined,leak>
+  )
 
   add_link_options(
-        # $<$<CONFIG:Debug>:-fsanitize=address,undefined,leak>
-    )
+    # $<$<CONFIG:Debug>:-fsanitize=address,undefined,leak>
+  )
 elseif (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
   add_compile_options(/diagnostics:color)
 endif()
 
 add_subdirectory(thirdparty/mimalloc)
-add_subdirectory(thirdparty/libassert)
 add_subdirectory(thirdparty/argvx)
+add_subdirectory(thirdparty/Catch2)
 
 # Modules
 add_subdirectory(core)
 add_subdirectory(cli)
 add_subdirectory(lib)
+add_subdirectory(test)

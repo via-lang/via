@@ -11,12 +11,11 @@
 
 #include <algorithm>
 #include <cmath>
-#include <libassert/assert.hpp>
 
 #include "ansi.hpp"
 #include "logger.hpp"
 
-std::string via::to_string(Note::Kind kind) noexcept {
+std::string via::to_string(Note::Kind kind) {
   switch (kind) {
     case Note::HINT:
       return ansi::format("HINT", ansi::Foreground::GREEN,
@@ -28,7 +27,7 @@ std::string via::to_string(Note::Kind kind) noexcept {
       return ansi::format("SUGGESTION", ansi::Foreground::MAGENTA,
                           ansi::Background::NONE, ansi::Style::BOLD);
   }
-  UNREACHABLE();
+  VIA_PANIC();
 }
 
 bool via::Diagnostics::failed() const {

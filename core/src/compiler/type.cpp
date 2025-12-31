@@ -41,7 +41,7 @@ std::string via::QualType::to_string() const {
 }
 
 via::CastResult via::BuiltinType::cast_result(const Type* to) const {
-  if TRY_COERCE (const BuiltinType, builtin_type, to) {
+  if VIA_TRY_COERCE (const BuiltinType, builtin_type, to) {
     switch (m_kind) {
       case INT:
         return builtin_type->is_one_of<FLOAT, STRING>() ? OK : INVALID;
@@ -67,8 +67,8 @@ std::string via::BuiltinType::to_string() const {
 
 via::CastResult via::OptionalType::cast_result(const Type* to) const {
   if (m_type.unwrap() == to) return THROW;
-  if TRY_COERCE (const BuiltinType, builtin_type, to)
-    return builtin_type->is_one_of<NIL>() ? THROW : INVALID;
+  if VIA_TRY_COERCE (const BuiltinType, builtin_type, to)
+    return builtin_type->is_one_of<NONE>() ? THROW : INVALID;
   return INVALID;
 }
 
@@ -77,10 +77,10 @@ std::string via::OptionalType::to_string() const {
 }
 
 via::CastResult via::ArrayType::cast_result(const Type* to) const {
-  if TRY_COERCE (const BuiltinType, builtin_type, to)
+  if VIA_TRY_COERCE (const BuiltinType, builtin_type, to)
     return builtin_type->is_one_of<STRING>() ? OK : INVALID;
-  if TRY_COERCE (const MapType, map_type, to) {
-    if TRY_COERCE (const BuiltinType, key_type, map_type->key().unwrap()) {
+  if VIA_TRY_COERCE (const MapType, map_type, to) {
+    if VIA_TRY_COERCE (const BuiltinType, key_type, map_type->key().unwrap()) {
       if (!key_type->is_one_of<INT>()) return INVALID;
       return m_type == map_type->value() ? OK : INVALID;
     }
@@ -93,7 +93,7 @@ std::string via::ArrayType::to_string() const {
 }
 
 via::CastResult via::MapType::cast_result(const Type* to) const {
-  if TRY_COERCE (const BuiltinType, builtin_type, to)
+  if VIA_TRY_COERCE (const BuiltinType, builtin_type, to)
     return builtin_type->is_one_of<STRING>() ? OK : INVALID;
   return INVALID;
 }
@@ -103,7 +103,7 @@ std::string via::MapType::to_string() const {
 }
 
 via::CastResult via::FunctionType::cast_result(const Type* to) const {
-  if TRY_COERCE (const BuiltinType, builtin_type, to)
+  if VIA_TRY_COERCE (const BuiltinType, builtin_type, to)
     return builtin_type->is_one_of<STRING>() ? OK : INVALID;
   return INVALID;
 }

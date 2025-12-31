@@ -11,7 +11,7 @@
 
 #include <ansi.hpp>
 #include <cstring>
-#include <libassert/assert.hpp>
+#include <iomanip>
 
 #include "token.hpp"
 
@@ -289,7 +289,7 @@ via::TokenTree via::Lexer::tokenize() {
     else
       token = read_operator();
 
-    DEBUG_ASSERT_VAL(token, "lexed token is NULL");
+    VIA_DEBUG_ASSERT(token, "lexed token is NULL");
     toks.push_back(token);
   }
 

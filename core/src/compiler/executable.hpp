@@ -13,7 +13,6 @@
 #include <cstddef>
 #include <diagnostics.hpp>
 #include <iostream>
-#include <libassert/assert.hpp>
 #include <optional>
 
 #include "ir-tree.hpp"
@@ -37,85 +36,73 @@ class BytecodeLocal final {
     BytecodeLocal* local;
 
     Ref() = default;
-    Ref(uint16_t id, BytecodeLocal* local) noexcept : id(id), local(local) {}
+    Ref(uint16_t id, BytecodeLocal* local) : id(id), local(local) {}
   };
 
  public:
   BytecodeLocal() = default;
   BytecodeLocal(SymbolId symbol, size_t version)
-      : m_symbol(symbol), m_version(version) {}
+    : m_symbol(symbol), m_version(version) {}
 
  public:
-  SymbolId symbol() const noexcept { return m_symbol; }
-  size_t version() const noexcept { return m_version; }
+  [[nodiscard]] auto symbol() const { return m_symbol; }
+  [[nodiscard]] auto version() const { return m_version; }
 
  protected:
   SymbolId m_symbol;
   size_t m_version;
 };
 
-namespace detail {
-
-void set_null_dst_trap(Executable& exe, const std::optional<uint16_t>& dst);
-
-}  // namespace detail
-
-enum ExeFlags : uint64_t {
+enum class ExeFlags : uint64_t {
   NONE = 0,
 };
 
 class Module;
 class Executable final {
  public:
-  friend void detail::set_null_dst_trap(Executable&,
-                                        const std::optional<uint16_t>& dst);
+  explicit Executable(Module& module) : m_module(module) { m_stack.emplace(); }
+
+  [[nodiscard]] static Executable* build(Module& module, const IRTree& ir_tree,
+                                         ExeFlags flags = ExeFlags::NONE);
+
+  [[nodiscard]] static Executable* build(Module& module, std::ostream& bytes,
+                                         ExeFlags flags = ExeFlags::NONE);
 
  public:
-  Executable(Diagnostics& diags) : m_reg_state(diags) { m_stack.emplace(); }
-
-  static Executable* build(Module* module, Diagnostics& diags,
-                           const IRTree& ir_tree,
-                           ExeFlags flags = ExeFlags::NONE);
-
-  static Executable* build(Module* module, Diagnostics& diags,
-                           std::ostream& bytes,
-                           ExeFlags flags = ExeFlags::NONE);
-
- public:
-  auto flags() const { return m_flags; }
-  auto& constants() const { return m_constants; }
-  auto& bytecode() const { return m_bytecode; }
-  std::string to_string() const;
+  [[nodiscard]] auto flags() const { return m_flags; }
+  [[nodiscard]] auto& constants() const { return m_constants; }
+  [[nodiscard]] auto& bytecode() const { return m_bytecode; }
+  [[nodiscard]] std::string to_string() const;
 
  private:
-  size_t pc() const { return m_bytecode.size() - 1; }
-  size_t constant_id() const { return m_constants.size() - 1; }
-  size_t label(size_t id);
+  [[nodiscard]] size_t pc() const { return m_bytecode.size() - 1; }
+  [[nodiscard]] size_t constant_id() const { return m_constants.size() - 1; }
+  [[nodiscard]] size_t label(size_t id);
+  [[nodiscard]] size_t push(OpCode op, std::array<uint16_t, 3> ops = {});
   void push(ConstValue cvalue);
-  size_t push(OpCode op, std::array<uint16_t, 3> ops = {});
   void modify(size_t pc, OpCode op, std::array<uint16_t, 3> ops = {});
   void lower(const ir::Expr* expr, std::optional<uint16_t> dst);
-  void lower(const ir::Stat* stat);
+  void lower(const ir::Stmt* stat);
   void lower(const ir::Term* term);
   void lower_jumps();
 
   template <derived_from<ir::Expr> Expr>
   void lower_expr(const Expr* expr, std::optional<uint16_t> dst) {
-    UNREACHABLE(VIA_TYPENAME(Expr));
+    VIA_PANIC(VIA_TYPENAME(Expr));
   }
 
-  template <derived_from<ir::Stat> Stat>
+  template <derived_from<ir::Stmt> Stat>
   void lower_stat(const Stat* stat) {
-    UNREACHABLE(VIA_TYPENAME(Stat));
+    VIA_PANIC(VIA_TYPENAME(Stat));
   }
 
   template <derived_from<ir::Term> Term>
   void lower_term(const Term* term) {
-    UNREACHABLE(VIA_TYPENAME(Term));
+    VIA_PANIC(VIA_TYPENAME(Term));
   }
 
  private:
-  Module* m_module;
+  Module& m_module;
   ExeFlags m_flags;
   RegisterState m_reg_state;
   StackState<BytecodeLocal> m_stack;

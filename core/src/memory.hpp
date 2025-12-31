@@ -12,66 +12,73 @@
 #include <config.hpp>
 #include <cstddef>
 #include <cstdint>
-#include <libassert/assert.hpp>
-#include <vector>
+#include <functional>
+#include <map>
+#include <utility>
 
 #include "utility.hpp"
 
 namespace via {
-namespace detail {
 
-struct ObjectEntry {
-  void* ptr;
-  size_t count;
-  bool destroyed = false;
-  void (*dtor)(void*, size_t);
-};
+struct ObjectTracker {
+ public:
+  struct Entry {
+    size_t count;
+    bool destroyed;
+    void (*destroy)(void*, size_t);
+  };
 
-template <typename T, typename... Args>
-[[gnu::hot]] inline void construct_at(std::vector<ObjectEntry>& registry,
-                                      T* dst, Args&&... args) {
-  ::new (static_cast<void*>(dst)) T(std::forward<Args>(args)...);
-  registry.push_back({
-      .ptr = dst,
-      .count = 1,
-      .dtor = [](void* ptr, size_t) { ((T*)ptr)->~T(); },
-  });
-}
+ public:
+  ObjectTracker() = default;
+  ~ObjectTracker() { clear(); }
 
-template <typename T, typename... Args>
-[[gnu::hot]] inline void construct_range_at(std::vector<ObjectEntry>& registry,
-                                            T* dst, size_t count,
-                                            Args&&... args) {
-  for (size_t i = 0; i < count; ++i) {
-    T* ptr = dst + i;
-    ::new (static_cast<void*>(ptr)) T(std::forward<Args>(args)...);
+ public:
+  void clear();
+  auto find(void* ptr) {
+    auto it = m_tracker.find(ptr);
+    return it != m_tracker.end() ? std::optional(std::ref(it->second))
+                                 : std::nullopt;
   }
-  registry.push_back({
-      .ptr = static_cast<void*>(dst),
-      .count = count,
-      .dtor =
-          [](void* base, size_t count) noexcept {
-            T* start = static_cast<T*>(base);
-            for (size_t i = count; i-- > 0;) {
-              (&start[i])->~T();
-            }
-          },
-  });
-}
 
-inline void destroy_registry(std::vector<ObjectEntry>& registry) noexcept {
-  for (auto it = registry.rbegin(); it != registry.rend(); ++it) {
-    if (!it->destroyed) {
-      it->dtor(it->ptr, it->count);
-      it->destroyed = true;
+  void delete_at(void* ptr) {
+    if (auto raw = find(ptr)) {
+      auto& entry = raw.value().get();
+      if (entry.destroyed) return;
+      entry.destroyed = true;
+      entry.destroy(ptr, entry.count);
     }
   }
-  registry.clear();
-}
 
-}  // namespace detail
+  template <typename T, typename... Args>
+  void construct_at(void* ptr, Args&&... args) {
+    new (ptr) T(std::forward<Args>(args)...);
+    m_tracker[ptr] = {
+        .count = 1,
+        .destroyed = false,
+        .destroy = [](void* ptr, size_t) { ((T*)ptr)->~T(); },
+    };
+  }
 
-struct BindingaultAllocator {
+  template <typename T, typename... Args>
+  void construct_range_at(void* ptr, size_t count, Args&&... args) {
+    for (size_t i = 0; i < count; ++i)
+      new ((T*)ptr + i) T(std::forward<Args>(args)...);
+
+    m_tracker[ptr] = {
+        .count = count,
+        .destroyed = false,
+        .destroy =
+            [](void* base, size_t count) {
+              for (size_t i = count; i-- > 0;) ((T*)base + i)->~T();
+            },
+    };
+  }
+
+ private:
+  std::map<void*, Entry> m_tracker;
+};
+
+struct DefaultAllocator {
   template <typename T>
   static T* alloc(size_t size) {
     return (T*)std::malloc(size * sizeof(T));
@@ -83,16 +90,16 @@ struct BindingaultAllocator {
   }
 };
 
-template <typename Alloc = BindingaultAllocator>
+template <typename Alloc = DefaultAllocator>
 class BumpAllocator final {
  public:
   BumpAllocator(size_t size)
-      : m_base(Alloc::template alloc<std::byte>(size)),
-        m_cursor(m_base),
-        m_end(m_base + size) {}
+    : m_base(Alloc::template alloc<std::byte>(size)),
+      m_cursor(m_base),
+      m_end(m_base + size) {}
 
   ~BumpAllocator() {
-    detail::destroy_registry(m_registry);
+    m_tracker.clear();
 
     if (m_base) {
       Alloc::template free<std::byte>(m_base);
@@ -102,8 +109,8 @@ class BumpAllocator final {
     }
   }
 
-  NO_COPY(BumpAllocator);
-  NO_MOVE(BumpAllocator);
+  VIA_NOCOPY(BumpAllocator);
+  VIA_NOMOVE(BumpAllocator);
 
  public:
   [[nodiscard]] inline void* alloc(size_t size,
@@ -113,7 +120,7 @@ class BumpAllocator final {
         (cur + (align - 1)) & ~(static_cast<std::uintptr_t>(align) - 1);
     std::byte* out = reinterpret_cast<std::byte*>(aligned);
 
-    DEBUG_ASSERT(out + size <= m_end, "bump allocator overflow");
+    VIA_DEBUG_ASSERT(out + size <= m_end, "bump allocator overflow");
     m_cursor = out + size;
     return out;
   }
@@ -122,7 +129,7 @@ class BumpAllocator final {
     requires std::is_constructible_v<T, Args...>
   [[nodiscard]] inline T* emplace(Args&&... args) {
     T* ptr = (T*)alloc(sizeof(T), alignof(T));
-    detail::construct_at(m_registry, ptr, std::forward<Args>(args)...);
+    m_tracker.construct_at<T>(ptr, std::forward<Args>(args)...);
     return ptr;
   }
 
@@ -131,8 +138,7 @@ class BumpAllocator final {
   [[nodiscard]] inline T* emplace_array(size_t count, Args&&... args) {
     std::byte* block = (std::byte*)alloc(sizeof(T) * count, alignof(T));
     T* ptr = reinterpret_cast<T*>(block);
-    detail::construct_range_at(m_registry, ptr, count,
-                               std::forward<Args>(args)...);
+    m_tracker.construct_range_at<T>(ptr, count, std::forward<Args>(args)...);
     return ptr;
   }
 
@@ -140,7 +146,7 @@ class BumpAllocator final {
   std::byte* m_base = nullptr;
   std::byte* m_cursor = nullptr;
   std::byte* m_end = nullptr;
-  std::vector<detail::ObjectEntry> m_registry;
+  ObjectTracker m_tracker;
 };
 
 class ScopedAllocator final {
@@ -148,39 +154,36 @@ class ScopedAllocator final {
   ScopedAllocator();
   ~ScopedAllocator();
 
-  NO_COPY(ScopedAllocator);
-  NO_MOVE(ScopedAllocator);
+  VIA_NOCOPY(ScopedAllocator);
+  VIA_NOMOVE(ScopedAllocator);
 
  public:
-  bool owns(void* ptr) noexcept;
-  void* alloc(size_t size) noexcept;
-  char* strdup(const char* str) noexcept;
-  char* strndup(const char* str, size_t n) noexcept;
+  bool owns(void* ptr);
+  void* alloc(size_t size);
+  char* strdup(const char* str);
+  char* strndup(const char* str, size_t n);
   void free(void* ptr);
 
   template <typename T, typename... Args>
-    requires std::is_constructible_v<T, Args...>
-  [[nodiscard, gnu::flatten]] T* emplace(Args&&... args) noexcept(
-      std::is_nothrow_constructible_v<T, Args...>) {
-    T* buffer = (T*)alloc(sizeof(T));
-    detail::construct_at(m_registry, buffer, std::forward<Args>(args)...);
+  [[nodiscard, gnu::flatten]] T* emplace(Args&&... args) {
+    auto* buffer = (T*)alloc(sizeof(T));
+    m_tracker.construct_at<T>(buffer, std::forward<Args>(args)...);
     return buffer;
   }
 
   template <typename T, typename... Args>
-    requires std::is_constructible_v<T, Args...>
-  [[nodiscard, gnu::flatten]] T* emplace_array(
-      size_t count,
-      Args&&... args) noexcept(std::is_nothrow_constructible_v<T, Args...>) {
-    T* buffer = (T*)alloc(count * sizeof(T));
-    detail::construct_range_at(m_registry, buffer, count,
-                               std::forward<Args>(args)...);
+  [[nodiscard, gnu::flatten]] T* emplace_array(size_t count, Args&&... args) {
+    auto* buffer = (T*)alloc(count * sizeof(T));
+    m_tracker.construct_range_at<T>(buffer, count, std::forward<Args>(args)...);
     return buffer;
   }
 
  private:
   void* m_heap;
-  std::vector<detail::ObjectEntry> m_registry;
+  ObjectTracker m_tracker;
 };
+
+#undef CONSTRUCT_AT
+#undef CONSTRUCT_RANGE_AT
 
 }  // namespace via

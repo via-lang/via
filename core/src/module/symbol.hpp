@@ -20,23 +20,17 @@ namespace via {
 using SymbolId = uint64_t;
 using QualName = std::deque<std::string>;
 
-inline std::string to_string(const QualName& path) {
-  std::ostringstream oss;
-  for (size_t i = 0; i < path.size(); i++) {
-    if (i > 0) {
-      oss << "::";
-    }
-    oss << path[i];
-  }
-  return oss.str();
-}
+[[nodiscard]] std::string to_string(const QualName& path);
 
 class SymbolTable final : public InternTable<std::string, SymbolId> {
  public:
   using InternTable::intern;
 
-  SymbolId intern(const QualName& path) { return intern(via::to_string(path)); }
-  std::string to_string() const noexcept;
+ public:
+  [[nodiscard]] SymbolId intern(const QualName& path) {
+    return intern(via::to_string(path));
+  }
+  [[nodiscard]] std::string to_string() const;
 };
 
 }  // namespace via

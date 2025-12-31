@@ -11,7 +11,6 @@
 
 #include <config.hpp>
 #include <cstddef>
-#include <libassert/assert.hpp>
 #include <memory.hpp>
 
 namespace via {
@@ -22,6 +21,21 @@ constexpr size_t STACK_SIZE = 8192;
 
 }
 }  // namespace config
+
+class Value;
+class ValueRef;
+
+enum class CallFlags : uint8_t {
+  NONE = 0,
+  PROTECT = 1 << 0,
+  ALL = 0xFF,
+};
+
+struct CallInfo {
+  Value* callee;
+  CallFlags flags;
+  std::vector<ValueRef> args;
+};
 
 template <typename T>
 class Stack final {

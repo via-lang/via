@@ -1,9 +1,0 @@
-import std::io;
-import std::math;
-
-while true {
-    var raw = io::input("enter a number: ");
-    var result = math::sin(raw as float)
-    io::print("sin x = ");
-    io::printn(result as string);
-}

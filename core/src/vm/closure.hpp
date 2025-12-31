@@ -14,38 +14,34 @@
 #include <vector>
 
 #include "instruction.hpp"
-#include "machine.hpp"
+#include "stack.hpp"
 
 namespace via {
 
-struct CallInfo {
-  Value* callee;
-  CallFlags flags;
-  std::vector<ValueRef> args;
-};
+class Value;
+class ValueRef;
+class VirtualMachine;
 
 using NativeCallback = ValueRef (*)(VirtualMachine* vm, CallInfo& ci);
 
 class Closure final {
  public:
-  explicit Closure(const Instruction* pc) : m_native(false), m_bytecode(pc) {}
+  explicit Closure(const Instruction* pc)
+    : m_native(false), m_payload({.bytecode = pc}) {}
   explicit Closure(size_t argc, const NativeCallback callback)
-      : m_native(true), m_argc(argc), m_callback(callback) {}
+    : m_native(true), m_argc(argc), m_payload({.callback = callback}) {}
 
-  // clang-format off
-  static Closure* create(VirtualMachine* vm, const Instruction* pc)
-    { return vm->allocator().emplace<Closure>(pc); }
-
-  static Closure* create(VirtualMachine* vm, size_t argc, const NativeCallback callback)
-    { return vm->allocator().emplace<Closure>(argc, callback); }
-  // clang-format on
+  Closure(const Closure& other)
+    : m_native(other.m_native),
+      m_argc(other.m_argc),
+      m_payload(other.m_payload) {}
 
  public:
-  auto argc() const noexcept { return m_argc; }
-  bool is_native() const noexcept { return m_native; }
-  auto& get_upvalues() const noexcept { return m_upvs; }
-  auto* get_bytecode() const noexcept { return m_bytecode; }
-  auto get_callback() const noexcept { return m_callback; }
+  [[nodiscard]] size_t argc() const { return m_argc; }
+  [[nodiscard]] bool is_native() const { return m_native; }
+  [[nodiscard]] auto bytecode() const { return m_payload.bytecode; }
+  [[nodiscard]] auto callback() const { return m_payload.callback; }
+  [[nodiscard]] auto& upvalues() const { return m_upvs; }
 
  private:
   const bool m_native;
@@ -53,9 +49,9 @@ class Closure final {
   std::vector<Value*> m_upvs;
 
   union {
-    const Instruction* m_bytecode;
-    const NativeCallback m_callback;
-  };
+    const Instruction* bytecode;
+    const NativeCallback callback;
+  } m_payload;
 };
 
 }  // namespace via

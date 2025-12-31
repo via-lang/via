@@ -18,7 +18,7 @@ template <typename Wider, typename High, typename Low>
   requires(std::is_unsigned_v<Wider> && std::is_unsigned_v<High> &&
            std::is_unsigned_v<Low> &&
            (sizeof(Wider) >= sizeof(High) + sizeof(Low)))
-constexpr Wider pack_halves(High high, Low low) noexcept {
+constexpr Wider pack_halves(High high, Low low) {
   constexpr size_t low_bits = sizeof(Low) * 8;
 
   return static_cast<Wider>((static_cast<Wider>(high) << low_bits) |
@@ -28,7 +28,7 @@ constexpr Wider pack_halves(High high, Low low) noexcept {
 template <typename Big, typename Small>
   requires(std::is_unsigned_v<Big> && std::is_unsigned_v<Small> &&
            sizeof(Big) == sizeof(Small) * 2)
-constexpr void unpack_halves(Big value, Small& high, Small& low) noexcept {
+constexpr void unpack_halves(Big value, Small& high, Small& low) {
   constexpr size_t low_bits = sizeof(Small) * 8;
   constexpr Big mask = (static_cast<Big>(1) << low_bits) - 1;
 

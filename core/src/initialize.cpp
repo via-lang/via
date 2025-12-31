@@ -9,10 +9,10 @@
 
 #include "initialize.hpp"
 
-#include <fmt/base.h>
 #include <mimalloc.h>
 
-#include <libassert/assert.hpp>
+#include <format>
+#include <utility.hpp>
 
 #ifdef NDEBUG
 #define DEBUG 0
@@ -21,10 +21,10 @@
 #endif
 
 static void mimalloc_error_handler(int err, void* arg) {
-  PANIC(std::format("mimalloc: {}", err));
+  VIA_PANIC(std::format("mimalloc: {}", err));
 }
 
-static void init_mimalloc(uint8_t verbosity) noexcept {
+static void init_mimalloc(uint8_t verbosity) {
   mi_option_set(mi_option_reserve_os_memory, 0x8000000ULL);
 
   mi_option_set(mi_option_large_os_pages, 0);
@@ -47,13 +47,13 @@ static void init_mimalloc(uint8_t verbosity) noexcept {
   }
 }
 
-static void trap_call() noexcept {
+static void trap_call() {
   static bool called = false;
-  ASSERT(!called, "via::init() called twice");
+  VIA_ASSERT(!called, "via::init() called twice");
   called = true;
 }
 
-void via::init(uint8_t verbosity) noexcept {
+void via::init(uint8_t verbosity) {
   trap_call();
   init_mimalloc(verbosity);
 }

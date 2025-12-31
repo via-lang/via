@@ -14,7 +14,7 @@
 #ifdef VIA_PLATFORM_UNIX
 #include <unistd.h>
 
-bool via::ansi::detail::is_ansi_supported() noexcept {
+bool via::ansi::detail::is_ansi_supported() {
   if (isatty(fileno(stdout))) return true;
   if (const char* term = std::getenv("TERM")) return strcmp(term, "dumb") != 0;
   return false;
@@ -22,7 +22,7 @@ bool via::ansi::detail::is_ansi_supported() noexcept {
 #elifdef VIA_PLATFORM_WINDOWS
 #include <windows.h>
 
-bool via::ansi::detail::is_ansi_supported() noexcept {
+bool via::ansi::detail::is_ansi_supported() {
   HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
   if (hOut == INVALID_HANDLE_VALUE) {
     return false;
@@ -42,7 +42,7 @@ bool via::ansi::detail::is_ansi_supported() noexcept {
   return true;
 }
 #else
-bool via::ansi::detail::is_ansi_supported() noexcept {
+bool via::ansi::detail::is_ansi_supported() {
   Logger::stdout_logger().warn(
       "host terminal does not support ANSI escape codes, compiler output may "
       "be "

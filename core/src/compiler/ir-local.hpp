@@ -30,18 +30,18 @@ class IRLocal final {
     IRLocal* local;
 
     Ref() = default;
-    Ref(uint16_t id, IRLocal* local) noexcept : id(id), local(local) {}
+    Ref(uint16_t id, IRLocal* local) : id(id), local(local) {}
   };
 
  public:
   IRLocal() = default;
   IRLocal(SymbolId symbol, size_t version, const ast::Stat* ast_decl,
-          const ir::Stat* ir_decl, uint8_t quals = 0ULL)
-      : m_version(version),
-        m_quals(quals),
-        m_symbol(symbol),
-        m_ast_decl(ast_decl),
-        m_ir_decl(ir_decl) {}
+          const ir::Stmt* ir_decl, uint8_t quals = 0ULL)
+    : m_version(version),
+      m_quals(quals),
+      m_symbol(symbol),
+      m_ast_decl(ast_decl),
+      m_ir_decl(ir_decl) {}
 
  public:
   auto version() const { return m_version; }
@@ -55,7 +55,7 @@ class IRLocal final {
   const uint8_t m_quals = 0ULL;
   const SymbolId m_symbol = -1;
   const ast::Stat* m_ast_decl = nullptr;
-  const ir::Stat* m_ir_decl = nullptr;
+  const ir::Stmt* m_ir_decl = nullptr;
 };
 
 }  // namespace via

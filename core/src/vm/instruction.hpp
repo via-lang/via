@@ -29,7 +29,7 @@ namespace via {
   X(COPY)                  \
   X(COPYREF)               \
   X(LOADK)                 \
-  X(LOADNIL)               \
+  X(LOADNONE)              \
   X(LOADTRUE)              \
   X(LOADFALSE)             \
   X(LOADINT)               \
@@ -128,7 +128,7 @@ namespace via {
   X(CALL)                  \
   X(PCALL)                 \
   X(RET)                   \
-  X(RETNIL)                \
+  X(RETNONE)               \
   X(RETTRUE)               \
   X(RETFALSE)              \
   X(RETK)                  \
@@ -138,7 +138,7 @@ namespace via {
   X(TOSTRING)              \
   X(GETIMPORT)
 
-enum class OpCode : uint16_t { FOR_EACH_OPCODE(DEFINE_ENUM) };
+enum class OpCode : uint16_t { FOR_EACH_OPCODE(VIA_DEFINE_ENUM) };
 
 struct Instruction {
   OpCode op = OpCode::NOP;
@@ -147,6 +147,6 @@ struct Instruction {
   std::string to_string(bool color = false, size_t pc = 0x0) const;
 };
 
-DEFINE_TO_STRING(OpCode, FOR_EACH_OPCODE(DEFINE_CASE_TO_STRING));
+VIA_DEFINE_TO_STRING(OpCode, FOR_EACH_OPCODE(VIA_DEFINE_CASE_TO_STRING));
 
 }  // namespace via

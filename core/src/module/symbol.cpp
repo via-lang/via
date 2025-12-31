@@ -11,7 +11,16 @@
 
 #include "ansi.hpp"
 
-std::string via::SymbolTable::to_string() const noexcept {
+std::string via::to_string(const QualName& path) {
+  std::ostringstream oss;
+  for (size_t i = 0; i < path.size(); i++) {
+    if (i > 0) oss << "::";
+    oss << path[i];
+  }
+  return oss.str();
+}
+
+std::string via::SymbolTable::to_string() const {
   std::ostringstream oss;
   oss << "(global) "
       << ansi::format("[disassembly of symbol table]:\n",

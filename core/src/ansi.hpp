@@ -16,7 +16,7 @@ namespace via {
 namespace ansi {
 namespace detail {
 
-bool is_ansi_supported() noexcept;
+bool is_ansi_supported();
 
 }
 

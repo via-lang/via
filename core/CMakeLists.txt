@@ -20,11 +20,7 @@ target_include_directories(via
 )
 
 # Add dependencies
-target_link_libraries(via
-  PUBLIC
-    libassert::assert
-    mimalloc
-)
+target_link_libraries(via PUBLIC mimalloc)
 
 # Alias library
 add_library(via::core ALIAS via)

@@ -41,21 +41,22 @@ class DynamicLibrary final {
   DynamicLibrary() = default;
   ~DynamicLibrary();
 
-  IMPL_MOVE(DynamicLibrary);
-  NO_COPY(DynamicLibrary);
+  VIA_IMPLMOVE(DynamicLibrary);
+  VIA_NOCOPY(DynamicLibrary);
 
  public:
-  static consteval bool supported() { return DL_SUPPORTED; }
-  static std::expected<DynamicLibrary, std::string> load_library(
+  [[nodiscard]] static consteval bool supported() { return DL_SUPPORTED; }
+  [[nodiscard]] static std::expected<DynamicLibrary, std::string> load(
       std::filesystem::path path);
 
  public:
-  std::expected<void*, std::string> load_symbol_raw(const char* symbol);
+  [[nodiscard]] std::expected<void*, std::string> raw_symbol(
+      const char* symbol);
 
   template <typename T>
     requires std::is_pointer_v<T>
-  std::expected<T, std::string> load_symbol(const char* symbol) {
-    auto result = load_symbol_raw(symbol);
+  [[nodiscard]] std::expected<T, std::string> symbol(const char* symbol) {
+    auto result = raw_symbol(symbol);
     if (result.has_value()) return reinterpret_cast<T>(*result);
     return std::unexpected(result.error());
   }

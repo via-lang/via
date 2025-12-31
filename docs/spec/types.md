@@ -39,6 +39,7 @@ Array types implement the [Access trait](traits.md#access) by default. This mean
 
 ```zig
 var arr = ["1", "2", "3"]
+arr[0]
 ```
 
 ## Map
@@ -46,7 +47,7 @@ var arr = ["1", "2", "3"]
 Maps are unordered collections of key-value pairs with O(1) lookup. The type of a map is written by denoting the key type and value type with a colon in the middle all in between two curly brackets.
 
 ```cpp
-{float: int?}
+{float n: int?}
 {string: bool}
 ```
 

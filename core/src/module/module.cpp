@@ -9,14 +9,13 @@
 
 #include "module.hpp"
 
+#include <compiler/ir-builder.hpp>
+#include <compiler/ir-tree.hpp>
 #include <compiler/source-buffer.hpp>
 #include <expected>
 #include <format>
 #include <fstream>
 #include <iostream>
-#include <ir/builder.hpp>
-#include <ir/tree.hpp>
-#include <libassert/assert.hpp>
 #include <os/dl.hpp>
 #include <vm/debugger.hpp>
 #include <vm/machine.hpp>
@@ -47,8 +46,38 @@ read_file(const std::filesystem::path& path)
 }
 // clang-format on
 
+static std::string to_string(
+    const via::SymbolTable& table,
+    const std::unordered_map<via::SymbolId, const via::Binding*>& map) {
+  namespace ansi = via::ansi;
+
+  std::ostringstream oss;
+  oss << ansi::format("[disassembly of binding table]:\n",
+                      ansi::Foreground::YELLOW, ansi::Background::NONE,
+                      ansi::Style::UNDERLINE);
+  oss << ansi::format(
+      "  id    kind        signature           \n"
+      "  ----  ----------  --------------------\n",
+      ansi::Foreground::NONE, ansi::Background::NONE, ansi::Style::FAINT);
+
+  for (size_t i = 0; const auto& it : map) {
+    oss << "  "
+        << ansi::format(std::format("{:0>4}  ", i++), ansi::Foreground::NONE,
+                        ansi::Background::NONE, ansi::Style::FAINT);
+    if VIA_TRY_COERCE (const via::FunctionBinding, function, it.second) {
+      oss << "function  ";
+      oss << "  " << function->signature(table) << "\n";
+    } else {
+      oss << "unknown   ";
+      oss << "address: " << (void*)it.second << "\n";
+    }
+  }
+  oss << "\n";
+  return oss.str();
+}
+
 // Load a shared library as a native module object
-std::expected<via::Module*, std::string> via::Module::load_native_object(
+std::expected<via::Module*, std::string> via::Module::load_native(
     ModuleManager& manager, Module* importee, const char* name,
     const std::filesystem::path& path, const ast::StatImport* ast_decl,
     const ModulePerms perms, const ModuleFlags flags) {
@@ -70,7 +99,7 @@ std::expected<via::Module*, std::string> via::Module::load_native_object(
   }
 
   auto& alloc = manager.allocator();
-  auto dll = os::DynamicLibrary::load_library(path);
+  auto dll = os::DynamicLibrary::load(path);
   if (!dll.has_value()) {
     return std::unexpected(dll.error());
   }
@@ -90,7 +119,7 @@ std::expected<via::Module*, std::string> via::Module::load_native_object(
 
   // Find the module's entry point
   auto symbol = std::format("{}{}", config::MODULE_ENTRY_PREFIX, name);
-  auto callback = dll->load_symbol<NativeModuleEntry>(symbol.c_str());
+  auto callback = dll->symbol<NativeModuleEntry>(symbol.c_str());
   if (!callback.has_value()) {
     return std::unexpected(
         std::format("Failed to load native module: {}", callback.error()));
@@ -101,19 +130,15 @@ std::expected<via::Module*, std::string> via::Module::load_native_object(
   // Retrieve module information
   auto& module_info = *((*callback)(&manager));
 
-  // Validate module information
-  DEBUG_ASSERT(module_info->size() != 0);
-
-  // Map module definitions
   for (const auto& entry : module_info.unwrap()) {
     if (auto identity = entry->identity()) {
       module->m_defs[*identity] = entry;
     }
   }
 
-  if (flags & ModuleFlags::DUMP_DEFTABLE)
+  if (flags & ModuleFlags::DUMP_BINDINGS)
     std::cout << std::format("({}) ", module->m_name)
-              << to_string(module->m_manager.symbol_table(), module->m_defs);
+              << ::to_string(module->m_manager.symbol_table(), module->m_defs);
 
   // Pop import stack
   manager.pop_import();
@@ -121,7 +146,7 @@ std::expected<via::Module*, std::string> via::Module::load_native_object(
 }
 
 // Load source file as a module
-std::expected<via::Module*, std::string> via::Module::load_source_file(
+std::expected<via::Module*, std::string> via::Module::load_source(
     ModuleManager& manager, Module* importee, const char* name,
     const std::filesystem::path& path, const ast::StatImport* ast_decl,
     const ModulePerms perms, const ModuleFlags flags) {
@@ -179,7 +204,7 @@ std::expected<via::Module*, std::string> via::Module::load_source_file(
 
   {
     // Instantiate IR builder
-    IRBuilder ir_builder(module, ast, diags);
+    IRBuilder ir_builder(*module, ast, diags);
     module->m_ir = ir_builder.build();
 
     // Check for errors during IR building
@@ -195,13 +220,13 @@ std::expected<via::Module*, std::string> via::Module::load_source_file(
     }
 
     // Build executable
-    Executable* exe = Executable::build(module, diags, module->m_ir);
+    Executable* exe = Executable::build(*module, module->m_ir);
     module->m_exe = exe;
 
     // Check for the abscence of the no execution flag
     if ((flags & ModuleFlags::NO_EXECUTION) == 0) {
       // Initialize the virtual machine
-      VirtualMachine vm(module, exe);
+      VirtualMachine vm(*module, *exe);
 
       // Check for debug flag
       if (flags & ModuleFlags::LAUNCH_DEBUGGER) {
@@ -233,9 +258,9 @@ error:
               << (module->m_exe ? module->m_exe->to_string()
                                 : "<executable error>")
               << "\n";
-  if (flags & ModuleFlags::DUMP_DEFTABLE)
+  if (flags & ModuleFlags::DUMP_BINDINGS)
     std::cout << std::format("({}) ", module->m_name)
-              << to_string(module->m_manager.symbol_table(), module->m_defs);
+              << ::to_string(module->m_manager.symbol_table(), module->m_defs);
 
   // Handle failed compilation
   if (failed) {
@@ -266,7 +291,7 @@ struct ModuleCandidate {
 static std::optional<ModuleInfo> resolve_import_path(
     const std::filesystem::path& root, const via::QualName& path,
     const via::ModuleManager& manager) {
-  DEBUG_ASSERT(!path.empty(), "bad import path");
+  VIA_DEBUG_ASSERT(!path.empty(), "bad import path");
 
   auto path_slice = path;
   auto& module_name = path_slice.back();
@@ -311,7 +336,7 @@ static std::optional<ModuleInfo> resolve_import_path(
     return std::nullopt;
   };
 
-  for (const auto& import_path : manager.get_import_paths())
+  for (const auto& import_path : manager.import_paths())
     if (auto result = try_dir_candidates(import_path)) {
       return result;
     }
@@ -337,13 +362,12 @@ std::expected<via::Module*, std::string> via::Module::import(
 
   switch (module->kind) {
     case ImplKind::SOURCE:
-      return Module::load_source_file(m_manager, this, path.back().c_str(),
-                                      module->path, ast_decl, m_perms, m_flags);
+      return Module::load_source(m_manager, this, path.back().c_str(),
+                                 module->path, ast_decl, m_perms, m_flags);
     case ImplKind::NATIVE:
-      return Module::load_native_object(m_manager, this, path.back().c_str(),
-                                        module->path, ast_decl, m_perms,
-                                        m_flags);
+      return Module::load_native(m_manager, this, path.back().c_str(),
+                                 module->path, ast_decl, m_perms, m_flags);
     default:
-      UNREACHABLE("unimplemented module type");
+      VIA_PANIC("unimplemented module type");
   }
 }

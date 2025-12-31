@@ -18,7 +18,7 @@
 namespace via {
 
 template <std::integral T = int>
-constexpr T iota() noexcept {
+constexpr T iota() {
   static T data{0};
   return data++;
 }
@@ -36,16 +36,16 @@ constexpr T ipow(T base, T exp) {
   return result;
 }
 
-constexpr size_t hash_combine(size_t seed, size_t v) noexcept {
+constexpr size_t hash_combine(size_t seed, size_t v) {
   return seed ^ (v + 0x9e3779b97f4a7c15ULL + (seed << 6) + (seed >> 2));
 }
 
-constexpr size_t hash_ptr(const void* ptr) noexcept {
+constexpr size_t hash_ptr(const void* ptr) {
   return reinterpret_cast<size_t>(reinterpret_cast<uintptr_t>(ptr));
 }
 
 template <typename... T>
-constexpr size_t hash_all(T... args) noexcept {
+constexpr size_t hash_all(T... args) {
   size_t seed = 0;
   ((seed = hash_combine(seed, args)), ...);
   return seed;

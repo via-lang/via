@@ -9,7 +9,6 @@
 
 #include "source-buffer.hpp"
 
-#include <libassert/assert.hpp>
 #include <limits>
 
 #include "token.hpp"
@@ -21,7 +20,7 @@ bool via::SourceBuffer::is_valid_range(SourceLoc loc) const {
 }
 
 std::string via::SourceBuffer::get_slice(SourceLoc loc) const {
-  DEBUG_ASSERT(is_valid_range(loc), "invalid range");
+  VIA_DEBUG_ASSERT(is_valid_range(loc), "invalid slice range");
   std::ostringstream oss;
   for (size_t i = loc.begin; i < loc.end; i++) oss << m_buffer.at(i);
   return oss.str();

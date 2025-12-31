@@ -42,7 +42,7 @@ static std::string dlerror_win() {
 #endif
 
 std::expected<via::os::DynamicLibrary, std::string>
-via::os::DynamicLibrary::load_library(std::filesystem::path path) {
+via::os::DynamicLibrary::load(std::filesystem::path path) {
   std::string path_str = path.string();
 
   if (!std::filesystem::is_regular_file(path))
@@ -76,7 +76,7 @@ via::os::DynamicLibrary::~DynamicLibrary() {
 }
 
 via::os::DynamicLibrary::DynamicLibrary(DynamicLibrary&& other)
-    : m_handle(other.m_handle) {
+  : m_handle(other.m_handle) {
   other.m_handle = nullptr;
 }
 
@@ -96,7 +96,7 @@ via::os::DynamicLibrary& via::os::DynamicLibrary::operator=(
   return *this;
 }
 
-std::expected<void*, std::string> via::os::DynamicLibrary::load_symbol_raw(
+std::expected<void*, std::string> via::os::DynamicLibrary::raw_symbol(
     const char* symbol) {
 #if USE_DLFCN
   dlerror();  // Clear previous errors

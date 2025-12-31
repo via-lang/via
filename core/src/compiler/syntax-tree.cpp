@@ -222,11 +222,11 @@ std::string via::ast::TypeFunc::to_string(size_t) const {
       ret->to_string());
 }
 
-bool via::ast::is_lvalue(const Expr* expr) noexcept {
-  return TRY_IS(const ExprSymbol, expr) ||
-         TRY_IS(const ExprStaticAccess, expr) ||
-         TRY_IS(const ExprDynAccess, expr) ||
-         TRY_IS(const ExprSubscript, expr) || TRY_IS(const ExprTuple, expr);
+bool via::ast::is_lvalue(const Expr* expr) {
+  return VIA_ISA(const ExprSymbol, expr) ||
+         VIA_ISA(const ExprStaticAccess, expr) ||
+         VIA_ISA(const ExprDynAccess, expr) ||
+         VIA_ISA(const ExprSubscript, expr) || VIA_ISA(const ExprTuple, expr);
 }
 
 std::string via::to_string(const via::SyntaxTree& tree) {

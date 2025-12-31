@@ -9,21 +9,20 @@
 
 #include "binding.hpp"
 
+#include <compiler/ir-tree.hpp>
+#include <compiler/type.hpp>
+#include <compiler/value.hpp>
 #include <sstream>
 
 #include "ansi.hpp"
-#include "compiler/ir-tree.hpp"
-#include "compiler/syntax-tree.hpp"
-#include "compiler/type.hpp"
-#include "compiler/value.hpp"
 #include "manager.hpp"
 #include "symbol.hpp"
 
 VIA_NOINLINE via::Binding* via::Binding::from(ModuleManager& manager,
                                               const ir::Stat* node) {
-  if TRY_COERCE (const ir::StatFuncDecl, decl, node) {
+  if VIA_TRY_COERCE (const ir::StatFuncDecl, decl, node) {
     auto* function =
-        manager.allocator().emplace<FunctionBinding>(manager, decl->symbol);
+        manager.allocator().emplace<FunctionBinding>(manager, decl->ident);
     function->m_kind = ImplKind::SOURCE;
     function->m_impl.source = decl;
     function->m_return = decl->ret;
@@ -58,33 +57,4 @@ std::string via::FunctionBinding::signature(const SymbolTable& table) const {
           m_params, [](const auto& parm) { return parm.type.to_string(); }, "(",
           ")"),
       m_return.to_string());
-}
-
-std::string via::to_string(
-    const SymbolTable& table,
-    const std::unordered_map<SymbolId, const Binding*>& map) noexcept {
-  std::ostringstream oss;
-  oss << ansi::format("[disassembly of binding table]:\n",
-                      ansi::Foreground::YELLOW, ansi::Background::NONE,
-                      ansi::Style::UNDERLINE);
-
-  oss << ansi::format(
-      "  id    kind        signature           \n"
-      "  ----  ----------  --------------------\n",
-      ansi::Foreground::NONE, ansi::Background::NONE, ansi::Style::FAINT);
-
-  for (size_t i = 0; const auto& it : map) {
-    oss << "  "
-        << ansi::format(std::format("{:0>4}  ", i++), ansi::Foreground::NONE,
-                        ansi::Background::NONE, ansi::Style::FAINT);
-    if TRY_COERCE (const FunctionBinding, function, it.second) {
-      oss << "function  ";
-      oss << "  " << function->signature(table) << "\n";
-    } else {
-      oss << "unknown   ";
-      oss << "address: " << (void*)it.second << "\n";
-    }
-  }
-  oss << "\n";
-  return oss.str();
 }

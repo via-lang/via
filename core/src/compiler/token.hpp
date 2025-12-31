@@ -103,9 +103,9 @@ namespace via {
   X(OP_GT_EQ)                  \
   X(OP_DOT_DOT_EQ)
 
-enum class TokenKind { FOR_EACH_TOKEN_KIND(DEFINE_ENUM) };
+enum class TokenKind { FOR_EACH_TOKEN_KIND(VIA_DEFINE_ENUM) };
 
-DEFINE_TO_STRING(TokenKind, FOR_EACH_TOKEN_KIND(DEFINE_CASE_TO_STRING))
+VIA_DEFINE_TO_STRING(TokenKind, FOR_EACH_TOKEN_KIND(VIA_DEFINE_CASE_TO_STRING))
 
 struct Token {
   TokenKind kind;

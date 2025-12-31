@@ -21,14 +21,14 @@
 #include <span>
 #include <string>
 #include <vm/machine.hpp>
-#include <vm/reference.hpp>
+#include <vm/value-ref.hpp>
 
 #include "binding.hpp"
 
 #define VIA_MODULE_ENTRY_PREFIX viainit_
 
-#define VIA_MODULE_ENTRY(ID, MANAGER)                            \
-  extern "C" VIA_EXPORT via::NativeModuleInfo* EXPAND_AND_PASTE( \
+#define VIA_MODULE_ENTRY(ID, MANAGER)                              \
+  extern "C" VIA_EXPORT via::NativeModuleInfo* _EXPAND_AND_PASTE_( \
       VIA_MODULE_ENTRY_PREFIX, ID)(via::ModuleManager * MANAGER)
 
 #define VIA_MODULE_FUNCTION(ID, VM, CALL_INFO) \
@@ -41,7 +41,7 @@ namespace via {
 namespace config {
 
 constexpr const char MODULE_ENTRY_PREFIX[] =
-    EXPAND_STRING(VIA_MODULE_ENTRY_PREFIX);
+    _EXPAND_STRING_(VIA_MODULE_ENTRY_PREFIX);
 
 }  // namespace config
 
@@ -49,13 +49,13 @@ class ModuleManager;
 class NativeModuleInfo {
  public:
   explicit NativeModuleInfo(const Binding** buffer, size_t size)
-      : m_defs(buffer, size) {}
+    : m_defs(buffer, size) {}
 
   auto* operator->() { return &m_defs; }
   auto& operator*() { return m_defs; }
 
  public:
-  auto unwrap() const { return m_defs; }
+  [[nodiscard]] auto unwrap() const { return m_defs; }
 
  private:
   std::span<const Binding*> m_defs;
@@ -84,7 +84,7 @@ enum class ModuleFlags : uint32_t {
   DUMP_AST = 1 << 1,
   DUMP_IR = 1 << 2,
   DUMP_EXE = 1 << 3,
-  DUMP_DEFTABLE = 1 << 4,
+  DUMP_BINDINGS = 1 << 4,
   NO_EXECUTION = 1 << 5,
   LAUNCH_DEBUGGER = 1 << 6,
   ALL = 0xFFFFFFFF,
@@ -92,35 +92,36 @@ enum class ModuleFlags : uint32_t {
 
 class Module final {
  public:
-  friend class ModuleManager;
+  friend ::via::ModuleManager;
 
  public:
+  explicit Module(ModuleManager& manager) : m_manager(manager) {}
   explicit Module(ModuleManager& manager, SourceBuffer&& source)
-      : m_source(source), m_manager(manager) {}
+    : m_source(source), m_manager(manager) {}
 
-  static std::expected<Module*, std::string> load_source_file(
+  [[nodiscard]] static std::expected<Module*, std::string> load_source(
       ModuleManager& manager, Module* importee, const char* name,
       const std::filesystem::path& path, const ast::StatImport* decl,
       const ModulePerms perms = ModulePerms::NONE,
       const ModuleFlags flags = ModuleFlags::NONE);
 
-  static std::expected<Module*, std::string> load_native_object(
+  [[nodiscard]] static std::expected<Module*, std::string> load_native(
       ModuleManager& manager, Module* importee, const char* name,
       const std::filesystem::path& path, const ast::StatImport* decl,
       const ModulePerms perms = ModulePerms::NONE,
       const ModuleFlags flags = ModuleFlags::NONE);
 
  public:
-  auto name() const { return m_name; }
-  auto kind() const { return m_kind; }
-  auto& source() const { return m_source; }
-  auto& allocator() { return m_alloc; }
-  auto& manager() const { return m_manager; }
-  auto ast_decl() const { return m_ast_decl; }
+  [[nodiscard]] auto name() const { return m_name; }
+  [[nodiscard]] auto kind() const { return m_kind; }
+  [[nodiscard]] auto& source() const { return m_source; }
+  [[nodiscard]] auto& allocator() { return m_alloc; }
+  [[nodiscard]] auto& manager() const { return m_manager; }
+  [[nodiscard]] auto ast_decl() const { return m_ast_decl; }
 
-  std::optional<const Binding*> lookup(SymbolId symbol);
-  std::expected<Module*, std::string> import(const QualName& path,
-                                             const ast::StatImport* ast_decl);
+  [[nodiscard]] std::optional<const Binding*> lookup(SymbolId symbol);
+  [[nodiscard]] std::expected<Module*, std::string> import(
+      const QualName& path, const ast::StatImport* ast_decl);
 
  protected:
   ScopedAllocator m_alloc;

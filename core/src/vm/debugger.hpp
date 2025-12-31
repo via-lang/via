@@ -21,9 +21,10 @@ namespace via {
 
 #define FOR_EACH_ARG_TYPE(X) X(INTEGER) X(FLOAT) X(BOOLEAN) X(STRING)
 
-enum class ArgumentType : uint8_t { FOR_EACH_ARG_TYPE(DEFINE_ENUM) };
+enum class ArgumentType : uint8_t { FOR_EACH_ARG_TYPE(VIA_DEFINE_ENUM) };
 
-DEFINE_TO_STRING(ArgumentType, FOR_EACH_ARG_TYPE(DEFINE_CASE_TO_STRING));
+VIA_DEFINE_TO_STRING(ArgumentType,
+                     FOR_EACH_ARG_TYPE(VIA_DEFINE_CASE_TO_STRING));
 
 using CommandArgument = std::variant<int, float, bool, std::string>;
 using CommandHandler =
@@ -74,8 +75,8 @@ class Debugger final {
  public:
   auto& command_table() { return m_cmds; }
 
-  void register_default_commands() noexcept;
-  void start() noexcept;
+  void register_default_commands();
+  void start();
 
  private:
   Logger& m_logger = Logger::stdout_logger();  // TODO: Modularize

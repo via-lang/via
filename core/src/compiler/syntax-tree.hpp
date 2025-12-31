@@ -11,14 +11,12 @@
 
 #include <config.hpp>
 #include <cstddef>
+#include <utility.hpp>
 #include <vector>
 
 #include "source-buffer.hpp"
 #include "token.hpp"
 #include "type.hpp"
-
-#define TRY_COERCE(T, a, b) (T* a = dynamic_cast<T*>(b))
-#define TRY_IS(T, a) (dynamic_cast<T*>(a) != nullptr)
 
 namespace via {
 namespace ast {
@@ -267,7 +265,7 @@ struct TypeFunc : public Type {
 
 #undef NODE_FIELDS
 
-bool is_lvalue(const Expr* expr) noexcept;
+bool is_lvalue(const Expr* expr);
 
 }  // namespace ast
 

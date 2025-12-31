@@ -13,6 +13,6 @@
 
 namespace via {
 
-void init(uint8_t verbosity) noexcept;
+void init(uint8_t verbosity);
 
 }  // namespace via

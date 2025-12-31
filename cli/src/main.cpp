@@ -12,6 +12,7 @@
 
 #include "options.hpp"
 #include "tools/utility.hpp"
+#include "utility.hpp"
 
 static void translate_module_flags(via::ModuleFlags& flags,
                                    const via::cli::ProgramOptions& options) {
@@ -35,6 +36,9 @@ static void translate_module_flags(via::ModuleFlags& flags,
 }
 
 int main(int argc, char* argv[]) {
+  VIA_ASSERT(false);
+  VIA_ASSERT(false, "");
+
   using namespace via::cli;
   using namespace via::operators;
 

@@ -26,64 +26,66 @@ namespace via {
 
 class IRBuilder final {
  public:
-  friend class Module;
+  friend ::via::Module;
 
  public:
-  explicit IRBuilder(via::Module* module, const SyntaxTree& ast,
-                     Diagnostics& diags)
-      : m_module(module),
-        m_ast(ast),
-        m_alloc(module->allocator()),
-        m_diags(diags),
-        m_types(module->manager().type_context()),
-        m_symbols(module->manager().symbol_table()) {}
+  explicit IRBuilder(Module& module, const SyntaxTree& ast, Diagnostics& diags)
+    : m_module(module),
+      m_ast(ast),
+      m_alloc(module.allocator()),
+      m_diags(diags),
+      m_types(module.manager().type_context()),
+      m_symbols(module.manager().symbol_table()) {}
 
  public:
-  IRTree build();
+  [[nodiscard]] IRTree build();
 
  protected:
   // clang-format off
-  void poison_symbol(SymbolId symbol)  { m_poisoned_ids.insert(symbol); }
-  void poison_symbol(QualName name)  { m_poisoned_ids.insert(intern_symbol(name)); }
-  void poison_symbol(std::string symbol)  { m_poisoned_ids.insert(intern_symbol(symbol)); }
-  bool is_poisoned(SymbolId symbol)  { return m_poisoned_ids.contains(symbol); }
-  bool is_poisoned(QualName name)  { return m_poisoned_ids.contains(intern_symbol(name)); }
-  bool is_poisoned(std::string symbol)  { return m_poisoned_ids.contains(intern_symbol(symbol)); }
+  void poison(SymbolId symbol)  { m_poisoned_ids.insert(symbol); }
+  void poison(QualName name)  { m_poisoned_ids.insert(intern(name)); }
+  void poison(std::string symbol)  { m_poisoned_ids.insert(intern(symbol)); }
+  bool poisoned(SymbolId symbol)  { return m_poisoned_ids.contains(symbol); }
+  bool poisoned(QualName name)  { return m_poisoned_ids.contains(intern(name)); }
+  bool poisoned(std::string symbol)  { return m_poisoned_ids.contains(intern(symbol)); }
   // clang-format on
 
  private:
   QualType type_of(const ast::Expr* expr);
   QualType type_of(const ast::Type* type);
   const ir::Expr* lower(const ast::Expr* expr);
-  const ir::Stat* lower(const ast::Stat* stat);
-  ir::StatBlock* end_block();
-  ir::StatBlock* new_block(size_t id);
+  const ir::Stmt* lower(const ast::Stat* stat);
+  ir::Stmt::Block* end_block();
+  ir::Stmt::Block* new_block(size_t id);
   std::string dump(QualType type);
   std::string dump(const ast::Expr* expr);
 
-  // clang-format off
-  SymbolId intern_symbol(std::string symbol) { return m_symbols.intern(symbol); }
-  SymbolId intern_symbol(const QualName& name) { return m_symbols.intern(name); }
-  SymbolId intern_symbol(const via::Token& token) { return m_symbols.intern(token.to_string()); }
+  SymbolId intern(std::string symbol) { return m_symbols.intern(symbol); }
+  SymbolId intern(const QualName& name) { return m_symbols.intern(name); }
+  SymbolId intern(const via::Token& token) {
+    return m_symbols.intern(token.to_string());
+  }
 
   template <derived_from<ast::Expr, ast::Type> Type>
-    requires (!std::is_same_v<Type, ast::Type>)
-  QualType type_of(const Type*)
-  { UNREACHABLE(VIA_TYPENAME(Type)); }
+    requires(!std::is_same_v<Type, ast::Type>)
+  QualType type_of(const Type*) {
+    VIA_PANIC(VIA_TYPENAME(Type));
+  }
 
   template <derived_from<ast::Expr> Expr>
-    requires (!std::is_same_v<Type, ast::Expr>)
-  const ir::Expr* lower_expr(const Expr*)
-  { UNREACHABLE(VIA_TYPENAME(Expr)); }
+    requires(!std::is_same_v<Type, ast::Expr>)
+  const ir::Expr* lower_expr(const Expr*) {
+    VIA_PANIC(VIA_TYPENAME(Expr));
+  }
 
   template <derived_from<ast::Stat> Stat>
-    requires (!std::is_same_v<Type, ast::Type>)
-  const ir::Stat* lower_stat(const Stat*)
-  { UNREACHABLE(VIA_TYPENAME(Stat)); }
-  // clang-format on
+    requires(!std::is_same_v<Type, ast::Type>)
+  const ir::Stmt* lower_stat(const Stat*) {
+    VIA_PANIC(VIA_TYPENAME(Stat));
+  }
 
  private:
-  via::Module* m_module;
+  Module& m_module;
   const SyntaxTree& m_ast;
   ScopedAllocator& m_alloc;
   Diagnostics& m_diags;
@@ -92,7 +94,7 @@ class IRBuilder final {
   SymbolTable& m_symbols;
   bool m_should_push_block;
   uint32_t m_block_id = 0;
-  ir::StatBlock* m_current_block;
+  ir::Stmt::Block* m_current_block;
   std::unordered_set<SymbolId> m_poisoned_ids;
 };
 

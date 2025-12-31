@@ -10,26 +10,25 @@
 #include "control-flow.hpp"
 
 #include <unordered_set>
-
-#include "syntax-tree.hpp"
+#include <utility.hpp>
 
 std::vector<const via::ir::Term*> via::get_control_paths(
-    const ir::StatBlock* entry) noexcept {
-  std::unordered_set<const ir::StatBlock*> visited;
+    const ir::Stmt::Block* entry) {
+  std::unordered_set<const ir::Stmt::Block*> visited;
   std::vector<const ir::Term*> terms;
-  std::function<void(const ir::StatBlock*)> dfs =
-      [&](const ir::StatBlock* block) {
+  std::function<void(const ir::Stmt::Block*)> dfs =
+      [&](const ir::Stmt::Block* block) {
         if (!block || !visited.insert(block).second) return;
-
-        if TRY_COERCE (const ir::TrReturn, ret, block->term) {
+        if VIA_TRY_COERCE (const ir::Term::Return, ret, block->term) {
           terms.push_back(ret);
-        } else if TRY_COERCE (const ir::TrBranch, br, block->term) {
+        } else if VIA_TRY_COERCE (const ir::Term::Branch, br, block->term) {
           dfs(br->target);
-        } else if TRY_COERCE (const ir::TrCondBranch, cbr, block->term) {
+        } else if VIA_TRY_COERCE (const ir::Term::CondBranch, cbr,
+                                  block->term) {
           dfs(cbr->iftrue);
           dfs(cbr->iffalse);
         } else {
-          UNREACHABLE("unmapped dfs block terminator");
+          VIA_PANIC("unmapped dfs block terminator");
         }
       };
 

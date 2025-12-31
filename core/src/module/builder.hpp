@@ -30,7 +30,7 @@ class ModuleBuilder final {
   FunctionBinding& function(std::string symbol) &;
 
   // clang-format off
-  QualType nil_t() & { return m_types.instance<BuiltinType>(BuiltinKind::NIL); }
+  QualType nil_t() & { return m_types.instance<BuiltinType>(BuiltinKind::NONE); }
   QualType bool_t() & { return m_types.instance<BuiltinType>(BuiltinKind::BOOL); }
   QualType int_t() & { return m_types.instance<BuiltinType>(BuiltinKind::INT); }
   QualType float_t() & { return m_types.instance<BuiltinType>(BuiltinKind::FLOAT); }

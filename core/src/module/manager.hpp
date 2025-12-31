@@ -11,6 +11,7 @@
 
 #include <config.hpp>
 #include <filesystem>
+#include <functional>
 
 #include "module.hpp"
 #include "symbol.hpp"
@@ -19,24 +20,26 @@ namespace via {
 
 class ModuleManager {
  public:
-  friend class Module;
+  friend ::via::Module;
 
  public:
-  auto& allocator() { return m_alloc; }
-  auto& type_context() { return m_type_ctx; }
-  auto& symbol_table() { return m_symbol_table; }
-  auto get_import_paths() const { return m_import_paths; }
+  [[nodiscard]] auto& allocator() { return m_alloc; }
+  [[nodiscard]] auto& type_context() { return m_type_ctx; }
+  [[nodiscard]] auto& symbol_table() { return m_symbol_table; }
+  [[nodiscard]] auto import_paths() const { return m_import_paths; }
+
   void push_import_path(std::filesystem::path path) {
     m_import_paths.push_back(path);
   }
+
   void push_module(Module* module) { m_modules[module->m_path] = module; }
-  bool has_module(std::filesystem::path name);
-  auto* get_module(std::filesystem::path name) { return m_modules[name]; }
-  Module* get_module_by_name(std::string name);
-  Module* get_module_by_name(SymbolId name);
+
+  template <ModuleQuery Q>
+  [[nodiscard]] ModuleQueryResult query(const ModuleQueryParamT<Q>& param);
 
  protected:
   bool is_current_import(const std::string& name) const;
+
   void push_import(const std::string& name) { m_imports.push_back(name); }
   void pop_import();
 

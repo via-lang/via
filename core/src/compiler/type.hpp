@@ -12,7 +12,6 @@
 #include <config.hpp>
 #include <enum.hpp>
 #include <functional>
-#include <libassert/assert.hpp>
 #include <memory.hpp>
 #include <type.hpp>
 #include <type_traits>
@@ -42,15 +41,16 @@ enum class TypeQualifier {
 };
 
 #define FOR_EACH_BUILTIN_KIND(X) \
-  X(NIL)                         \
+  X(NONE)                        \
   X(BOOL)                        \
   X(INT)                         \
   X(FLOAT)                       \
   X(STRING)
 
-enum class BuiltinKind : uint8_t { FOR_EACH_BUILTIN_KIND(DEFINE_ENUM) };
+enum class BuiltinKind : uint8_t { FOR_EACH_BUILTIN_KIND(VIA_DEFINE_ENUM) };
 
-DEFINE_TO_STRING(BuiltinKind, FOR_EACH_BUILTIN_KIND(DEFINE_CASE_TO_STRING))
+VIA_DEFINE_TO_STRING(BuiltinKind,
+                     FOR_EACH_BUILTIN_KIND(VIA_DEFINE_CASE_TO_STRING))
 
 class Type {
  public:
@@ -65,7 +65,7 @@ class Type {
   virtual bool is_callable() const { return false; }
   virtual bool is_subscriptable() const { return false; }
   virtual CastResult cast_result(const Type* to) const = 0;
-  virtual std::string to_string() const { UNREACHABLE(); }
+  virtual std::string to_string() const { VIA_PANIC(); }
 
  public:
   const TypeFlags flags;

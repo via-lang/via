@@ -13,48 +13,39 @@
 #include <config.hpp>
 #include <cstddef>
 #include <diagnostics.hpp>
-#include <libassert/assert.hpp>
 #include <limits>
 
 namespace via {
 namespace config {
 
-constexpr size_t REGISTER_COUNT = UINT16_MAX;
+constexpr size_t REGISTER_COUNT = std::numeric_limits<uint16_t>::max();
 
 }
 
 class RegisterState {
  public:
-  RegisterState(Diagnostics& diags) : m_diags(diags) {}
-
- public:
-  inline uint16_t alloc() noexcept {
+  inline uint16_t alloc() {
     for (size_t i = 0; i < config::REGISTER_COUNT; ++i) {
       if (!m_buffer.test(i)) {  // free register
         m_buffer.set(i);        // mark as occupied
         return static_cast<uint16_t>(i);
       }
     }
-
-    m_diags.report<Level::ERROR>(
-        {0, std::numeric_limits<size_t>::max()},
-        "Program complexity exceeds language limits (out of register space)");
     return 0;
   }
 
-  inline void free(uint16_t reg) noexcept {
-    DEBUG_ASSERT(reg <= config::REGISTER_COUNT,
-                 "invalid semantic register to free");
+  inline void free(uint16_t reg) {
+    VIA_DEBUG_ASSERT(reg <= config::REGISTER_COUNT,
+                     "free() called on invalid semantic register");
     m_buffer.reset(reg);  // mark as free
   }
 
   template <typename... Regs>
-  inline void free_all(Regs... regs) noexcept {
+  inline void free_all(Regs... regs) {
     (free(regs), ...);
   }
 
  private:
-  Diagnostics& m_diags;
   std::bitset<config::REGISTER_COUNT> m_buffer;
 };
 

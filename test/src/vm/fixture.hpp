@@ -9,14 +9,13 @@
 
 #pragma once
 
-#include <config.hpp>
-#include <vector>
+#include <via/via.hpp>
 
-#include "ir-tree.hpp"
+struct VMFixture {
+  via::ModuleManager manager;
+  via::Module module;
+  via::Executable exe;
+  via::VirtualMachine vm;
 
-namespace via {
-
-[[nodiscard]] std::vector<const ir::Term*> get_control_paths(
-    const ir::Stmt::Block* entry);
-
-}  // namespace via
+  VMFixture() : module(manager), exe(module), vm(module, exe) {}
+};

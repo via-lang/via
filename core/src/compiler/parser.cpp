@@ -891,7 +891,7 @@ const via::ast::Stat* via::Parser::parse_stat() {
       empty->expr = expr;
       empty->loc = empty->expr->loc;
 
-      if TRY_COERCE (const ast::ExprCall, _, expr) {
+      if VIA_TRY_COERCE (const ast::ExprCall, _, expr) {
         goto valid_expr_stat;
       } else {
         goto unexpected_token;

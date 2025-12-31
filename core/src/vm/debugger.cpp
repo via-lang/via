@@ -11,7 +11,6 @@
 
 #include <ansi.hpp>
 #include <iomanip>
-#include <libassert/assert.hpp>
 #include <print>
 #include <sstream>
 
@@ -57,7 +56,7 @@ static via::CommandArgument parse_argument(const std::string& tok) {
     try {
       return std::stoi(tok, nullptr, 16);
     } catch (const std::exception& e) {
-      PANIC(e.what());
+      VIA_PANIC(e.what());
     }
   }
 
@@ -69,7 +68,7 @@ static via::CommandArgument parse_argument(const std::string& tok) {
     try {
       return std::stoi(tok);
     } catch (const std::exception& e) {
-      PANIC(e.what());
+      VIA_PANIC(e.what());
     }
   }
   return tok;
@@ -152,7 +151,7 @@ void via::CommandTable::print_help() const {
             << std::endl;
 }
 
-void via::Debugger::register_default_commands() noexcept {
+void via::Debugger::register_default_commands() {
   m_cmds.register_command("quit", "exits the interactive debugger", {},
                           [&](const auto& args) { return false; });
 
@@ -191,13 +190,11 @@ void via::Debugger::register_default_commands() noexcept {
       "pc", "display program counter information", {}, [&](const auto& args) {
         Snapshot snapshot(&m_vm);
 
-        std::cout << ansi::format(
-            std::format("0x{:0>4x}  ", snapshot.rel_program_counter * 8),
-            ansi::Foreground::NONE, ansi::Background::NONE, ansi::Style::FAINT);
+        std::cout << ansi::format(std::format("0x{:0>4x}  ", snapshot.rpc * 8),
+                                  ansi::Foreground::NONE,
+                                  ansi::Background::NONE, ansi::Style::FAINT);
 
-        std::cout << snapshot.program_counter->to_string(
-                         true, snapshot.rel_program_counter)
-                  << "\n";
+        std::cout << snapshot.pc->to_string(true, snapshot.rpc) << "\n";
         return true;
       });
 
@@ -207,7 +204,7 @@ void via::Debugger::register_default_commands() noexcept {
         size_t pc = std::get<size_t(ArgumentType::INTEGER)>(args.at(0));
         if (pc % 8 == 0) {
           auto realpc = pc / 8;
-          auto bytecode = m_vm.m_exe->bytecode();
+          auto bytecode = m_vm.m_exe.bytecode();
           if (realpc < bytecode.size()) {
             auto* ptr = bytecode.data() + realpc;
             std::cout << ptr->to_string(true, m_vm.m_pc - m_vm.m_bp) << "\n";
@@ -261,7 +258,7 @@ void via::Debugger::register_default_commands() noexcept {
       "const", "dumps the given constant", {ArgumentType::INTEGER},
       [&](const auto& args) {
         size_t index = std::get<size_t(ArgumentType::INTEGER)>(args.at(0));
-        auto& consts = m_vm.m_exe->constants();
+        auto& consts = m_vm.m_exe.constants();
         if (index < consts.size()) {
           auto konst = consts.at(index);
           std::cout << konst.to_string() << "\n";
@@ -277,7 +274,7 @@ void via::Debugger::register_default_commands() noexcept {
         size_t pc = std::get<size_t(ArgumentType::INTEGER)>(args.at(0));
         if (pc % 8 == 0) {
           auto realpc = pc / 8;
-          auto bytecode = m_vm.m_exe->bytecode();
+          auto bytecode = m_vm.m_exe.bytecode();
           if (realpc < bytecode.size()) {
             m_vm.m_pc = m_vm.m_bp + realpc;
           } else {
@@ -290,26 +287,22 @@ void via::Debugger::register_default_commands() noexcept {
       });
 }
 
-void via::Debugger::start() noexcept {
+void via::Debugger::start() {
   std::string input;
   static std::string cursor =
       ansi::format(">> ", ansi::Foreground::GREEN, ansi::Background::NONE,
                    ansi::Style::BOLD);
 
   m_cmds.print_help();
-  m_vm.set_interrupt_hook([](VirtualMachine* vm, Interrupt inte, void* arg) {
+  m_vm.interrupt_hook([](VirtualMachine* vm, Interrupt inte, void* arg) {
     std::cout << "machine interrupted\n";
     std::cout << " code: 0x" << std::hex << size_t(inte) << std::dec;
     std::cout << " " << std::format("({})\n", via::to_string(inte));
 
     switch (inte) {
       case Interrupt::ERROR: {
-        auto* error = reinterpret_cast<ErrorInt*>(arg);
-        std::cout << " error info:\n";
-        std::cout << "  msg:  " << error->msg << "\n";
-        std::cout << "  out:  " << (void*)error->out << "\n";
-        std::cout << "  fp:   " << (void*)error->fp << "\n";
-        std::cout << "  pc:   " << (void*)error->pc << "\n";
+        auto* error = reinterpret_cast<ExecutionError*>(arg);
+        std::println("{}", error->to_string());
       }
       default:
         break;

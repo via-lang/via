@@ -10,59 +10,33 @@
 #include "value.hpp"
 
 #include <compiler/value.hpp>
-#include <libassert/assert.hpp>
 #include <memory.hpp>
+#include <utility.hpp>
 
-// clang-format off
-via::Value* via::Value::create(VirtualMachine* vm)
-    { return create(vm, NIL); }
-via::Value* via::Value::create(VirtualMachine* vm, int64_t integer)
-    { return create(vm, INT, {.integer = integer}); }
-via::Value* via::Value::create(VirtualMachine* vm, float64 float_)
-    { return create(vm, FLOAT, {.float_ = float_}); }
-via::Value* via::Value::create(VirtualMachine* vm, bool boolean)
-    { return create(vm, BOOL, {.boolean = boolean}); }
-// clang-format on
+#include "machine.hpp"
 
-via::Value* via::Value::create(VirtualMachine* vm, char* string) {
-  DEBUG_ASSERT(vm->allocator().owns(string),
-               "Value construction via string requires it to be allocated by "
-               "the corresponding Value::vm");
-  return create(vm, STRING, {.string = string});
-}
-
-via::Value* via::Value::create(VirtualMachine* vm, Closure* closure) {
-  DEBUG_ASSERT(
-      vm->allocator().owns(closure),
-      "Value construction via closure object requires it to be allocated by "
-      "the corresponding Value::vm");
-  return create(vm, FUNCTION, {.function = closure});
-}
-
-via::Value* via::Value::create(VirtualMachine* vm, const ConstValue& cv) {
-  auto& alloc = vm->allocator();
-
-  switch (cv.kind()) {
-    case NIL:
-      return create(vm);
+via::Value::Value(VirtualMachine& vm, const ConstValue& cvalue)
+  : m_vm(vm), m_kind(cvalue.kind()) {
+  switch (m_kind) {
     case BOOL:
-      return create(vm, cv.unwrap<BOOL>());
+      m_payload.boolean = cvalue.unwrap<BOOL>();
+      break;
     case INT:
-      return create(vm, cv.unwrap<INT>());
+      m_payload.integer = cvalue.unwrap<INT>();
+      break;
     case FLOAT:
-      return create(vm, cv.unwrap<FLOAT>());
-    case STRING: {
-      auto string = cv.unwrap<STRING>();
-      auto buffer = alloc.strdup(string.c_str());
-      return create(vm, buffer);
-    }
+      m_payload.float_ = cvalue.unwrap<FLOAT>();
+      break;
+    case STRING:
+      m_payload.string = cvalue.unwrap<STRING>();
+      break;
     default:
       break;
   }
-  UNREACHABLE();
+  VIA_PANIC();
 }
 
-bool via::Value::unref() noexcept {
+bool via::Value::release() {
   m_rc--;
   [[unlikely]] if (m_rc == 0) {
     free();
@@ -71,33 +45,60 @@ bool via::Value::unref() noexcept {
   return false;
 }
 
-void via::Value::free() noexcept {
+void via::Value::free() {
   switch (m_kind) {
     case STRING:
+      m_payload.string.~basic_string();
+      break;
     case FUNCTION:
-      m_vm->allocator().free(std::bit_cast<void*>(m_data));
+      m_payload.function.~Closure();
       break;
     default:
-      // Trivial types don't require explicit destruction
       break;
   }
-
-  m_kind = NIL;
+  m_kind = NONE;
 }
 
-via::Value* via::Value::clone() noexcept {
-  return create(m_vm, m_kind, m_data);
+via::Value* via::Value::clone() {
+  switch (m_kind) {
+    case NONE:
+      return m_vm.none.unwrap();
+    case BOOL:
+      return m_vm.value<BOOL>(m_payload.boolean);
+    case INT:
+      return m_vm.value<INT>(m_payload.integer);
+    case FLOAT:
+      return m_vm.value<FLOAT>(m_payload.float_);
+    case STRING:
+      return m_vm.value<STRING>(m_payload.string);
+    case FUNCTION:
+      return m_vm.value<FUNCTION>(m_payload.function);
+    default:
+      break;
+  }
+  VIA_PANIC();
 }
 
-std::string via::Value::to_string() const noexcept {
+bool via::Value::compare(const Value& other) const {
+  if (m_kind != other.m_kind) return false;
+  switch (m_kind) {
+    case NONE:
+      return true;
+    case BOOL:
+      return m_payload.boolean == other.m_payload.boolean;
+    case INT:
+      return m_payload.integer == other.m_payload.integer;
+    case FLOAT:
+      return m_payload.float_ == other.m_payload.float_;
+    case STRING:
+      return m_payload.string == other.m_payload.string;
+    default:
+      break;
+  }
+  VIA_PANIC();
+}
+
+std::string via::Value::to_string() const {
   return std::format("&{} {}({}) ", m_rc, via::to_string(m_kind),
                      as_c<STRING>());
-}
-
-via::Value* via::Value::create(VirtualMachine* vm, ValueKind kind, Union data) {
-  Value* ptr = vm->allocator().emplace<Value>();
-  ptr->m_kind = kind;
-  ptr->m_data = data;
-  ptr->m_vm = vm;
-  return ptr;
 }
