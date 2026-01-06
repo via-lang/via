@@ -1,0 +1,12 @@
+[package]
+name = "via-core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bumpalo = { workspace = true, features = ["collections"] }
+bitflags = { workspace = true }
+phf = { version = "0.13.1", features = ["macros"] }
+strum = { version = "0.27", features = ["derive"] }
+strum_macros = "0.27"
+unicode-ident = "1"
