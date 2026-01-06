@@ -33,6 +33,12 @@ pub struct While {
 }
 
 #[derive(Debug)]
+pub struct WhileNot {
+    pub cond: ExprRef,
+    pub body: Vec<StmtRef>,
+}
+
+#[derive(Debug)]
 pub struct For {
     pub init: Variable,
     pub cond: ExprRef,
@@ -54,6 +60,7 @@ pub enum Control {
     Return(Return),
     Raise(Raise),
     While(While),
+    WhileNot(WhileNot),
     For(For),
     ForEach(ForEach),
 }

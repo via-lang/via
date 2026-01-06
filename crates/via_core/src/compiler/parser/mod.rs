@@ -186,6 +186,22 @@ impl Parser<'_> {
         ))
     }
 
+    fn parse_control_whilenot(&mut self) -> Result<(Span, control::WhileNot), Error> {
+        let first = self
+            .expect_consume(TokenKind::KwWhilex, "parsing while-not statement")?
+            .span;
+        let cond = self.parse_expr_ref()?;
+        let body = self.parse_body()?;
+
+        Ok((
+            span![first.begin, body.0.end],
+            control::WhileNot {
+                cond: cond,
+                body: body.1,
+            },
+        ))
+    }
+
     fn parse_control_for(&mut self) -> Result<(Span, control::For), Error> {
         let first = self
             .expect_consume(TokenKind::KwWhile, "parsing for statement")?
@@ -254,7 +270,10 @@ impl Parser<'_> {
                     .map(|(span, raise)| (span, Control::Raise(raise))),
                 TokenKind::KwWhile => self
                     .parse_control_while()
-                    .map(|(span, ret)| (span, Control::While(ret))),
+                    .map(|(span, whil)| (span, Control::While(whil))),
+                TokenKind::KwWhilex => self
+                    .parse_control_whilenot()
+                    .map(|(span, whilex)| (span, Control::WhileNot(whilex))),
                 TokenKind::KwFor if self.check_ahead(TokenKind::KwVar, 1) => self
                     .parse_control_foreach()
                     .map(|(span, foreach)| (span, Control::ForEach(foreach))),
@@ -409,6 +428,7 @@ impl Parser<'_> {
                 | TokenKind::KwReturn
                 | TokenKind::KwRaise
                 | TokenKind::KwWhile
+                | TokenKind::KwWhilex
                 | TokenKind::KwFor => self.parse_control().map(|(span, ctrl)| Stmt {
                     span: span,
                     kind: StmtKind::Control(ctrl),

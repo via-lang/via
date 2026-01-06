@@ -1,9 +1,9 @@
 [workspace]
 resolver = "1"
 members = [
-    "crates/via-core",
-    "crates/via-lib",
-    "crates/via-cli",
+    "crates/via_core",
+    "crates/via_lib",
+    "crates/via_cli",
 ]
 
 [workspace.dependencies]
