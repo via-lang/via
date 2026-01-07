@@ -9,23 +9,24 @@
 
 mod error;
 
-use crate::compiler::{
-    ast::{
-        control::{self, Control},
-        decl::{self, Decl},
-        expr::{Expr, ExprKind, ExprRef},
-        place::{self, Place},
-        stmt::{Stmt, StmtKind, StmtRef},
-        tree::Tree,
-        typ::{Type, TypeRef},
-        value::{self, Value},
+use crate::{
+    compiler::{
+        ast::{
+            control::{self, Control},
+            decl::{self, Decl},
+            expr::{Expr, ExprKind, ExprRef},
+            place::{self, Place},
+            stmt::{Stmt, StmtKind, StmtRef},
+            tree::Tree,
+            typ::{Type, TypeRef},
+            value::{self, Value},
+        },
+        lexer::token::{Token, TokenKind},
+        parser::error::Error,
+        source::*,
     },
-    lexer::token::{Token, TokenKind},
-    macros::*,
-    parser::error::Error,
-    source::*,
+    support::macros::bug,
 };
-use bumpalo::Bump;
 
 pub struct Parser<'m> {
     source: &'m Source,
@@ -170,6 +171,44 @@ impl Parser<'_> {
         Ok((span![first.begin, last.end], control::Raise { expr: expr }))
     }
 
+    fn parse_control_if(&mut self) -> Result<(Span, control::If), Error> {
+        let first = self
+            .expect_consume(TokenKind::KwIf, "parsing if statement")?
+            .span;
+        let cond = self.parse_expr_ref()?;
+        let body = self.parse_body()?;
+        let mut last = body.0;
+        let mut elifs: Vec<(ExprRef, Vec<StmtRef>)> = vec![];
+
+        while self.check(TokenKind::KwElse) && self.check_ahead(TokenKind::KwIf, 1) {
+            self.consume()?;
+            self.consume()?;
+            let cond = self.parse_expr_ref()?;
+            let body = self.parse_body()?;
+            elifs.push((cond, body.1));
+            last = body.0;
+        }
+
+        let els = if self.check(TokenKind::KwElse) {
+            self.consume()?;
+            let body = self.parse_body()?;
+            last = body.0;
+            Some(body.1)
+        } else {
+            None
+        };
+
+        Ok((
+            span![first.begin, last.end],
+            control::If {
+                cond: cond,
+                body: body.1,
+                elifs: elifs,
+                els: els,
+            },
+        ))
+    }
+
     fn parse_control_while(&mut self) -> Result<(Span, control::While), Error> {
         let first = self
             .expect_consume(TokenKind::KwWhile, "parsing while statement")?
@@ -294,7 +333,7 @@ impl Parser<'_> {
         let first = self
             .expect_consume(TokenKind::KwVar, "parsing variable declaration")?
             .span;
-        let symbol = self.expect_consume(TokenKind::Identifier, "parsing variableiable name")?;
+        let symbol = self.expect_consume(TokenKind::Identifier, "parsing variable name")?;
         let typ: Option<TypeRef> = if self.check(TokenKind::Colon) {
             self.consume()?;
             Some(self.parse_type_ref()?)
@@ -325,20 +364,29 @@ impl Parser<'_> {
         self.expect_consume(TokenKind::ParenOpen, "parsing function parameter list")?;
 
         let mut params: Vec<(Token, TypeRef)> = vec![];
-        while !self.check(TokenKind::ParenClose) {
-            if params.len() != 0 {
-                self.expect_consume(TokenKind::Comma, "terminating function parameter")?;
-            }
+        loop {
             let symbol =
                 self.expect_consume(TokenKind::Identifier, "parsing function parameter name")?;
             self.expect_consume(TokenKind::Colon, "parsing function parameter type")?;
-            params.push((symbol, self.parse_type_ref()?));
+            let typ = self.parse_type_ref()?;
+            params.push((symbol, typ));
+
+            if self.check(TokenKind::Comma) {
+                self.consume()?;
+            } else {
+                break;
+            }
         }
 
         self.expect_consume(TokenKind::ParenClose, "terminating function parameter list")?;
-        self.expect_consume(TokenKind::Arrow, "parsing function return type")?;
 
-        let result = self.parse_type_ref()?;
+        let result = if self.check(TokenKind::Arrow) {
+            self.consume()?;
+            Some(self.parse_type_ref()?)
+        } else {
+            None
+        };
+
         let body = self.parse_body()?;
 
         Ok((

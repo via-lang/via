@@ -11,10 +11,10 @@ use super::{decl::Variable, expr::ExprRef, stmt::StmtRef, typ::TypeRef};
 use crate::compiler::lexer::token::Token;
 
 #[derive(Debug)]
-pub struct Break {}
+pub struct Break;
 
 #[derive(Debug)]
-pub struct Continue {}
+pub struct Continue;
 
 #[derive(Debug)]
 pub struct Return {
@@ -24,6 +24,14 @@ pub struct Return {
 #[derive(Debug)]
 pub struct Raise {
     pub expr: ExprRef,
+}
+
+#[derive(Debug)]
+pub struct If {
+    pub cond: ExprRef,
+    pub body: Vec<StmtRef>,
+    pub elifs: Vec<(ExprRef, Vec<StmtRef>)>,
+    pub els: Option<Vec<StmtRef>>,
 }
 
 #[derive(Debug)]
@@ -59,6 +67,7 @@ pub enum Control {
     Continue(Continue),
     Return(Return),
     Raise(Raise),
+    If(If),
     While(While),
     WhileNot(WhileNot),
     For(For),

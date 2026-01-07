@@ -21,7 +21,7 @@ pub struct Variable {
 pub struct Function {
     pub symbol: Token,
     pub params: Vec<(Token, TypeRef)>,
-    pub result: TypeRef,
+    pub result: Option<TypeRef>,
     pub body: Vec<StmtRef>,
 }
 
