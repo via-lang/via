@@ -1,9 +1,0 @@
-[submodule "thirdparty/argvx"]
-	path = thirdparty/argvx
-	url = https://github.com/XnLogicaL/argvx.git
-[submodule "thirdparty/mimalloc"]
-	path = thirdparty/mimalloc
-	url = https://github.com/microsoft/mimalloc.git
-[submodule "thirdparty/Catch2"]
-	path = thirdparty/Catch2
-	url = https://github.com/catchorg/Catch2.git
