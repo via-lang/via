@@ -11,7 +11,6 @@ pub(crate) mod ast;
 pub(crate) mod bytecode;
 pub(crate) mod ir;
 pub(crate) mod lexer;
-pub(super) mod macros;
 pub(crate) mod parser;
 pub(crate) mod sema;
 pub(crate) mod source;
