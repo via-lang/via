@@ -27,4 +27,4 @@ macro_rules! bug {
     };
 }
 
-pub(super) use bug;
+pub(crate) use bug;
