@@ -11,7 +11,7 @@ use super::expr::ExprRef;
 
 #[derive(Debug)]
 pub enum Attr {
-    // Use
+    // Type
     Strong,
     // Struct
     Public,
@@ -19,6 +19,4 @@ pub enum Attr {
     ReadOnly,
     // Control flow
     Fallthrough,
-    // Meta
-    Multi(Vec<Attr>),
 }
