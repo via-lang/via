@@ -140,14 +140,22 @@ impl<'m> Lexer<'m> {
 
     fn read_operator(&mut self) -> Token {
         let begin = self.position;
-        let rest = &self.source.0[(begin as usize)..];
+        let rest = &self.source.0[begin as usize..];
 
-        for op in SYMBOLS.into_iter() {
-            if rest.starts_with(op.0) {
-                let end = begin + (op.0.len() as u32);
-                self.position = end;
-                return Token::new(op.1.clone(), span![begin, self.position]);
+        let mut best: Option<(&str, TokenKind)> = None;
+
+        for (lexeme, kind) in SYMBOLS.into_iter() {
+            if rest.starts_with(*lexeme) {
+                match best {
+                    Some((best_lexeme, _)) if best_lexeme.len() >= lexeme.len() => {}
+                    _ => best = Some((lexeme, kind.clone())),
+                }
             }
+        }
+
+        if let Some((lexeme, kind)) = best {
+            self.position += lexeme.len() as u32;
+            return Token::new(kind, span![begin, self.position]);
         }
 
         self.position += 1;
