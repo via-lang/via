@@ -8,10 +8,7 @@
 ** ================================================ */
 
 use super::expr::Expr;
-use crate::compiler::{
-    lexer::token::Token,
-    source::{Span, span},
-};
+use crate::compiler::{lexer::token::Token, source::Span};
 
 #[derive(Debug)]
 pub enum Place {

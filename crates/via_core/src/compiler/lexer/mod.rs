@@ -23,8 +23,11 @@ pub struct Lexer<'m> {
 }
 
 impl<'m> Lexer<'m> {
-    fn lexeme_from(&self, begin: u32) -> &'m str {
-        &self.source.0[(begin as usize)..(self.position as usize)]
+    pub fn new(src: &'m Source) -> Self {
+        Self {
+            source: src,
+            position: 0,
+        }
     }
 
     fn peek(&self) -> Option<char> {
@@ -37,6 +40,7 @@ impl<'m> Lexer<'m> {
             .nth(ahead as usize)
     }
 
+    #[allow(dead_code)]
     fn check(&self, ch: char) -> bool {
         self.peek().is_some_and(|c| c == ch)
     }

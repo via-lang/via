@@ -7,10 +7,10 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-pub(crate) mod ast;
-pub(crate) mod bytecode;
-pub(crate) mod ir;
-pub(crate) mod lexer;
-pub(crate) mod parser;
-pub(crate) mod sema;
-pub(crate) mod source;
+pub mod ast;
+pub mod bytecode;
+pub mod ir;
+pub mod lexer;
+pub mod parser;
+pub mod sema;
+pub mod source;

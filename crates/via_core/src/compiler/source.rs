@@ -42,6 +42,10 @@ impl fmt::Display for Span {
 pub struct Source(pub String);
 
 impl Source {
+    pub fn new(src: String) -> Self {
+        Self(src)
+    }
+
     pub fn slice(&self, span: Span) -> &str {
         let begin = span.begin as usize;
         let end = span.end as usize;

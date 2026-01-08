@@ -9,30 +9,28 @@
 
 mod error;
 
-use crate::{
-    compiler::{
-        ast::{
-            control::Control, decl::Decl, expr::Expr, place::Place, stmt::Stmt, typ::Type,
-            value::Value,
-        },
-        lexer::token::{Token, TokenKind},
-        parser::error::Error,
-        source::*,
+use crate::compiler::{
+    ast::{
+        control::Control, decl::Decl, expr::Expr, place::Place, stmt::Stmt, typ::Type, value::Value,
     },
-    support::macros::bug,
+    lexer::token::{Token, TokenKind},
+    parser::error::Error,
+    source::*,
 };
 
 pub struct Parser<'m> {
-    source: &'m Source,
-    tokens: Vec<Token>,
+    tokens: &'m Vec<Token>,
     position: usize,
 }
 
-type ParseFn = fn(&mut Parser) -> Result<Vec<Stmt>, Error>;
+impl<'m> Parser<'m> {
+    pub fn new(tokens: &'m Vec<Token>) -> Self {
+        Self {
+            tokens: tokens,
+            position: 0,
+        }
+    }
 
-type ParseFn = fn(&mut Parser) -> Result<Vec<Stmt>, Error>;
-
-impl Parser<'_> {
     fn peek(&self) -> Result<Token, Error> {
         if let Some(tok) = self.tokens[self.position..].iter().next() {
             Ok(tok.clone())
@@ -63,6 +61,7 @@ impl Parser<'_> {
         self.peek_ahead(ahead).is_ok_and(|tok| tok.kind == kind)
     }
 
+    #[allow(dead_code)]
     fn expect(&self, kind: TokenKind, task: &'static str) -> Result<Token, Error> {
         let tok = self.peek()?;
         if tok.kind == kind {
@@ -155,6 +154,15 @@ impl Parser<'_> {
                     expr: Box::new(inner),
                 }))
             }
+            TokenKind::OpMinus | TokenKind::OpBang | TokenKind::OpAmp | TokenKind::OpTilde => {
+                self.consume()?;
+                let inner = self.parse_expr()?;
+                return Ok(Expr::Value(Value::Unary {
+                    span: span![tok.span.begin, inner.span().end],
+                    op: tok,
+                    expr: Box::new(inner),
+                }));
+            }
             _ => Err(Error::UnexpectedToken {
                 token: tok,
                 task: "parsing primary expression",
@@ -202,26 +210,8 @@ impl Parser<'_> {
         Ok(expr)
     }
 
-    fn parse_expr_unary(&mut self) -> Result<Expr, Error> {
-        if let Ok(tok) = self.peek() {
-            match tok.kind {
-                TokenKind::OpMinus | TokenKind::OpBang | TokenKind::OpAmp | TokenKind::OpTilde => {
-                    self.consume()?;
-                    let inner = self.parse_expr()?;
-                    return Ok(Expr::Value(Value::Unary {
-                        span: span![tok.span.begin, inner.span().end],
-                        op: tok,
-                        expr: Box::new(inner),
-                    }));
-                }
-                _ => {}
-            }
-        }
-        self.parse_expr_postfix()
-    }
-
     fn parse_expr_binary(&mut self, min_prec: u8) -> Result<Expr, Error> {
-        let mut lhs = self.parse_expr()?;
+        let mut lhs = self.parse_expr_postfix()?;
         loop {
             let op = match self.peek() {
                 Ok(tok) => tok,
@@ -229,8 +219,8 @@ impl Parser<'_> {
             };
 
             let prec = match op.kind.bin_prec() {
-                Some(prec) => prec,
-                None => break,
+                Some(prec) if prec >= min_prec => prec,
+                Some(_) | None => break,
             };
 
             self.consume()?;
@@ -410,6 +400,7 @@ impl Parser<'_> {
                     self.parse_control_foreach()
                 }
                 TokenKind::KwFor => self.parse_control_for(),
+                TokenKind::KwIf => self.parse_control_if(),
                 _ => Err(Error::UnexpectedToken {
                     token: token,
                     task: "parsing control statement",
@@ -547,7 +538,8 @@ impl Parser<'_> {
                 | TokenKind::KwRaise
                 | TokenKind::KwWhile
                 | TokenKind::KwWhilex
-                | TokenKind::KwFor => self.parse_control().map(|ctrl| Stmt::Control(ctrl)),
+                | TokenKind::KwFor
+                | TokenKind::KwIf => self.parse_control().map(|ctrl| Stmt::Control(ctrl)),
                 TokenKind::KwVar
                 | TokenKind::KwFn
                 | TokenKind::KwUse
