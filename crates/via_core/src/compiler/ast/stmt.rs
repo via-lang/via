@@ -7,22 +7,24 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::{control::Control, decl::Decl, expr::ExprRef};
+use super::{control::Control, decl::Decl, expr::Expr};
 use crate::compiler::source::Span;
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
-pub struct StmtRef(pub u32);
-
 #[derive(Debug)]
-pub struct Stmt {
-    pub span: Span,
-    pub kind: StmtKind,
-}
-
-#[derive(Debug)]
-pub enum StmtKind {
-    Empty,
+pub enum Stmt {
+    Empty(Span),
     Decl(Decl),
     Control(Control),
-    Expr(ExprRef),
+    Expr(Expr),
+}
+
+impl Stmt {
+    pub fn span(&self) -> &Span {
+        match self {
+            Self::Empty(span) => span,
+            Self::Decl(decl) => decl.span(),
+            Self::Control(ctrl) => ctrl.span(),
+            Self::Expr(expr) => expr.span(),
+        }
+    }
 }

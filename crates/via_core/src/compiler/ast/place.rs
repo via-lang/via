@@ -7,36 +7,44 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::expr::ExprRef;
-use crate::compiler::lexer::token::Token;
-
-#[derive(Debug)]
-pub struct Symbol {
-    pub token: Token,
-}
-
-#[derive(Debug)]
-pub struct Dynamic {
-    pub expr: ExprRef,
-    pub token: ExprRef,
-}
-
-#[derive(Debug)]
-pub struct Static {
-    pub expr: ExprRef,
-    pub token: Token,
-}
-
-#[derive(Debug)]
-pub struct Subscript {
-    pub expr: ExprRef,
-    pub index: ExprRef,
-}
+use super::expr::Expr;
+use crate::compiler::{
+    lexer::token::Token,
+    source::{Span, span},
+};
 
 #[derive(Debug)]
 pub enum Place {
-    Symbol(Symbol),
-    Dynamic(Dynamic),
-    Static(Static),
-    Subscript(Subscript),
+    This(Span),
+    Symbol {
+        span: Span,
+        token: Token,
+    },
+    Dynamic {
+        span: Span,
+        expr: Box<Expr>,
+        field: Token,
+    },
+    Static {
+        span: Span,
+        expr: Box<Expr>,
+        field: Token,
+    },
+    Subscript {
+        span: Span,
+        expr: Box<Expr>,
+        index: Box<Expr>,
+    },
+}
+
+impl Place {
+    pub fn span(&self) -> &Span {
+        match self {
+            Self::This(span) => span,
+            Self::Symbol { span, .. }
+            | Self::Dynamic { span, .. }
+            | Self::Static { span, .. }
+            | Self::Subscript { span, .. } => span,
+        }
+    }
 }

@@ -7,8 +7,6 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::expr::ExprRef;
-
 #[derive(Debug)]
 pub enum Attr {
     // Type

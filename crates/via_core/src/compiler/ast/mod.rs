@@ -13,6 +13,5 @@ pub(crate) mod decl;
 pub(crate) mod expr;
 pub(crate) mod place;
 pub(crate) mod stmt;
-pub(crate) mod tree;
 pub(crate) mod typ;
 pub(crate) mod value;

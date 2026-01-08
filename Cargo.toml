@@ -1,5 +1,5 @@
 [workspace]
-resolver = "1"
+edition = "2024"
 members = [
     "crates/via_core",
     "crates/via_lib",

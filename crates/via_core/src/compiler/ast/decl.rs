@@ -7,52 +7,54 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::{expr::ExprRef, stmt::StmtRef, typ::TypeRef};
-use crate::compiler::lexer::token::Token;
-
-#[derive(Debug)]
-pub struct Variable {
-    pub symbol: Token,
-    pub typ: Option<TypeRef>,
-    pub expr: ExprRef,
-}
-
-#[derive(Debug)]
-pub struct Function {
-    pub symbol: Token,
-    pub params: Vec<(Token, TypeRef)>,
-    pub result: Option<TypeRef>,
-    pub body: Vec<StmtRef>,
-}
-
-#[derive(Debug)]
-pub struct Use {
-    pub symbol: Token,
-}
-
-#[derive(Debug)]
-pub struct Type {
-    pub symbol: Token,
-    pub typ: TypeRef,
-}
-
-#[derive(Debug)]
-pub struct Const {
-    pub symbol: Token,
-    pub expr: ExprRef,
-}
-
-#[derive(Debug)]
-pub struct Struct {
-    pub symbol: Token,
-    pub fields: Vec<Decl>,
-}
+use super::{expr::Expr, stmt::Stmt, typ::Type};
+use crate::compiler::{lexer::token::Token, source::Span};
 
 #[derive(Debug)]
 pub enum Decl {
-    Variable(Variable),
-    Function(Function),
-    Use(Use),
-    Type(Type),
-    Const(Const),
+    Variable {
+        span: Span,
+        symbol: Token,
+        typ: Option<Box<Type>>,
+        expr: Box<Expr>,
+    },
+    Function {
+        span: Span,
+        symbol: Token,
+        params: Vec<(Token, Type)>,
+        result: Option<Box<Type>>,
+        body: Vec<Stmt>,
+    },
+    Use {
+        span: Span,
+        symbol: Token,
+    },
+    Type {
+        span: Span,
+        symbol: Token,
+        typ: Box<Type>,
+    },
+    Const {
+        span: Span,
+        symbol: Token,
+        expr: Box<Expr>,
+    },
+    Struct {
+        span: Span,
+        symbol: Token,
+        fields: Vec<Decl>,
+    },
+}
+
+impl Decl {
+    pub fn span(&self) -> &Span {
+        match self {
+            Self::Variable { span, .. }
+            | Self::Function { span, .. }
+            | Self::Use { span, .. }
+            | Self::Type { span, .. }
+            | Self::Const { span, .. }
+            | Self::Struct { span, .. } => span,
+        }
+    }
 }

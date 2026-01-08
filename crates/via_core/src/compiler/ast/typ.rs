@@ -7,7 +7,7 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::expr::ExprRef;
+use super::expr::Expr;
 use crate::compiler::source::Span;
 use strum::AsRefStr;
 
@@ -20,35 +20,45 @@ pub enum BuiltinKind {
     String,
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
-pub struct TypeRef(pub(super) u32);
-
 #[derive(Debug)]
-pub struct Type {
-    pub span: Span,
-    pub kind: TypeKind,
-}
-
-#[derive(Debug)]
-pub enum TypeKind {
+pub enum Type {
     Builtin {
+        span: Span,
         kind: BuiltinKind,
     },
     Optional {
-        typ: TypeRef,
+        span: Span,
+        typ: Box<Type>,
     },
     Array {
-        typ: TypeRef,
+        span: Span,
+        typ: Box<Type>,
     },
     Map {
-        key: TypeRef,
-        value: TypeRef,
+        span: Span,
+        key: Box<Type>,
+        value: Box<Type>,
     },
     Function {
-        params: Vec<TypeRef>,
-        result: TypeRef,
+        span: Span,
+        params: Vec<Type>,
+        result: Box<Type>,
     },
     TypeOf {
-        expr: ExprRef,
+        span: Span,
+        expr: Box<Expr>,
     },
+}
+
+impl Type {
+    pub fn span(&self) -> &Span {
+        match self {
+            Self::Builtin { span, .. }
+            | Self::Optional { span, .. }
+            | Self::Array { span, .. }
+            | Self::Map { span, .. }
+            | Self::Function { span, .. }
+            | Self::TypeOf { span, .. } => span,
+        }
+    }
 }

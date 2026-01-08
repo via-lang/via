@@ -10,17 +10,17 @@
 use super::{place::Place, value::Value};
 use crate::compiler::source::Span;
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
-pub struct ExprRef(pub(super) u32);
-
 #[derive(Debug)]
-pub struct Expr {
-    pub span: Span,
-    pub kind: ExprKind,
-}
-
-#[derive(Debug)]
-pub enum ExprKind {
+pub enum Expr {
     Place(Place),
     Value(Value),
+}
+
+impl Expr {
+    pub fn span(&self) -> &Span {
+        match self {
+            Self::Place(place) => place.span(),
+            Self::Value(value) => value.span(),
+        }
+    }
 }
