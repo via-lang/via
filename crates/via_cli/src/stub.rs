@@ -20,8 +20,8 @@ pub fn run(src: &str) -> Result<()> {
     let mut parser = Parser::new(&tokens);
     let ast = parser.parse();
 
-    println!("Tokens: {:?}", tokens);
-    println!("AST: {:?}", ast);
+    println!("Tokens: {:#?}", tokens);
+    println!("AST: {:#?}", ast);
     Ok(())
 }
 
