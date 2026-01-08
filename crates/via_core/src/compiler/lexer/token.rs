@@ -109,6 +109,29 @@ pub enum TokenKind {
     OpGtEq,
 }
 
+impl TokenKind {
+    pub fn bin_prec(&self) -> Option<u8> {
+        match &self {
+            TokenKind::OpPipePipe => Some(0),
+            TokenKind::OpAmpAmp => Some(1),
+            TokenKind::OpEqEq
+            | TokenKind::OpBangEq
+            | TokenKind::OpLt
+            | TokenKind::OpLtEq
+            | TokenKind::OpGt
+            | TokenKind::OpGtEq => Some(2),
+            TokenKind::OpAmp => Some(3),
+            TokenKind::OpCaret => Some(4),
+            TokenKind::OpPipe => Some(5),
+            TokenKind::OpShl | TokenKind::OpShr => Some(6),
+            TokenKind::OpPlus | TokenKind::OpMinus => Some(7),
+            TokenKind::OpStar | TokenKind::OpSlash | TokenKind::OpPercent => Some(8),
+            TokenKind::OpStarStar => Some(9),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Token {
     pub kind: TokenKind,
