@@ -28,6 +28,9 @@ pub enum Value {
         span: Span,
         expr: Box<Expr>,
     },
+    None(Span),
+    True(Span),
+    False(Span),
     Constant {
         span: Span,
         token: Token,
@@ -88,6 +91,9 @@ impl Value {
     pub fn span(&self) -> &Span {
         match self {
             Value::Group { span, .. }
+            | Value::None(span)
+            | Value::True(span)
+            | Value::False(span)
             | Value::Constant { span, .. }
             | Value::Tuple { span, .. }
             | Value::Array { span, .. }

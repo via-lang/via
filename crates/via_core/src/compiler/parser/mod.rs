@@ -136,6 +136,18 @@ impl<'m> Parser<'m> {
                 self.consume()?;
                 Ok(Expr::Place(Place::This(tok.span)))
             }
+            TokenKind::KwNone => {
+                self.consume()?;
+                Ok(Expr::Value(Value::None(tok.span)))
+            }
+            TokenKind::KwTrue => {
+                self.consume()?;
+                Ok(Expr::Value(Value::True(tok.span)))
+            }
+            TokenKind::KwFalse => {
+                self.consume()?;
+                Ok(Expr::Value(Value::False(tok.span)))
+            }
             TokenKind::LitInt | TokenKind::LitFloat | TokenKind::LitString => {
                 self.consume()?;
                 Ok(Expr::Value(Value::Constant {
@@ -545,6 +557,7 @@ impl<'m> Parser<'m> {
                 | TokenKind::KwUse
                 | TokenKind::KwType
                 | TokenKind::KwConst => self.parse_decl().map(|decl| Stmt::Decl(decl)),
+                _ if self.is_expr_start() => Ok(Stmt::Expr(self.parse_expr()?)),
                 _ => Err(Error::UnexpectedToken {
                     token: token,
                     task: "parsing statement",
