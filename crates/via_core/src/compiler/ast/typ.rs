@@ -8,6 +8,7 @@
 ** ================================================ */
 
 use super::expr::Expr;
+use super::macros::ast;
 use crate::compiler::source::Span;
 use strum::AsRefStr;
 
@@ -20,45 +21,46 @@ pub enum BuiltinKind {
     String,
 }
 
-#[derive(Debug)]
-pub enum Type {
-    Builtin {
-        span: Span,
-        kind: BuiltinKind,
-    },
-    Optional {
-        span: Span,
-        typ: Box<Type>,
-    },
-    Array {
-        span: Span,
-        typ: Box<Type>,
-    },
-    Map {
-        span: Span,
-        key: Box<Type>,
-        value: Box<Type>,
-    },
-    Function {
-        span: Span,
-        params: Vec<Type>,
-        result: Box<Type>,
-    },
-    TypeOf {
-        span: Span,
-        expr: Box<Expr>,
-    },
+ast! {
+    pub enum Type {
+        Builtin {
+            span: Span,
+            kind: BuiltinKind,
+        },
+        Optional {
+            span: Span,
+            typ: Box<Type>,
+        },
+        Array {
+            span: Span,
+            typ: Box<Type>,
+        },
+        Map {
+            span: Span,
+            key: Box<Type>,
+            value: Box<Type>,
+        },
+        Function {
+            span: Span,
+            params: Vec<Type>,
+            result: Box<Type>,
+        },
+        TypeOf {
+            span: Span,
+            expr: Box<Expr>,
+        },
+    }
 }
 
 impl Type {
     pub fn span(&self) -> &Span {
         match self {
-            Self::Builtin { span, .. }
-            | Self::Optional { span, .. }
-            | Self::Array { span, .. }
-            | Self::Map { span, .. }
-            | Self::Function { span, .. }
-            | Self::TypeOf { span, .. } => span,
+            Self::Builtin(t) => &t.span,
+            Self::Optional(t) => &t.span,
+            Self::Array(t) => &t.span,
+            Self::Map(t) => &t.span,
+            Self::Function(t) => &t.span,
+            Self::TypeOf(t) => &t.span,
         }
     }
 }

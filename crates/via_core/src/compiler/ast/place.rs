@@ -8,40 +8,42 @@
 ** ================================================ */
 
 use super::expr::Expr;
+use super::macros::ast;
 use crate::compiler::{lexer::token::Token, source::Span};
 
-#[derive(Debug)]
-pub enum Place {
-    This(Span),
-    Symbol {
-        span: Span,
-        token: Token,
-    },
-    Dynamic {
-        span: Span,
-        expr: Box<Expr>,
-        field: Token,
-    },
-    Static {
-        span: Span,
-        expr: Box<Expr>,
-        field: Token,
-    },
-    Subscript {
-        span: Span,
-        expr: Box<Expr>,
-        index: Box<Expr>,
-    },
+ast! {
+    pub enum Place {
+        This { span: Span },
+        Symbol {
+            span: Span,
+            token: Token,
+        },
+        Dynamic {
+            span: Span,
+            expr: Box<Expr>,
+            field: Token,
+        },
+        Static {
+            span: Span,
+            expr: Box<Expr>,
+            field: Token,
+        },
+        Subscript {
+            span: Span,
+            expr: Box<Expr>,
+            index: Box<Expr>,
+        },
+    }
 }
 
 impl Place {
     pub fn span(&self) -> &Span {
         match self {
-            Self::This(span) => span,
-            Self::Symbol { span, .. }
-            | Self::Dynamic { span, .. }
-            | Self::Static { span, .. }
-            | Self::Subscript { span, .. } => span,
+            Self::This(p) => &p.span,
+            Self::Symbol(p) => &p.span,
+            Self::Dynamic(p) => &p.span,
+            Self::Static(p) => &p.span,
+            Self::Subscript(p) => &p.span,
         }
     }
 }

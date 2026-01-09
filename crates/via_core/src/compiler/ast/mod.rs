@@ -11,6 +11,7 @@ pub(crate) mod attr;
 pub(crate) mod control;
 pub(crate) mod decl;
 pub(crate) mod expr;
+pub(crate) mod macros;
 pub(crate) mod place;
 pub(crate) mod stmt;
 pub(crate) mod typ;

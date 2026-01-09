@@ -11,7 +11,13 @@ mod error;
 
 use crate::compiler::{
     ast::{
-        control::Control, decl::Decl, expr::Expr, place::Place, stmt::Stmt, typ::Type, value::Value,
+        control::{self, Control},
+        decl::{self, Decl},
+        expr::Expr,
+        place,
+        stmt::Stmt,
+        typ::{self, Type},
+        value,
     },
     lexer::token::{Token, TokenKind},
     parser::error::Error,
@@ -128,33 +134,39 @@ impl<'m> Parser<'m> {
         match tok.kind {
             TokenKind::Identifier => {
                 self.consume()?;
-                Ok(Expr::Place(Place::Symbol {
-                    span: tok.span,
-                    token: tok,
-                }))
+                Ok(Expr::Place(
+                    place::Symbol {
+                        span: tok.span,
+                        token: tok,
+                    }
+                    .into(),
+                ))
             }
             TokenKind::KwSelf => {
                 self.consume()?;
-                Ok(Expr::Place(Place::This(tok.span)))
+                Ok(Expr::Place(place::This { span: tok.span }.into()))
             }
             TokenKind::KwNone => {
                 self.consume()?;
-                Ok(Expr::Value(Value::None(tok.span)))
+                Ok(Expr::Value(value::None { span: tok.span }.into()))
             }
             TokenKind::KwTrue => {
                 self.consume()?;
-                Ok(Expr::Value(Value::True(tok.span)))
+                Ok(Expr::Value(value::True { span: tok.span }.into()))
             }
             TokenKind::KwFalse => {
                 self.consume()?;
-                Ok(Expr::Value(Value::False(tok.span)))
+                Ok(Expr::Value(value::False { span: tok.span }.into()))
             }
             TokenKind::LitInt | TokenKind::LitFloat | TokenKind::LitString => {
                 self.consume()?;
-                Ok(Expr::Value(Value::Constant {
-                    span: tok.span,
-                    token: tok,
-                }))
+                Ok(Expr::Value(
+                    value::Constant {
+                        span: tok.span,
+                        token: tok,
+                    }
+                    .into(),
+                ))
             }
             TokenKind::ParenOpen => {
                 let first = self.consume()?;
@@ -162,19 +174,25 @@ impl<'m> Parser<'m> {
                 let last =
                     self.expect_consume(TokenKind::ParenClose, "terminating group expression")?;
 
-                Ok(Expr::Value(Value::Group {
-                    span: span![first.span.begin, last.span.end],
-                    expr: Box::new(inner),
-                }))
+                Ok(Expr::Value(
+                    value::Group {
+                        span: span![first.span.begin, last.span.end],
+                        expr: Box::new(inner),
+                    }
+                    .into(),
+                ))
             }
             TokenKind::OpMinus | TokenKind::OpBang | TokenKind::OpAmp | TokenKind::OpTilde => {
                 self.consume()?;
                 let inner = self.parse_expr()?;
-                return Ok(Expr::Value(Value::Unary {
-                    span: span![tok.span.begin, inner.span().end],
-                    op: tok,
-                    expr: Box::new(inner),
-                }));
+                return Ok(Expr::Value(
+                    value::Unary {
+                        span: span![tok.span.begin, inner.span().end],
+                        op: tok,
+                        expr: Box::new(inner),
+                    }
+                    .into(),
+                ));
             }
             _ => Err(Error::UnexpectedToken {
                 token: tok,
@@ -195,11 +213,14 @@ impl<'m> Parser<'m> {
                             "parsing dynamic access expression field",
                         )?;
 
-                        expr = Expr::Place(Place::Dynamic {
-                            span: span![tok.span.begin, field.span.end],
-                            expr: Box::new(expr),
-                            field: field,
-                        });
+                        expr = Expr::Place(
+                            place::Dynamic {
+                                span: span![tok.span.begin, field.span.end],
+                                expr: Box::new(expr),
+                                field: field,
+                            }
+                            .into(),
+                        );
                     }
                     TokenKind::BracketOpen => {
                         self.consume()?;
@@ -209,11 +230,14 @@ impl<'m> Parser<'m> {
                             "terminating subscript expression",
                         )?;
 
-                        expr = Expr::Place(Place::Subscript {
-                            span: span![tok.span.begin, last.span.end],
-                            expr: Box::new(expr),
-                            index: Box::new(index),
-                        });
+                        expr = Expr::Place(
+                            place::Subscript {
+                                span: span![tok.span.begin, last.span.end],
+                                expr: Box::new(expr),
+                                index: Box::new(index),
+                            }
+                            .into(),
+                        );
                     }
                     _ => {}
                 }
@@ -239,12 +263,15 @@ impl<'m> Parser<'m> {
             self.consume()?;
             let rhs = self.parse_expr_binary(prec + 1)?;
 
-            lhs = Expr::Value(Value::Binary {
-                span: span![lhs.span().begin, rhs.span().end],
-                op,
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            });
+            lhs = Expr::Value(
+                value::Binary {
+                    span: span![lhs.span().begin, rhs.span().end],
+                    op,
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                }
+                .into(),
+            );
         }
         Ok(lhs)
     }
@@ -257,7 +284,7 @@ impl<'m> Parser<'m> {
         todo!()
     }
 
-    fn parse_control_return(&mut self) -> Result<Control, Error> {
+    fn parse_control_return(&mut self) -> Result<control::Return, Error> {
         let first = self.expect_consume(TokenKind::KwReturn, "parsing return statement")?;
         let expr = if self.is_expr_start() {
             Some(self.parse_expr()?)
@@ -265,7 +292,7 @@ impl<'m> Parser<'m> {
             None
         };
 
-        Ok(Control::Return {
+        Ok(control::Return {
             span: span![
                 first.span.begin,
                 match &expr {
@@ -277,19 +304,19 @@ impl<'m> Parser<'m> {
         })
     }
 
-    fn parse_control_raise(&mut self) -> Result<Control, Error> {
+    fn parse_control_raise(&mut self) -> Result<control::Raise, Error> {
         let first = self
             .expect_consume(TokenKind::KwRaise, "parsing raise statement")?
             .span;
         let expr = self.parse_expr()?;
 
-        Ok(Control::Raise {
+        Ok(control::Raise {
             span: span![first.begin, expr.span().end],
             expr: Box::new(expr),
         })
     }
 
-    fn parse_control_if(&mut self) -> Result<Control, Error> {
+    fn parse_control_if(&mut self) -> Result<control::If, Error> {
         let first = self
             .expect_consume(TokenKind::KwIf, "parsing if statement")?
             .span;
@@ -316,7 +343,7 @@ impl<'m> Parser<'m> {
             None
         };
 
-        Ok(Control::If {
+        Ok(control::If {
             span: span![first.begin, last.end],
             cond: Box::new(cond),
             body: body.1,
@@ -325,35 +352,35 @@ impl<'m> Parser<'m> {
         })
     }
 
-    fn parse_control_while(&mut self) -> Result<Control, Error> {
+    fn parse_control_while(&mut self) -> Result<control::While, Error> {
         let first = self
             .expect_consume(TokenKind::KwWhile, "parsing while statement")?
             .span;
         let cond = self.parse_expr()?;
         let body = self.parse_body()?;
 
-        Ok(Control::While {
+        Ok(control::While {
             span: span![first.begin, body.0.end],
             cond: Box::new(cond),
             body: body.1,
         })
     }
 
-    fn parse_control_whilenot(&mut self) -> Result<Control, Error> {
+    fn parse_control_whilenot(&mut self) -> Result<control::WhileNot, Error> {
         let first = self
             .expect_consume(TokenKind::KwWhilex, "parsing while-not statement")?
             .span;
         let cond = self.parse_expr()?;
         let body = self.parse_body()?;
 
-        Ok(Control::WhileNot {
+        Ok(control::WhileNot {
             span: span![first.begin, body.0.end],
             cond: Box::new(cond),
             body: body.1,
         })
     }
 
-    fn parse_control_for(&mut self) -> Result<Control, Error> {
+    fn parse_control_for(&mut self) -> Result<control::For, Error> {
         let first = self
             .expect_consume(TokenKind::KwWhile, "parsing for statement")?
             .span;
@@ -366,7 +393,7 @@ impl<'m> Parser<'m> {
         let action = self.parse_expr()?;
         let body = self.parse_body()?;
 
-        Ok(Control::For {
+        Ok(control::For {
             span: span![first.begin, body.0.end],
             // init: init.1,
             cond: Box::new(cond),
@@ -375,7 +402,7 @@ impl<'m> Parser<'m> {
         })
     }
 
-    fn parse_control_foreach(&mut self) -> Result<Control, Error> {
+    fn parse_control_foreach(&mut self) -> Result<control::ForEach, Error> {
         let first = self
             .expect_consume(TokenKind::KwWhile, "parsing for each statement")?
             .span;
@@ -392,7 +419,7 @@ impl<'m> Parser<'m> {
         let expr = self.parse_expr()?;
         let body = self.parse_body()?;
 
-        Ok(Control::ForEach {
+        Ok(control::ForEach {
             span: span![first.begin, body.0.end],
             param: (param, typ.map(Box::new)),
             expr: Box::new(expr),
@@ -403,17 +430,21 @@ impl<'m> Parser<'m> {
     fn parse_control(&mut self) -> Result<Control, Error> {
         if let Ok(token) = self.peek() {
             match token.kind {
-                TokenKind::KwBreak => self.consume().map(|token| Control::Break(token.span)),
-                TokenKind::KwContinue => self.consume().map(|token| Control::Continue(token.span)),
-                TokenKind::KwReturn => self.parse_control_return(),
-                TokenKind::KwRaise => self.parse_control_raise(),
-                TokenKind::KwWhile => self.parse_control_while(),
-                TokenKind::KwWhilex => self.parse_control_whilenot(),
+                TokenKind::KwBreak => self
+                    .consume()
+                    .map(|token| control::Break { span: token.span }.into()),
+                TokenKind::KwContinue => self
+                    .consume()
+                    .map(|token| control::Continue { span: token.span }.into()),
+                TokenKind::KwReturn => self.parse_control_return().map(Into::into),
+                TokenKind::KwRaise => self.parse_control_raise().map(Into::into),
+                TokenKind::KwWhile => self.parse_control_while().map(Into::into),
+                TokenKind::KwWhilex => self.parse_control_whilenot().map(Into::into),
                 TokenKind::KwFor if self.check_ahead(TokenKind::KwVar, 1) => {
-                    self.parse_control_foreach()
+                    self.parse_control_foreach().map(Into::into)
                 }
-                TokenKind::KwFor => self.parse_control_for(),
-                TokenKind::KwIf => self.parse_control_if(),
+                TokenKind::KwFor => self.parse_control_for().map(Into::into),
+                TokenKind::KwIf => self.parse_control_if().map(Into::into),
                 _ => Err(Error::UnexpectedToken {
                     token: token,
                     task: "parsing control statement",
@@ -424,7 +455,7 @@ impl<'m> Parser<'m> {
         }
     }
 
-    fn parse_decl_variable(&mut self) -> Result<Decl, Error> {
+    fn parse_decl_variable(&mut self) -> Result<decl::Variable, Error> {
         let first = self
             .expect_consume(TokenKind::KwVar, "parsing variable declaration")?
             .span;
@@ -440,7 +471,7 @@ impl<'m> Parser<'m> {
 
         let expr = self.parse_expr()?;
 
-        Ok(Decl::Variable {
+        Ok(decl::Variable {
             span: span![first.begin, expr.span().end],
             symbol: symbol,
             typ: typ.map(Box::new),
@@ -448,7 +479,7 @@ impl<'m> Parser<'m> {
         })
     }
 
-    fn parse_decl_function(&mut self) -> Result<Decl, Error> {
+    fn parse_decl_function(&mut self) -> Result<decl::Function, Error> {
         let first = self
             .expect_consume(TokenKind::KwFn, "parsing function declaration")?
             .span;
@@ -481,7 +512,7 @@ impl<'m> Parser<'m> {
 
         let body = self.parse_body()?;
 
-        Ok(Decl::Function {
+        Ok(decl::Function {
             span: span![first.begin, body.0.end],
             symbol: symbol,
             params: params,
@@ -490,11 +521,11 @@ impl<'m> Parser<'m> {
         })
     }
 
-    fn parse_decl_use(&mut self) -> Result<Decl, Error> {
+    fn parse_decl_use(&mut self) -> Result<decl::Use, Error> {
         todo!()
     }
 
-    fn parse_decl_type(&mut self) -> Result<Decl, Error> {
+    fn parse_decl_type(&mut self) -> Result<decl::Type, Error> {
         let begin = self.expect_consume(TokenKind::KwType, "parsing type declaration")?;
         let symbol = self.expect_consume(TokenKind::Identifier, "parsing type name")?;
 
@@ -502,14 +533,14 @@ impl<'m> Parser<'m> {
 
         let typ = self.parse_type()?;
 
-        Ok(Decl::Type {
+        Ok(decl::Type {
             span: span![begin.span.begin, typ.span().end],
             symbol: symbol,
             typ: Box::new(typ),
         })
     }
 
-    fn parse_decl_const(&mut self) -> Result<Decl, Error> {
+    fn parse_decl_const(&mut self) -> Result<decl::Const, Error> {
         let begin = self.expect_consume(TokenKind::KwConst, "parsing constant declaration")?;
         let symbol = self.expect_consume(TokenKind::Identifier, "parsing constant name")?;
 
@@ -517,18 +548,35 @@ impl<'m> Parser<'m> {
 
         let expr = self.parse_expr()?;
 
-        Ok(Decl::Const {
+        Ok(decl::Const {
             span: span![begin.span.begin, expr.span().end],
             symbol: symbol,
             expr: Box::new(expr),
         })
     }
 
-    fn parse_decl_struct(&mut self) -> Result<Decl, Error> {
-        todo!()
+    fn parse_decl_struct(&mut self) -> Result<decl::Struct, Error> {
+        let first = self.expect_consume(TokenKind::KwStruct, "parsing struct declaration")?;
+        let symbol = self.expect_consume(TokenKind::Identifier, "parsing struct name")?;
+
+        self.expect_consume(TokenKind::BraceOpen, "parsing struct body")?;
+
+        let mut fields: Vec<(Token, Type, Option<Expr>)> = vec![];
+        //let mut
+
+        while !self.check(TokenKind::BraceClose) {}
+
+        let last = self.expect_consume(TokenKind::BraceClose, "terminating struct body")?;
+
+        Ok(decl::Struct {
+            span: span![first.span.begin, last.span.end],
+            symbol,
+            fields,
+            methods: vec![],
+        })
     }
 
-    fn parse_decl_import(&mut self) -> Result<Decl, Error> {
+    fn parse_decl_import(&mut self) -> Result<decl::Import, Error> {
         let first = self.expect_consume(TokenKind::KwImport, "parsing import statement")?;
         let mut path: Vec<Token> =
             vec![self.expect_consume(TokenKind::Identifier, "parsing import path")?];
@@ -546,7 +594,7 @@ impl<'m> Parser<'m> {
             None
         };
 
-        Ok(Decl::Import {
+        Ok(decl::Import {
             span: span![
                 first.span.begin,
                 alias
@@ -566,13 +614,13 @@ impl<'m> Parser<'m> {
     fn parse_decl(&mut self) -> Result<Decl, Error> {
         if let Ok(token) = self.peek() {
             match token.kind {
-                TokenKind::KwVar => self.parse_decl_variable(),
-                TokenKind::KwFn => self.parse_decl_function(),
-                TokenKind::KwUse => self.parse_decl_use(),
-                TokenKind::KwType => self.parse_decl_type(),
-                TokenKind::KwConst => self.parse_decl_const(),
-                TokenKind::KwStruct => self.parse_decl_struct(),
-                TokenKind::KwImport => self.parse_decl_import(),
+                TokenKind::KwVar => self.parse_decl_variable().map(Into::into),
+                TokenKind::KwFn => self.parse_decl_function().map(Into::into),
+                TokenKind::KwUse => self.parse_decl_use().map(Into::into),
+                TokenKind::KwType => self.parse_decl_type().map(Into::into),
+                TokenKind::KwConst => self.parse_decl_const().map(Into::into),
+                TokenKind::KwStruct => self.parse_decl_struct().map(Into::into),
+                TokenKind::KwImport => self.parse_decl_import().map(Into::into),
                 _ => Err(Error::UnexpectedToken {
                     token: token,
                     task: "parsing declaration statement",

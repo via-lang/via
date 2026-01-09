@@ -7,7 +7,9 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::{attr::Attr, expr::Expr, place::Place, stmt::Stmt, typ::Type};
+use super::attr;
+use super::macros::ast;
+use super::{expr::Expr, place::Place, stmt::Stmt, typ::Type};
 use crate::compiler::{lexer::token::Token, source::Span};
 use bitflags::bitflags;
 
@@ -22,90 +24,91 @@ bitflags! {
     }
 }
 
-#[derive(Debug)]
-pub enum Value {
-    Group {
-        span: Span,
-        expr: Box<Expr>,
-    },
-    None(Span),
-    True(Span),
-    False(Span),
-    Constant {
-        span: Span,
-        token: Token,
-    },
-    Tuple {
-        span: Span,
-        exprs: Vec<Expr>,
-    },
-    Array {
-        span: Span,
-        exprs: Vec<Expr>,
-    },
-    Map {
-        span: Span,
-        pairs: Vec<(Expr, Expr)>,
-    },
-    Lambda {
-        span: Span,
-        params: Vec<(Token, Type)>,
-        result: Option<Box<Expr>>,
-        body: Vec<Stmt>,
-    },
-    Unary {
-        span: Span,
-        op: Token,
-        expr: Box<Expr>,
-    },
-    Binary {
-        span: Span,
-        op: Token,
-        lhs: Box<Expr>,
-        rhs: Box<Expr>,
-    },
-    Reference {
-        span: Span,
-        flags: ReferenceFlags,
-        expr: Box<Expr>,
-    },
-    Ternary {
-        span: Span,
-        cond: Box<Expr>,
-        iftrue: Box<Expr>,
-        iffalse: Box<Expr>,
-    },
-    Cast {
-        span: Span,
-        expr: Box<Expr>,
-        typ: Box<Type>,
-    },
-    Attr {
-        span: Span,
-        attr: Attr,
-    },
-    Read(Place),
+ast! {
+    pub enum Value {
+        Group {
+            span: Span,
+            expr: Box<Expr>,
+        },
+        None { span: Span },
+        True { span: Span },
+        False { span: Span },
+        Constant {
+            span: Span,
+            token: Token,
+        },
+        Tuple {
+            span: Span,
+            exprs: Vec<Expr>,
+        },
+        Array {
+            span: Span,
+            exprs: Vec<Expr>,
+        },
+        Map {
+            span: Span,
+            pairs: Vec<(Expr, Expr)>,
+        },
+        Lambda {
+            span: Span,
+            params: Vec<(Token, Type)>,
+            result: Option<Box<Expr>>,
+            body: Vec<Stmt>,
+        },
+        Unary {
+            span: Span,
+            op: Token,
+            expr: Box<Expr>,
+        },
+        Binary {
+            span: Span,
+            op: Token,
+            lhs: Box<Expr>,
+            rhs: Box<Expr>,
+        },
+        Reference {
+            span: Span,
+            flags: ReferenceFlags,
+            expr: Box<Expr>,
+        },
+        Ternary {
+            span: Span,
+            cond: Box<Expr>,
+            iftrue: Box<Expr>,
+            iffalse: Box<Expr>,
+        },
+        Cast {
+            span: Span,
+            expr: Box<Expr>,
+            typ: Box<Type>,
+        },
+        Attr {
+            span: Span,
+            attr: attr::Attr,
+        },
+        Read { place: Place },
+    }
 }
 
 impl Value {
     pub fn span(&self) -> &Span {
         match self {
-            Value::Group { span, .. }
-            | Value::None(span)
-            | Value::True(span)
-            | Value::False(span)
-            | Value::Constant { span, .. }
-            | Value::Tuple { span, .. }
-            | Value::Array { span, .. }
-            | Value::Map { span, .. }
-            | Value::Lambda { span, .. }
-            | Value::Unary { span, .. }
-            | Value::Binary { span, .. }
-            | Value::Reference { span, .. }
-            | Value::Ternary { span, .. }
-            | Value::Cast { span, .. }
-            | Value::Attr { span, .. } => span,
-            Value::Read(place) => place.span(),
+            Value::Group(v) => &v.span,
+            Value::None(v) => &v.span,
+            Value::True(v) => &v.span,
+            Value::False(v) => &v.span,
+            Value::Constant(v) => &v.span,
+            Value::Tuple(v) => &v.span,
+            Value::Array(v) => &v.span,
+            Value::Map(v) => &v.span,
+            Value::Lambda(v) => &v.span,
+            Value::Unary(v) => &v.span,
+            Value::Binary(v) => &v.span,
+            Value::Reference(v) => &v.span,
+            Value::Ternary(v) => &v.span,
+            Value::Cast(v) => &v.span,
+            Value::Attr(v) => &v.span,
+            Value::Read(v) => v.place.span(),
         }
     }
 }
