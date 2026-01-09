@@ -662,12 +662,10 @@ impl<'m> Parser<'m> {
 
     pub fn parse(&mut self) -> Result<Vec<Stmt>, Error> {
         let mut ast: Vec<Stmt> = vec![];
-        loop {
+        while !self.check(TokenKind::EndOfFile) {
             let stmt = self.parse_stmt()?;
             ast.push(stmt);
-            if self.check(TokenKind::EndOfFile) {
-                break Ok(ast);
-            }
         }
+        Ok(ast)
     }
 }
