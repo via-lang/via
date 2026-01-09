@@ -44,6 +44,11 @@ pub enum Decl {
         symbol: Token,
         fields: Vec<Decl>,
     },
+    Import {
+        span: Span,
+        path: Vec<Token>,
+        alias: Option<Token>,
+    },
 }
 
 impl Decl {
@@ -54,7 +59,8 @@ impl Decl {
             | Self::Use { span, .. }
             | Self::Type { span, .. }
             | Self::Const { span, .. }
-            | Self::Struct { span, .. } => span,
+            | Self::Struct { span, .. }
+            | Self::Import { span, .. } => span,
         }
     }
 }

@@ -17,6 +17,7 @@ use crate::compiler::{
     parser::error::Error,
     source::*,
 };
+use crate::support::macros::bug;
 
 pub struct Parser<'m> {
     tokens: &'m Vec<Token>,
@@ -523,6 +524,45 @@ impl<'m> Parser<'m> {
         })
     }
 
+    fn parse_decl_struct(&mut self) -> Result<Decl, Error> {
+        todo!()
+    }
+
+    fn parse_decl_import(&mut self) -> Result<Decl, Error> {
+        let first = self.expect_consume(TokenKind::KwImport, "parsing import statement")?;
+        let mut path: Vec<Token> =
+            vec![self.expect_consume(TokenKind::Identifier, "parsing import path")?];
+
+        while self.check(TokenKind::Period) {
+            self.consume()?;
+            let tok = self.expect_consume(TokenKind::Identifier, "parsing import path")?;
+            path.push(tok);
+        }
+
+        let alias = if self.check(TokenKind::KwAs) {
+            self.consume()?;
+            Some(self.expect_consume(TokenKind::Identifier, "parsing import alias")?)
+        } else {
+            None
+        };
+
+        Ok(Decl::Import {
+            span: span![
+                first.span.begin,
+                alias
+                    .unwrap_or(
+                        path.last()
+                            .unwrap_or_else(|| bug!("misparsed import path"))
+                            .clone()
+                    )
+                    .span
+                    .end
+            ],
+            path,
+            alias,
+        })
+    }
+
     fn parse_decl(&mut self) -> Result<Decl, Error> {
         if let Ok(token) = self.peek() {
             match token.kind {
@@ -531,6 +571,8 @@ impl<'m> Parser<'m> {
                 TokenKind::KwUse => self.parse_decl_use(),
                 TokenKind::KwType => self.parse_decl_type(),
                 TokenKind::KwConst => self.parse_decl_const(),
+                TokenKind::KwStruct => self.parse_decl_struct(),
+                TokenKind::KwImport => self.parse_decl_import(),
                 _ => Err(Error::UnexpectedToken {
                     token: token,
                     task: "parsing declaration statement",
@@ -556,7 +598,9 @@ impl<'m> Parser<'m> {
                 | TokenKind::KwFn
                 | TokenKind::KwUse
                 | TokenKind::KwType
-                | TokenKind::KwConst => self.parse_decl().map(|decl| Stmt::Decl(decl)),
+                | TokenKind::KwConst
+                | TokenKind::KwStruct
+                | TokenKind::KwImport => self.parse_decl().map(|decl| Stmt::Decl(decl)),
                 _ if self.is_expr_start() => Ok(Stmt::Expr(self.parse_expr()?)),
                 _ => Err(Error::UnexpectedToken {
                     token: token,
