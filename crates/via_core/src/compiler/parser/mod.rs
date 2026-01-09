@@ -93,17 +93,24 @@ impl<'m> Parser<'m> {
         }
     }
 
-    fn parse_body(&mut self) -> Result<(Span, Vec<Stmt>), Error> {
+    fn parse_body_with<F, T>(&mut self, f: F) -> Result<(Span, Vec<T>), Error>
+    where
+        F: Fn(&mut Self) -> Result<T, Error>,
+    {
         let first = self.expect_consume(TokenKind::BraceOpen, "parsing body")?;
-        let mut body: Vec<Stmt> = vec![];
+        let mut body: Vec<T> = vec![];
 
         while !self.check(TokenKind::BraceClose) {
-            let stmt = self.parse_stmt()?;
+            let stmt = f(self)?;
             body.push(stmt);
         }
 
         let last = self.expect_consume(TokenKind::BraceClose, "terminating body")?;
         Ok((span![first.span.begin, last.span.end], body))
+    }
+
+    fn parse_body(&mut self) -> Result<(Span, Vec<Stmt>), Error> {
+        self.parse_body_with(Self::parse_stmt)
     }
 
     fn is_expr_start(&self) -> bool {
@@ -558,21 +565,12 @@ impl<'m> Parser<'m> {
     fn parse_decl_struct(&mut self) -> Result<decl::Struct, Error> {
         let first = self.expect_consume(TokenKind::KwStruct, "parsing struct declaration")?;
         let symbol = self.expect_consume(TokenKind::Identifier, "parsing struct name")?;
-
-        self.expect_consume(TokenKind::BraceOpen, "parsing struct body")?;
-
-        let mut fields: Vec<(Token, Type, Option<Expr>)> = vec![];
-        //let mut
-
-        while !self.check(TokenKind::BraceClose) {}
-
-        let last = self.expect_consume(TokenKind::BraceClose, "terminating struct body")?;
+        let fields = self.parse_body_with(Self::parse_decl)?;
 
         Ok(decl::Struct {
-            span: span![first.span.begin, last.span.end],
+            span: span![first.span.begin, fields.0.end],
             symbol,
-            fields,
-            methods: vec![],
+            fields: fields.1,
         })
     }
 

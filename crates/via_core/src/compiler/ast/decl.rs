@@ -43,8 +43,7 @@ ast! {
         Struct {
             span: Span,
             symbol: Token,
-            fields: Vec<(Token, typ::Type, Option<Expr>)>,
-            methods: Vec<Decl>,
+            fields: Vec<Decl>,
         },
         Import {
             span: Span,
