@@ -7,17 +7,13 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::expr::Expr;
-use super::macros::ast;
+use super::{Node, expr::Expr, macros::ast};
 use crate::compiler::{lexer::token::Token, source::Span};
 
 ast! {
     pub enum Place {
         This { span: Span },
-        Symbol {
-            span: Span,
-            token: Token,
-        },
+        Symbol { token: Token },
         Dynamic {
             span: Span,
             expr: Box<Expr>,
@@ -36,14 +32,14 @@ ast! {
     }
 }
 
-impl Place {
-    pub fn span(&self) -> &Span {
+impl Node for Place {
+    fn span(&self) -> Span {
         match self {
-            Self::This(p) => &p.span,
-            Self::Symbol(p) => &p.span,
-            Self::Dynamic(p) => &p.span,
-            Self::Static(p) => &p.span,
-            Self::Subscript(p) => &p.span,
+            Self::This(p) => p.span,
+            Self::Symbol(p) => p.token.span,
+            Self::Dynamic(p) => p.span,
+            Self::Static(p) => p.span,
+            Self::Subscript(p) => p.span,
         }
     }
 }

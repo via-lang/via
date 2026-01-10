@@ -7,8 +7,7 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::macros::ast;
-use super::{expr::Expr, stmt::Stmt, typ};
+use super::{Body, Node, Parameter, expr::Expr, macros::ast, typ};
 use crate::compiler::{lexer::token::Token, source::Span};
 
 ast! {
@@ -22,9 +21,9 @@ ast! {
         Function {
             span: Span,
             symbol: Token,
-            params: Vec<(Token, typ::Type)>,
+            params: Vec<Parameter>,
             result: Option<Box<typ::Type>>,
-            body: Vec<Stmt>,
+            body: Body,
         },
         Use {
             span: Span,
@@ -43,7 +42,7 @@ ast! {
         Struct {
             span: Span,
             symbol: Token,
-            fields: Vec<Decl>,
+            body: Body<Decl>,
         },
         Import {
             span: Span,
@@ -53,16 +52,16 @@ ast! {
     }
 }
 
-impl Decl {
-    pub fn span(&self) -> &Span {
+impl Node for Decl {
+    fn span(&self) -> Span {
         match self {
-            Self::Variable(d) => &d.span,
-            Self::Function(d) => &d.span,
-            Self::Use(d) => &d.span,
-            Self::Type(d) => &d.span,
-            Self::Const(d) => &d.span,
-            Self::Struct(d) => &d.span,
-            Self::Import(d) => &d.span,
+            Self::Variable(d) => d.span,
+            Self::Function(d) => d.span,
+            Self::Use(d) => d.span,
+            Self::Type(d) => d.span,
+            Self::Const(d) => d.span,
+            Self::Struct(d) => d.span,
+            Self::Import(d) => d.span,
         }
     }
 }

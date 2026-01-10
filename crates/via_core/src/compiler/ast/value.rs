@@ -7,9 +7,7 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::attr;
-use super::macros::ast;
-use super::{expr::Expr, place::Place, stmt::Stmt, typ::Type};
+use super::{Body, Node, Parameter, attr, expr::Expr, macros::ast, place::Place, typ::Type};
 use crate::compiler::{lexer::token::Token, source::Span};
 use bitflags::bitflags;
 
@@ -33,9 +31,9 @@ ast! {
         None { span: Span },
         True { span: Span },
         False { span: Span },
-        Integer { span: Span, token: Token },
-        Float { span: Span, token: Token },
-        String { span: Span, token: Token },
+        Integer { token: Token },
+        Float { token: Token },
+        String { token: Token },
         Tuple {
             span: Span,
             exprs: Vec<Expr>,
@@ -50,9 +48,9 @@ ast! {
         },
         Lambda {
             span: Span,
-            params: Vec<(Token, Type)>,
-            result: Option<Box<Expr>>,
-            body: Vec<Stmt>,
+            params: Vec<Parameter>,
+            result: Option<Box<Type>>,
+            body: Body,
         },
         Unary {
             span: Span,
@@ -89,26 +87,26 @@ ast! {
     }
 }
 
-impl Value {
-    pub fn span(&self) -> &Span {
+impl Node for Value {
+    fn span(&self) -> Span {
         match self {
-            Value::Group(v) => &v.span,
-            Value::None(v) => &v.span,
-            Value::True(v) => &v.span,
-            Value::False(v) => &v.span,
-            Value::Integer(v) => &v.span,
-            Value::Float(v) => &v.span,
-            Value::String(v) => &v.span,
-            Value::Tuple(v) => &v.span,
-            Value::Array(v) => &v.span,
-            Value::Map(v) => &v.span,
-            Value::Lambda(v) => &v.span,
-            Value::Unary(v) => &v.span,
-            Value::Binary(v) => &v.span,
-            Value::Reference(v) => &v.span,
-            Value::Ternary(v) => &v.span,
-            Value::Cast(v) => &v.span,
-            Value::Attr(v) => &v.span,
+            Value::Group(v) => v.span,
+            Value::None(v) => v.span,
+            Value::True(v) => v.span,
+            Value::False(v) => v.span,
+            Value::Integer(v) => v.token.span,
+            Value::Float(v) => v.token.span,
+            Value::String(v) => v.token.span,
+            Value::Tuple(v) => v.span,
+            Value::Array(v) => v.span,
+            Value::Map(v) => v.span,
+            Value::Lambda(v) => v.span,
+            Value::Unary(v) => v.span,
+            Value::Binary(v) => v.span,
+            Value::Reference(v) => v.span,
+            Value::Ternary(v) => v.span,
+            Value::Cast(v) => v.span,
+            Value::Attr(v) => v.span,
             Value::Read(v) => v.place.span(),
         }
     }

@@ -7,7 +7,7 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::{control::Control, decl::Decl, expr::Expr};
+use super::{Node, control::Control, decl::Decl, expr::Expr};
 use crate::compiler::source::Span;
 
 #[derive(Debug)]
@@ -18,10 +18,10 @@ pub enum Stmt {
     Expr(Expr),
 }
 
-impl Stmt {
-    pub fn span(&self) -> &Span {
+impl Node for Stmt {
+    fn span(&self) -> Span {
         match self {
-            Self::Empty(span) => span,
+            Self::Empty(span) => *span,
             Self::Decl(decl) => decl.span(),
             Self::Control(ctrl) => ctrl.span(),
             Self::Expr(expr) => expr.span(),

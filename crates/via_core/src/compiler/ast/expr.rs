@@ -7,7 +7,7 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::{place::Place, value::Value};
+use super::{Node, place::Place, value::Value};
 use crate::compiler::source::Span;
 
 #[derive(Debug)]
@@ -16,8 +16,8 @@ pub enum Expr {
     Value(Value),
 }
 
-impl Expr {
-    pub fn span(&self) -> &Span {
+impl Node for Expr {
+    fn span(&self) -> Span {
         match self {
             Self::Place(place) => place.span(),
             Self::Value(value) => value.span(),

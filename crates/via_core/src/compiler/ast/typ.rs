@@ -7,8 +7,7 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::expr::Expr;
-use super::macros::ast;
+use super::{Node, expr::Expr, macros::ast};
 use crate::compiler::{lexer::token::Token, source::Span};
 
 ast! {
@@ -47,16 +46,16 @@ ast! {
     }
 }
 
-impl Type {
-    pub fn span(&self) -> &Span {
+impl Node for Type {
+    fn span(&self) -> Span {
         match self {
-            Self::Builtin(t) => &t.span,
-            Self::Optional(t) => &t.span,
-            Self::Union(t) => &t.span,
-            Self::Array(t) => &t.span,
-            Self::Map(t) => &t.span,
-            Self::Function(t) => &t.span,
-            Self::TypeOf(t) => &t.span,
+            Self::Builtin(t) => t.span,
+            Self::Optional(t) => t.span,
+            Self::Union(t) => t.span,
+            Self::Array(t) => t.span,
+            Self::Map(t) => t.span,
+            Self::Function(t) => t.span,
+            Self::TypeOf(t) => t.span,
         }
     }
 }

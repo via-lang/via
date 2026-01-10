@@ -9,6 +9,7 @@
 
 use crate::compiler::{
     ast::{
+        Body, Node, Parameter,
         control::{self, Control},
         decl::{self, Decl},
         expr::Expr,
@@ -69,53 +70,57 @@ impl<'m> Parser<'m> {
     }
 
     #[allow(dead_code)]
-    fn expect(&self, kind: TokenKind, task: String) -> Result<Token, Error> {
+    fn expect(&self, kind: TokenKind, task: impl Into<String>) -> Result<Token, Error> {
         let tok = self.peek()?;
         if tok.kind == kind {
             Ok(tok)
         } else {
             Err(Error::UnexpectedToken {
                 token: tok,
-                task: task,
+                task: task.into(),
             })
         }
     }
 
-    fn expect_consume(&mut self, kind: TokenKind, task: String) -> Result<Token, Error> {
+    fn expect_consume(&mut self, kind: TokenKind, task: impl Into<String>) -> Result<Token, Error> {
         let tok = self.consume()?;
         if tok.kind == kind {
             Ok(tok)
         } else {
             Err(Error::UnexpectedToken {
                 token: tok,
-                task: task,
+                task: task.into(),
             })
         }
     }
 
-    fn parse_body_with<F, T>(&mut self, parse: F, name: String) -> Result<(Span, Vec<T>), Error>
+    fn parse_body<F, T>(&mut self, parse: F, name: impl Into<String>) -> Result<Body<T>, Error>
     where
         F: Fn(&mut Self) -> Result<T, Error>,
+        T: Node,
     {
+        let name = name.into();
         let first = self.expect_consume(TokenKind::BraceOpen, format!("parsing {name}"))?;
         let mut body: Vec<T> = vec![];
 
         while !self.check(TokenKind::BraceClose) {
-            body.push(parse(self)?);
+            let node = parse(self)?;
+            body.push(node);
         }
 
         let last = self.expect_consume(TokenKind::BraceClose, format!("terminating {name}"))?;
-        Ok((span![first.span.begin, last.span.end], body))
+        Ok(Body::<T>(span![first.span.begin, last.span.end], body))
     }
 
-    fn parse_body(&mut self) -> Result<(Span, Vec<Stmt>), Error> {
-        self.parse_body_with(Self::parse_stmt, "body".to_string())
-    }
-
-    fn parse_list_with<F, T>(&mut self, parse: F, name: String) -> Result<(Span, Vec<T>), Error>
+    fn parse_list<F, T>(
+        &mut self,
+        parse: F,
+        name: impl Into<String>,
+    ) -> Result<(Span, Vec<T>), Error>
     where
         F: Fn(&mut Self) -> Result<T, Error>,
     {
+        let name = name.into();
         let first = self.expect_consume(TokenKind::ParenOpen, format!("parsing {name}"))?;
         let mut body: Vec<T> = vec![];
 
@@ -160,13 +165,7 @@ impl<'m> Parser<'m> {
         match tok.kind {
             TokenKind::Identifier => {
                 self.consume()?;
-                Ok(Expr::Place(
-                    place::Symbol {
-                        span: tok.span,
-                        token: tok,
-                    }
-                    .into(),
-                ))
+                Ok(Expr::Place(place::Symbol { token: tok }.into()))
             }
             TokenKind::KwSelf => {
                 self.consume()?;
@@ -186,41 +185,21 @@ impl<'m> Parser<'m> {
             }
             TokenKind::LitInt | TokenKind::LitXint | TokenKind::LitBint => {
                 self.consume()?;
-                Ok(Expr::Value(
-                    value::Integer {
-                        span: tok.span,
-                        token: tok,
-                    }
-                    .into(),
-                ))
+                Ok(Expr::Value(value::Integer { token: tok }.into()))
             }
             TokenKind::LitFloat => {
                 self.consume()?;
-                Ok(Expr::Value(
-                    value::Float {
-                        span: tok.span,
-                        token: tok,
-                    }
-                    .into(),
-                ))
+                Ok(Expr::Value(value::Float { token: tok }.into()))
             }
             TokenKind::LitString => {
                 self.consume()?;
-                Ok(Expr::Value(
-                    value::String {
-                        span: tok.span,
-                        token: tok,
-                    }
-                    .into(),
-                ))
+                Ok(Expr::Value(value::String { token: tok }.into()))
             }
             TokenKind::ParenOpen => {
                 let first = self.consume()?;
                 let inner = self.parse_expr()?;
-                let last = self.expect_consume(
-                    TokenKind::ParenClose,
-                    "terminating group expression".to_string(),
-                )?;
+                let last =
+                    self.expect_consume(TokenKind::ParenClose, "terminating group expression")?;
 
                 Ok(Expr::Value(
                     value::Group {
@@ -233,18 +212,63 @@ impl<'m> Parser<'m> {
             TokenKind::OpMinus | TokenKind::OpBang | TokenKind::OpAmp | TokenKind::OpTilde => {
                 self.consume()?;
                 let inner = self.parse_expr()?;
-                return Ok(Expr::Value(
+                Ok(Expr::Value(
                     value::Unary {
                         span: span![tok.span.begin, inner.span().end],
                         op: tok,
                         expr: Box::new(inner),
                     }
                     .into(),
-                ));
+                ))
+            }
+            TokenKind::KwFn => {
+                self.consume()?;
+                let mut params: Vec<Parameter> = vec![];
+
+                if self.check(TokenKind::ParenOpen) {
+                    params = self
+                        .parse_list(
+                            |parser| {
+                                let name = parser.expect_consume(
+                                    TokenKind::Identifier,
+                                    "parsing lambda parameter name",
+                                )?;
+
+                                parser.expect_consume(
+                                    TokenKind::Colon,
+                                    "parsing lambda parameter type",
+                                )?;
+
+                                let typ = parser.parse_type()?;
+                                Ok(Parameter(name, Box::new(typ)))
+                            },
+                            "parsing function type parameter list",
+                        )?
+                        .1;
+                }
+
+                let result = if self.check(TokenKind::Arrow) {
+                    self.consume()?;
+                    Some(Box::new(self.parse_type()?))
+                } else {
+                    None
+                };
+
+                let body = self.parse_body(Self::parse_stmt, "parsing lambda expression body")?;
+
+                Ok(Expr::Value(
+                    value::Lambda {
+                        span: span![tok.span.begin, body.0.end],
+                        params,
+                        result,
+                        body,
+                    }
+                    .into(),
+                ))
             }
             _ => Err(Error::UnexpectedToken {
                 token: tok,
-                task: "parsing primary expression".to_string(),
+                task: "parsing primary expression".into(),
             }),
         }
     }
@@ -258,7 +282,7 @@ impl<'m> Parser<'m> {
                         self.consume()?;
                         let field = self.expect_consume(
                             TokenKind::Identifier,
-                            "parsing dynamic access expression field".to_string(),
+                            "parsing dynamic access expression field",
                         )?;
 
                         expr = Expr::Place(
@@ -274,7 +298,7 @@ impl<'m> Parser<'m> {
                         self.consume()?;
                         let field = self.expect_consume(
                             TokenKind::Identifier,
-                            "parsing static access expression field".to_string(),
+                            "parsing static access expression field",
                         )?;
 
                         expr = Expr::Place(
@@ -291,7 +315,7 @@ impl<'m> Parser<'m> {
                         let index = self.parse_expr()?;
                         let last = self.expect_consume(
                             TokenKind::BracketClose,
-                            "terminating subscript expression".to_string(),
+                            "terminating subscript expression",
                         )?;
 
                         expr = Expr::Place(
@@ -359,10 +383,8 @@ impl<'m> Parser<'m> {
             TokenKind::BracketOpen => {
                 self.consume()?;
                 let typ = self.parse_type()?;
-                let last = self.expect_consume(
-                    TokenKind::BracketClose,
-                    "terminating array type".to_string(),
-                )?;
+                let last =
+                    self.expect_consume(TokenKind::BracketClose, "terminating array type")?;
 
                 typ::Array {
                     span: span![tok.span.begin, last.span.end],
@@ -374,11 +396,10 @@ impl<'m> Parser<'m> {
                 self.consume()?;
                 let key = self.parse_type()?;
 
-                self.expect_consume(TokenKind::Colon, "parsing map type".to_string())?;
+                self.expect_consume(TokenKind::Colon, "parsing map type")?;
 
                 let value = self.parse_type()?;
-                let last =
-                    self.expect_consume(TokenKind::BraceClose, "terminating map type".to_string())?;
+                let last = self.expect_consume(TokenKind::BraceClose, "terminating map type")?;
 
                 typ::Map {
                     span: span![tok.span.begin, last.span.end],
@@ -389,16 +410,9 @@ impl<'m> Parser<'m> {
             }
             TokenKind::KwFn => {
                 self.consume()?;
+                let params = self.parse_list(Self::parse_type, "function type parameter list")?;
 
-                let params = self.parse_list_with(
-                    Self::parse_type,
-                    "function type parameter list".to_string(),
-                )?;
-
-                self.expect_consume(
-                    TokenKind::Arrow,
-                    "parsing function type return type".to_string(),
-                )?;
+                self.expect_consume(TokenKind::Arrow, "parsing function type return type")?;
 
                 let result = self.parse_type()?;
 
@@ -411,11 +425,10 @@ impl<'m> Parser<'m> {
             }
             TokenKind::KwType => {
                 self.consume()?;
-                self.expect_consume(TokenKind::ParenOpen, "parsing type id".to_string())?;
+                self.expect_consume(TokenKind::ParenOpen, "parsing type id")?;
 
                 let expr = self.parse_expr()?;
-                let last =
-                    self.expect_consume(TokenKind::ParenClose, "terminating type id".to_string())?;
+                let last = self.expect_consume(TokenKind::ParenClose, "terminating type id")?;
 
                 typ::TypeOf {
                     span: span![tok.span.begin, last.span.end],
@@ -426,7 +439,7 @@ impl<'m> Parser<'m> {
             _ => {
                 return Err(Error::UnexpectedToken {
                     token: tok,
-                    task: "parsing primary type".to_string(),
+                    task: "parsing primary type".into(),
                 });
             }
         };
@@ -459,8 +472,7 @@ impl<'m> Parser<'m> {
     }
 
     fn parse_control_return(&mut self) -> Result<control::Return, Error> {
-        let first =
-            self.expect_consume(TokenKind::KwReturn, "parsing return statement".to_string())?;
+        let first = self.expect_consume(TokenKind::KwReturn, "parsing return statement")?;
         let expr = if self.is_expr_start() {
             Some(self.parse_expr()?)
         } else {
@@ -481,7 +493,7 @@ impl<'m> Parser<'m> {
 
     fn parse_control_raise(&mut self) -> Result<control::Raise, Error> {
         let first = self
-            .expect_consume(TokenKind::KwRaise, "parsing raise statement".to_string())?
+            .expect_consume(TokenKind::KwRaise, "parsing raise statement")?
             .span;
         let expr = self.parse_expr()?;
 
@@ -493,27 +505,27 @@ impl<'m> Parser<'m> {
 
     fn parse_control_if(&mut self) -> Result<control::If, Error> {
         let first = self
-            .expect_consume(TokenKind::KwIf, "parsing if statement".to_string())?
+            .expect_consume(TokenKind::KwIf, "parsing if statement")?
             .span;
         let cond = self.parse_expr()?;
-        let body = self.parse_body()?;
+        let body = self.parse_body(Self::parse_stmt, "parsing if statement body")?;
         let mut last = body.0;
-        let mut elifs: Vec<(Expr, Vec<Stmt>)> = vec![];
+        let mut elifs: Vec<(Expr, Body)> = vec![];
 
         while self.check(TokenKind::KwElse) && self.check_ahead(TokenKind::KwIf, 1) {
             self.consume()?;
             self.consume()?;
             let cond = self.parse_expr()?;
-            let body = self.parse_body()?;
-            elifs.push((cond, body.1));
+            let body = self.parse_body(Self::parse_stmt, "parsing else if branch body")?;
             last = body.0;
+            elifs.push((cond, body));
         }
 
         let els = if self.check(TokenKind::KwElse) {
             self.consume()?;
-            let body = self.parse_body()?;
+            let body = self.parse_body(Self::parse_stmt, "parsing else branch body")?;
             last = body.0;
-            Some(body.1)
+            Some(body)
         } else {
             None
         };
@@ -521,7 +533,7 @@ impl<'m> Parser<'m> {
         Ok(control::If {
             span: span![first.begin, last.end],
             cond: Box::new(cond),
-            body: body.1,
+            body: body,
             elifs: elifs,
             els: els,
         })
@@ -529,71 +541,59 @@ impl<'m> Parser<'m> {
 
     fn parse_control_while(&mut self) -> Result<control::While, Error> {
         let first = self
-            .expect_consume(TokenKind::KwWhile, "parsing while statement".to_string())?
+            .expect_consume(TokenKind::KwWhile, "parsing while statement")?
             .span;
         let cond = self.parse_expr()?;
-        let body = self.parse_body()?;
+        let body = self.parse_body(Self::parse_stmt, "parsing while statement body")?;
 
         Ok(control::While {
             span: span![first.begin, body.0.end],
             cond: Box::new(cond),
-            body: body.1,
+            body,
         })
     }
 
     fn parse_control_whilenot(&mut self) -> Result<control::WhileNot, Error> {
         let first = self
-            .expect_consume(
-                TokenKind::KwWhilex,
-                "parsing while-not statement".to_string(),
-            )?
+            .expect_consume(TokenKind::KwWhilex, "parsing while-not statement")?
             .span;
         let cond = self.parse_expr()?;
-        let body = self.parse_body()?;
+        let body = self.parse_body(Self::parse_stmt, "parsing while-not statement body")?;
 
         Ok(control::WhileNot {
             span: span![first.begin, body.0.end],
             cond: Box::new(cond),
-            body: body.1,
+            body,
         })
     }
 
     fn parse_control_for(&mut self) -> Result<control::For, Error> {
         let first = self
-            .expect_consume(TokenKind::KwWhile, "parsing for statement".to_string())?
+            .expect_consume(TokenKind::KwWhile, "parsing for statement")?
             .span;
         let _init = self.parse_decl_variable()?;
-        self.expect_consume(
-            TokenKind::Comma,
-            "terminating for loop initializer".to_string(),
-        )?;
+        self.expect_consume(TokenKind::Comma, "terminating for loop initializer")?;
 
         let cond = self.parse_expr()?;
-        self.expect_consume(
-            TokenKind::Comma,
-            "terminating for loop condition".to_string(),
-        )?;
+        self.expect_consume(TokenKind::Comma, "terminating for loop condition")?;
 
         let action = self.parse_expr()?;
-        let body = self.parse_body()?;
+        let body = self.parse_body(Self::parse_stmt, "parsing for loop statement body")?;
 
         Ok(control::For {
             span: span![first.begin, body.0.end],
             // init: init.1,
             cond: Box::new(cond),
             action: Box::new(action),
-            body: body.1,
+            body: body,
         })
     }
 
     fn parse_control_foreach(&mut self) -> Result<control::ForEach, Error> {
         let first = self
-            .expect_consume(TokenKind::KwWhile, "parsing for each statement".to_string())?
+            .expect_consume(TokenKind::KwWhile, "parsing for-each statement")?
             .span;
-        let param = self.expect_consume(
-            TokenKind::Identifier,
-            "parsing for each parameter".to_string(),
-        )?;
+        let param = self.expect_consume(TokenKind::Identifier, "parsing for-each parameter")?;
 
         let typ = if self.check(TokenKind::Colon) {
             self.consume()?;
@@ -602,19 +602,16 @@ impl<'m> Parser<'m> {
             None
         };
 
-        self.expect_consume(
-            TokenKind::KwIn,
-            "terminating for each parameter".to_string(),
-        )?;
+        self.expect_consume(TokenKind::KwIn, "terminating for-each parameter")?;
 
         let expr = self.parse_expr()?;
-        let body = self.parse_body()?;
+        let body = self.parse_body(Self::parse_stmt, "")?;
 
         Ok(control::ForEach {
             span: span![first.begin, body.0.end],
             param: (param, typ.map(Box::new)),
             expr: Box::new(expr),
-            body: body.1,
+            body,
         })
     }
 
@@ -638,7 +635,7 @@ impl<'m> Parser<'m> {
                 TokenKind::KwIf => self.parse_control_if().map(Into::into),
                 _ => Err(Error::UnexpectedToken {
                     token: token,
-                    task: "parsing control statement".to_string(),
+                    task: "parsing control statement".into(),
                 }),
             }
         } else {
@@ -648,11 +645,10 @@ impl<'m> Parser<'m> {
 
     fn parse_decl_variable(&mut self) -> Result<decl::Variable, Error> {
         let first = self
-            .expect_consume(TokenKind::KwVar, "parsing variable declaration".to_string())?
+            .expect_consume(TokenKind::KwVar, "parsing variable declaration")?
             .span;
 
-        let symbol =
-            self.expect_consume(TokenKind::Identifier, "parsing variable name".to_string())?;
+        let symbol = self.expect_consume(TokenKind::Identifier, "parsing variable name")?;
 
         let typ: Option<Type> = if self.check(TokenKind::Colon) {
             self.consume()?;
@@ -661,10 +657,7 @@ impl<'m> Parser<'m> {
             None
         };
 
-        self.expect_consume(
-            TokenKind::OpEq,
-            "parsing variable declaration statement".to_string(),
-        )?;
+        self.expect_consume(TokenKind::OpEq, "parsing variable declaration statement")?;
 
         let expr = self.parse_expr()?;
 
@@ -678,31 +671,22 @@ impl<'m> Parser<'m> {
 
     fn parse_decl_function(&mut self) -> Result<decl::Function, Error> {
         let first = self
-            .expect_consume(TokenKind::KwFn, "parsing function declaration".to_string())?
+            .expect_consume(TokenKind::KwFn, "parsing function declaration")?
             .span;
 
-        let symbol =
-            self.expect_consume(TokenKind::Identifier, "parsing function name".to_string())?;
+        let symbol = self.expect_consume(TokenKind::Identifier, "parsing function name")?;
 
-        self.expect_consume(
-            TokenKind::ParenOpen,
-            "parsing function parameter list".to_string(),
-        )?;
+        self.expect_consume(TokenKind::ParenOpen, "parsing function parameter list")?;
 
-        let mut params: Vec<(Token, Type)> = vec![];
+        let mut params: Vec<Parameter> = vec![];
         loop {
-            let symbol = self.expect_consume(
-                TokenKind::Identifier,
-                "parsing function parameter name".to_string(),
-            )?;
+            let symbol =
+                self.expect_consume(TokenKind::Identifier, "parsing function parameter name")?;
 
-            self.expect_consume(
-                TokenKind::Colon,
-                "parsing function parameter type".to_string(),
-            )?;
+            self.expect_consume(TokenKind::Colon, "parsing function parameter type")?;
 
             let typ = self.parse_type()?;
-            params.push((symbol, typ));
+            params.push(Parameter(symbol, Box::new(typ)));
 
             if self.check(TokenKind::Comma) {
                 self.consume()?;
@@ -711,10 +695,7 @@ impl<'m> Parser<'m> {
             }
         }
 
-        self.expect_consume(
-            TokenKind::ParenClose,
-            "terminating function parameter list".to_string(),
-        )?;
+        self.expect_consume(TokenKind::ParenClose, "terminating function parameter list")?;
 
         let result = if self.check(TokenKind::Arrow) {
             self.consume()?;
@@ -723,14 +704,14 @@ impl<'m> Parser<'m> {
             None
         };
 
-        let body = self.parse_body()?;
+        let body = self.parse_body(Self::parse_stmt, "parsing function declaration body")?;
 
         Ok(decl::Function {
             span: span![first.begin, body.0.end],
             symbol: symbol,
-            params: params,
+            params,
             result: result.map(Box::new),
-            body: body.1,
+            body,
         })
     }
 
@@ -739,11 +720,10 @@ impl<'m> Parser<'m> {
     }
 
     fn parse_decl_type(&mut self) -> Result<decl::Type, Error> {
-        let begin =
-            self.expect_consume(TokenKind::KwType, "parsing type declaration".to_string())?;
-        let symbol = self.expect_consume(TokenKind::Identifier, "parsing type name".to_string())?;
+        let begin = self.expect_consume(TokenKind::KwType, "parsing type declaration")?;
+        let symbol = self.expect_consume(TokenKind::Identifier, "parsing type name")?;
 
-        self.expect_consume(TokenKind::OpEq, "parsing type declaration".to_string())?;
+        self.expect_consume(TokenKind::OpEq, "parsing type declaration")?;
 
         let typ = self.parse_type()?;
 
@@ -755,15 +735,11 @@ impl<'m> Parser<'m> {
     }
 
     fn parse_decl_const(&mut self) -> Result<decl::Const, Error> {
-        let begin = self.expect_consume(
-            TokenKind::KwConst,
-            "parsing constant declaration".to_string(),
-        )?;
+        let begin = self.expect_consume(TokenKind::KwConst, "parsing constant declaration")?;
 
-        let symbol =
-            self.expect_consume(TokenKind::Identifier, "parsing constant name".to_string())?;
+        let symbol = self.expect_consume(TokenKind::Identifier, "parsing constant name")?;
 
-        self.expect_consume(TokenKind::OpEq, "parsing constant declaration".to_string())?;
+        self.expect_consume(TokenKind::OpEq, "parsing constant declaration")?;
 
         let expr = self.parse_expr()?;
 
@@ -775,39 +751,33 @@ impl<'m> Parser<'m> {
     }
 
     fn parse_decl_struct(&mut self) -> Result<decl::Struct, Error> {
-        let first = self.expect_consume(
-            TokenKind::KwStruct,
-            "parsing struct declaration".to_string(),
-        )?;
+        let first = self.expect_consume(TokenKind::KwStruct, "parsing struct declaration")?;
 
-        let symbol =
-            self.expect_consume(TokenKind::Identifier, "parsing struct name".to_string())?;
-        let fields = self.parse_body_with(Self::parse_decl, "struct body".to_string())?;
+        let symbol = self.expect_consume(TokenKind::Identifier, "parsing struct name")?;
+        let body = self.parse_body(Self::parse_decl, "struct body")?;
 
         Ok(decl::Struct {
-            span: span![first.span.begin, fields.0.end],
+            span: span![first.span.begin, body.0.end],
             symbol,
-            fields: fields.1,
+            body,
         })
     }
 
     fn parse_decl_import(&mut self) -> Result<decl::Import, Error> {
-        let first =
-            self.expect_consume(TokenKind::KwImport, "parsing import statement".to_string())?;
+        let first = self.expect_consume(TokenKind::KwImport, "parsing import statement")?;
 
         let mut path: Vec<Token> =
-            vec![self.expect_consume(TokenKind::Identifier, "parsing import path".to_string())?];
+            vec![self.expect_consume(TokenKind::Identifier, "parsing import path")?];
 
         while self.check(TokenKind::Period) {
             self.consume()?;
-            let tok =
-                self.expect_consume(TokenKind::Identifier, "parsing import path".to_string())?;
+            let tok = self.expect_consume(TokenKind::Identifier, "parsing import path")?;
             path.push(tok);
         }
 
         let alias = if self.check(TokenKind::KwAs) {
             self.consume()?;
-            Some(self.expect_consume(TokenKind::Identifier, "parsing import alias".to_string())?)
+            Some(self.expect_consume(TokenKind::Identifier, "parsing import alias")?)
         } else {
             None
         };
@@ -841,7 +811,7 @@ impl<'m> Parser<'m> {
                 TokenKind::KwImport => self.parse_decl_import().map(Into::into),
                 _ => Err(Error::UnexpectedToken {
                     token: token,
-                    task: "parsing declaration statement".to_string(),
+                    task: "parsing declaration statement".into(),
                 }),
             }
         } else {
@@ -870,7 +840,7 @@ impl<'m> Parser<'m> {
                 _ if self.is_expr_start() => Ok(Stmt::Expr(self.parse_expr()?)),
                 _ => Err(Error::UnexpectedToken {
                     token: token,
-                    task: "parsing statement".to_string(),
+                    task: "parsing statement".into(),
                 }),
             }
         } else {

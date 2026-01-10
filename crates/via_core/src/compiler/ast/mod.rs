@@ -16,3 +16,32 @@ pub mod place;
 pub mod stmt;
 pub mod typ;
 pub mod value;
+
+use crate::compiler::{
+    lexer::token::Token,
+    source::{Span, span},
+};
+use stmt::Stmt;
+use typ::Type;
+
+pub trait Node {
+    fn span(&self) -> Span;
+}
+
+#[derive(Debug)]
+pub struct Body<T: Node = Stmt>(pub Span, pub Vec<T>);
+
+#[derive(Debug)]
+pub struct Parameter(pub Token, pub Box<Type>);
+
+impl Node for Body {
+    fn span(&self) -> Span {
+        self.0
+    }
+}
+
+impl Node for Parameter {
+    fn span(&self) -> Span {
+        span![self.0.span.begin, self.1.span().end]
+    }
+}
