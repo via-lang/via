@@ -9,7 +9,7 @@
 
 pub mod keywords;
 pub mod symbols;
-pub(crate) mod token;
+pub mod token;
 
 use crate::compiler::source::*;
 use keywords::KEYWORDS;

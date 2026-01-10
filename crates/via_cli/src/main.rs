@@ -14,6 +14,13 @@ use std::io::Read;
 
 mod stub;
 
+#[derive(clap::ValueEnum, Clone, Debug)]
+pub enum TreeType {
+    None,
+    Token,
+    Syntax,
+}
+
 #[derive(Parser)]
 #[command(
     name = "via",
@@ -31,6 +38,10 @@ enum Command {
     Run {
         #[arg(value_name = "FILE", default_value = "-")]
         input: Input,
+
+        #[clap(long)]
+        #[clap(value_enum, default_value_t=TreeType::None)]
+        tree: TreeType,
     },
     Check {
         #[arg(value_name = "FILE", default_value = "-")]
@@ -54,9 +65,10 @@ fn read_input(mut input: Input) -> Result<String> {
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Some(Command::Run { input }) => {
+        Some(Command::Run { input, tree }) => {
             let src = read_input(input)?;
-            stub::run(&src)?;
+            let fixture = stub::run(&src)?;
+            fixture.dump(tree);
         }
         Some(Command::Check { input }) => {
             let src = read_input(input)?;

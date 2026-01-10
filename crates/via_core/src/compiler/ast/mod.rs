@@ -7,12 +7,12 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-pub(crate) mod attr;
-pub(crate) mod control;
-pub(crate) mod decl;
-pub(crate) mod expr;
-pub(crate) mod macros;
-pub(crate) mod place;
-pub(crate) mod stmt;
-pub(crate) mod typ;
-pub(crate) mod value;
+pub mod attr;
+pub mod control;
+pub mod decl;
+pub mod expr;
+pub mod macros;
+pub mod place;
+pub mod stmt;
+pub mod typ;
+pub mod value;

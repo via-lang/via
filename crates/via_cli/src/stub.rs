@@ -7,11 +7,32 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
+use super::TreeType;
 use anyhow::Result;
 use std::io::Write;
-use via_core::compiler::{lexer::Lexer, parser::Parser, source::Source};
+use via_core::compiler::{
+    ast::stmt::Stmt,
+    lexer::{Lexer, token::Token},
+    parser::{Parser, error::Error as ParserError},
+    source::Source,
+};
 
-pub fn run(src: &str) -> Result<()> {
+pub struct Fixture {
+    pub tokens: Vec<Token>,
+    pub ast: Result<Vec<Stmt>, ParserError>,
+}
+
+impl Fixture {
+    pub fn dump(&self, tree: TreeType) {
+        match tree {
+            TreeType::Token => println!("Tokens: {:#?}", self.tokens),
+            TreeType::Syntax => println!("AST: {:#?}", self.ast),
+            _ => {}
+        }
+    }
+}
+
+pub fn run(src: &str) -> Result<Fixture> {
     println!("Running program...");
 
     let source = Source::new(src.to_string());
@@ -20,9 +41,7 @@ pub fn run(src: &str) -> Result<()> {
     let mut parser = Parser::new(&tokens);
     let ast = parser.parse();
 
-    println!("Tokens: {:#?}", tokens);
-    println!("AST: {:#?}", ast);
-    Ok(())
+    Ok(Fixture { tokens, ast })
 }
 
 pub fn check(_: &str) -> Result<()> {
