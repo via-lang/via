@@ -7,8 +7,6 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-mod error;
-
 use crate::compiler::{
     ast::{
         control::{self, Control},
@@ -24,6 +22,8 @@ use crate::compiler::{
     source::*,
 };
 use crate::support::macros::bug;
+
+pub mod error;
 
 pub struct Parser<'m> {
     tokens: &'m Vec<Token>,
@@ -263,6 +263,22 @@ impl<'m> Parser<'m> {
 
                         expr = Expr::Place(
                             place::Dynamic {
+                                span: span![tok.span.begin, field.span.end],
+                                expr: Box::new(expr),
+                                field: field,
+                            }
+                            .into(),
+                        );
+                    }
+                    TokenKind::ColonColon => {
+                        self.consume()?;
+                        let field = self.expect_consume(
+                            TokenKind::Identifier,
+                            "parsing static access expression field".to_string(),
+                        )?;
+
+                        expr = Expr::Place(
+                            place::Static {
                                 span: span![tok.span.begin, field.span.end],
                                 expr: Box::new(expr),
                                 field: field,

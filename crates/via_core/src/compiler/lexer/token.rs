@@ -61,6 +61,7 @@ pub enum TokenKind {
     Comma,
     Semicolon,
     Colon,
+    ColonColon,
     Arrow,
     Question,
     ParenOpen,

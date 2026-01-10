@@ -21,6 +21,7 @@ pub const SYMBOLS: phf::Map<&'static str, TokenKind> = phf_map! {
     "," => TokenKind::Comma,
     ";" => TokenKind::Semicolon,
     ":" => TokenKind::Colon,
+    "::" => TokenKind::ColonColon,
     "->" => TokenKind::Arrow,
     "?" => TokenKind::Question,
     "+" => TokenKind::OpPlus,
