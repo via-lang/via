@@ -184,10 +184,30 @@ impl<'m> Parser<'m> {
                 self.consume()?;
                 Ok(Expr::Value(value::False { span: tok.span }.into()))
             }
-            TokenKind::LitInt | TokenKind::LitFloat | TokenKind::LitString => {
+            TokenKind::LitInt | TokenKind::LitXint | TokenKind::LitBint => {
                 self.consume()?;
                 Ok(Expr::Value(
-                    value::Constant {
+                    value::Integer {
+                        span: tok.span,
+                        token: tok,
+                    }
+                    .into(),
+                ))
+            }
+            TokenKind::LitFloat => {
+                self.consume()?;
+                Ok(Expr::Value(
+                    value::Float {
+                        span: tok.span,
+                        token: tok,
+                    }
+                    .into(),
+                ))
+            }
+            TokenKind::LitString => {
+                self.consume()?;
+                Ok(Expr::Value(
+                    value::String {
                         span: tok.span,
                         token: tok,
                     }
@@ -317,7 +337,7 @@ impl<'m> Parser<'m> {
             | TokenKind::KwFloat
             | TokenKind::KwString => typ::Builtin {
                 span: tok.span,
-                token: tok,
+                token: self.consume()?,
             }
             .into(),
             TokenKind::BracketOpen => {

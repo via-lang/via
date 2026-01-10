@@ -120,9 +120,12 @@ impl<'m> Lexer<'m> {
     fn read_string(&mut self) -> Token {
         let begin = self.position;
 
-        self.consume(); // Opening quote
+        self.consume(); // opening "
         self.consume_while(|ch| ch != '"');
 
+        if self.peek() == Some('"') {
+            self.consume();
+        }
         Token::new(TokenKind::LitString, span![begin, self.position])
     }
 

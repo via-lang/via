@@ -36,6 +36,7 @@ pub const KEYWORDS: phf::Map<&'static str, TokenKind> = phf_map! {
     "self" => TokenKind::KwSelf,
     "enum" => TokenKind::KwEnum,
     "use" => TokenKind::KwUse,
+    "type" => TokenKind::KwType,
     "none" => TokenKind::KwNone,
     "true" => TokenKind::KwTrue,
     "false" => TokenKind::KwFalse,
