@@ -310,7 +310,7 @@ impl<'m> Parser<'m> {
 
     fn parse_type(&mut self) -> Result<Type, Error> {
         let tok = self.peek()?;
-        let mut typ: Type = match tok.kind {
+        let mut lhs: Type = match tok.kind {
             TokenKind::KwNone
             | TokenKind::KwBool
             | TokenKind::KwInt
@@ -401,14 +401,24 @@ impl<'m> Parser<'m> {
                 TokenKind::Question => {
                     self.consume()?;
                     typ::Optional {
-                        span: span![typ.span().begin, tok.span.end],
-                        typ: Box::new(typ),
+                        span: span![lhs.span().begin, tok.span.end],
+                        typ: Box::new(lhs),
                     }
                     .into()
                 }
-                _ => break Ok(typ),
+                TokenKind::OpPipe => {
+                    self.consume()?;
+                    let rhs = self.parse_type()?;
+                    typ::Union {
+                        span: span![lhs.span().begin, rhs.span().end],
+                        lhs: Box::new(lhs),
+                        rhs: Box::new(rhs),
+                    }
+                    .into()
+                }
+                _ => break Ok(lhs),
             };
-            typ = postfix;
+            lhs = postfix;
         }
     }
 

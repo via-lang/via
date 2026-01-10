@@ -21,6 +21,11 @@ ast! {
             span: Span,
             typ: Box<Type>,
         },
+        Union {
+            span: Span,
+            lhs: Box<Type>,
+            rhs: Box<Type>
+        },
         Array {
             span: Span,
             typ: Box<Type>,
@@ -47,6 +52,7 @@ impl Type {
         match self {
             Self::Builtin(t) => &t.span,
             Self::Optional(t) => &t.span,
+            Self::Union(t) => &t.span,
             Self::Array(t) => &t.span,
             Self::Map(t) => &t.span,
             Self::Function(t) => &t.span,
