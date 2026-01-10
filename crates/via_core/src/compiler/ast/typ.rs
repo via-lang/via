@@ -9,23 +9,13 @@
 
 use super::expr::Expr;
 use super::macros::ast;
-use crate::compiler::source::Span;
-use strum::AsRefStr;
-
-#[derive(AsRefStr, Debug, Clone, Copy, Eq, PartialEq)]
-pub enum BuiltinKind {
-    None,
-    Bool,
-    Int,
-    Float,
-    String,
-}
+use crate::compiler::{lexer::token::Token, source::Span};
 
 ast! {
     pub enum Type {
         Builtin {
             span: Span,
-            kind: BuiltinKind,
+            token: Token,
         },
         Optional {
             span: Span,

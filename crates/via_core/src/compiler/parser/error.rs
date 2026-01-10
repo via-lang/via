@@ -12,5 +12,5 @@ use crate::compiler::lexer::token::Token;
 #[derive(Debug)]
 pub enum Error {
     UnexpectedEndOfFile,
-    UnexpectedToken { token: Token, task: &'static str },
+    UnexpectedToken { token: Token, task: String },
 }
