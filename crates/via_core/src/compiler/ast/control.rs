@@ -35,11 +35,6 @@ ast! {
             cond: Box<Expr>,
             body: Body,
         },
-        WhileNot {
-            span: Span,
-            cond: Box<Expr>,
-            body: Body,
-        },
         For {
             span: Span,
             cond: Box<Expr>,
@@ -64,7 +59,6 @@ impl Node for Control {
             Self::Raise(c) => c.span,
             Self::If(c) => c.span,
             Self::While(c) => c.span,
-            Self::WhileNot(c) => c.span,
             Self::For(c) => c.span,
             Self::ForEach(c) => c.span,
         }

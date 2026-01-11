@@ -197,17 +197,43 @@ impl<'m> Parser<'m> {
             }
             TokenKind::ParenOpen => {
                 let first = self.consume()?;
-                let inner = self.parse_expr()?;
-                let last =
-                    self.expect_consume(TokenKind::ParenClose, "terminating group expression")?;
+                let expr = self.parse_expr()?;
 
-                Ok(Expr::Value(
-                    value::Group {
-                        span: span![first.span.begin, last.span.end],
-                        expr: Box::new(inner),
+                let expr = if self.check(TokenKind::Comma) {
+                    let mut exprs = vec![expr];
+
+                    while self.check(TokenKind::Comma) {
+                        self.consume()?;
+                        if self.check(TokenKind::ParenClose) {
+                            break;
+                        }
+                        let next = self.parse_expr()?;
+                        exprs.push(next);
                     }
-                    .into(),
-                ))
+
+                    let last = self.expect_consume(TokenKind::ParenClose, "terminating tuple")?;
+
+                    Expr::Value(
+                        value::Tuple {
+                            span: span![first.span.begin, last.span.end],
+                            exprs,
+                        }
+                        .into(),
+                    )
+                } else {
+                    let last =
+                        self.expect_consume(TokenKind::ParenClose, "terminating group expression")?;
+
+                    Expr::Value(
+                        value::Group {
+                            span: span![first.span.begin, last.span.end],
+                            expr: Box::new(expr),
+                        }
+                        .into(),
+                    )
+                };
+
+                Ok(expr)
             }
             TokenKind::OpMinus | TokenKind::OpBang | TokenKind::OpAmp | TokenKind::OpTilde => {
                 self.consume()?;
@@ -553,20 +579,6 @@ impl<'m> Parser<'m> {
         })
     }
 
-    fn parse_control_whilenot(&mut self) -> Result<control::WhileNot, Error> {
-        let first = self
-            .expect_consume(TokenKind::KwWhilex, "parsing while-not statement")?
-            .span;
-        let cond = self.parse_expr()?;
-        let body = self.parse_body(Self::parse_stmt, "parsing while-not statement body")?;
-
-        Ok(control::WhileNot {
-            span: span![first.begin, body.0.end],
-            cond: Box::new(cond),
-            body,
-        })
-    }
-
     fn parse_control_for(&mut self) -> Result<control::For, Error> {
         let first = self
             .expect_consume(TokenKind::KwWhile, "parsing for statement")?
@@ -627,7 +639,6 @@ impl<'m> Parser<'m> {
                 TokenKind::KwReturn => self.parse_control_return().map(Into::into),
                 TokenKind::KwRaise => self.parse_control_raise().map(Into::into),
                 TokenKind::KwWhile => self.parse_control_while().map(Into::into),
-                TokenKind::KwWhilex => self.parse_control_whilenot().map(Into::into),
                 TokenKind::KwFor if self.check_ahead(TokenKind::KwVar, 1) => {
                     self.parse_control_foreach().map(Into::into)
                 }
@@ -827,16 +838,15 @@ impl<'m> Parser<'m> {
                 | TokenKind::KwReturn
                 | TokenKind::KwRaise
                 | TokenKind::KwWhile
-                | TokenKind::KwWhilex
                 | TokenKind::KwFor
-                | TokenKind::KwIf => self.parse_control().map(|ctrl| Stmt::Control(ctrl)),
+                | TokenKind::KwIf => self.parse_control().map(Stmt::Control),
                 TokenKind::KwVar
                 | TokenKind::KwFn
                 | TokenKind::KwUse
                 | TokenKind::KwType
                 | TokenKind::KwConst
                 | TokenKind::KwStruct
-                | TokenKind::KwImport => self.parse_decl().map(|decl| Stmt::Decl(decl)),
+                | TokenKind::KwImport => self.parse_decl().map(Stmt::Decl),
                 _ if self.is_expr_start() => Ok(Stmt::Expr(self.parse_expr()?)),
                 _ => Err(Error::UnexpectedToken {
                     token: token,
