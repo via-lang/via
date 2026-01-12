@@ -1,0 +1,11 @@
+[package]
+name = "viac_lexer"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+phf = { version = "0.13.1", features = ["macros"] }
+strum = { version = "0.27", features = ["derive"] }
+strum_macros = "0.27"
+unicode-ident = "1"
+viac_source = { path = "../viac_source" }

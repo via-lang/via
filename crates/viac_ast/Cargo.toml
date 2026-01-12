@@ -1,0 +1,9 @@
+[package]
+name = "viac_ast"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bitflags = { workspace = true }
+viac_lexer = { path = "../viac_lexer" }
+viac_source = { path = "../viac_source" }

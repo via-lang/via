@@ -7,19 +7,19 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::TreeType;
+use crate::TreeType;
 use anyhow::Result;
 use std::io::Write;
-use via_core::compiler::{
-    ast::stmt::Stmt,
-    lexer::{token::Token, tokenize},
-    parser::{error::Error as ParserError, parse},
-    source::Source,
-};
+use viac_ast::stmt::Stmt;
+use viac_lexer::lexer;
+use viac_lexer::token::Token;
+use viac_parser::error::Error as ParseError;
+use viac_parser::parser;
+use viac_source::source::Source;
 
 pub struct Fixture {
     pub tokens: Vec<Token>,
-    pub ast: Result<Vec<Stmt>, ParserError>,
+    pub ast: Result<Vec<Stmt>, ParseError>,
 }
 
 impl Fixture {
@@ -33,11 +33,9 @@ impl Fixture {
 }
 
 pub fn run(src: &str) -> Result<Fixture> {
-    println!("Running program...");
-
     let source = Source::new(src.to_string());
-    let tokens = tokenize(&source);
-    let ast = parse(tokens.as_slice());
+    let tokens = lexer::tokenize(&source);
+    let ast = parser::parse(tokens.as_slice());
 
     Ok(Fixture { tokens, ast })
 }

@@ -65,12 +65,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "812e12b5285cc515a9c72a5c1d3b6d46a19dac5acfef5265968c166106e31dd3"
 
 [[package]]
-name = "bumpalo"
-version = "3.19.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5dd9dc738b7a8311c7ade152424974d8115f2cdad61e8dab8dac9f2362298510"
-
-[[package]]
 name = "cfg-if"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -263,18 +257,18 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.104"
+version = "1.0.105"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9695f8df41bb4f3d222c95a67532365f569318332d03d5f3f67f37b20e6ebdf0"
+checksum = "535d180e0ecab6268a3e718bb9fd44db66bbbc256257165fc699dadf70d16fe7"
 dependencies = [
  "unicode-ident",
 ]
 
 [[package]]
 name = "quote"
-version = "1.0.42"
+version = "1.0.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a338cc41d27e6cc6dce6cefc13a0729dfbb81c262b1f519331575dd80ef3067f"
+checksum = "dc74d9a594b72ae6656596548f56f667211f8a97b3d4c3d467150794690dc40a"
 dependencies = [
  "proc-macro2",
 ]
@@ -371,9 +365,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.113"
+version = "2.0.114"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "678faa00651c9eb72dd2020cbdf275d92eccb2400d568e419efdd64838145cb4"
+checksum = "d4d107df263a3013ef9b1879b0df87d706ff80f65a86ea879bd9c31f9b307c2a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -412,20 +406,49 @@ dependencies = [
  "anyhow",
  "clap",
  "clio",
- "via_core",
+ "viac_ast",
+ "viac_lexer",
+ "viac_parser",
+ "viac_source",
 ]
 
 [[package]]
-name = "via_core"
+name = "via_macros"
+version = "0.1.0"
+
+[[package]]
+name = "viac_ast"
 version = "0.1.0"
 dependencies = [
  "bitflags",
- "bumpalo",
+ "viac_lexer",
+ "viac_source",
+]
+
+[[package]]
+name = "viac_lexer"
+version = "0.1.0"
+dependencies = [
  "phf",
  "strum",
  "strum_macros",
  "unicode-ident",
+ "viac_source",
 ]
+
+[[package]]
+name = "viac_parser"
+version = "0.1.0"
+dependencies = [
+ "via_macros",
+ "viac_ast",
+ "viac_lexer",
+ "viac_source",
+]
+
+[[package]]
+name = "viac_source"
+version = "0.1.0"
 
 [[package]]
 name = "walkdir"

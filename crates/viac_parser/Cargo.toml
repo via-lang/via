@@ -1,0 +1,10 @@
+[package]
+name = "viac_parser"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+via_macros = { path = "../via_macros" }
+viac_ast = { path = "../viac_ast" }
+viac_lexer = { path = "../viac_lexer" }
+viac_source = { path = "../viac_source" }

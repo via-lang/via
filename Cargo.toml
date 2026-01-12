@@ -2,8 +2,12 @@
 edition = "2024"
 resolver = "3"
 members = [
-    "crates/via_core",
     "crates/via_cli",
+    "crates/via_macros",
+    "crates/viac_source",
+    "crates/viac_lexer",
+    "crates/viac_ast",
+    "crates/viac_parser"
 ]
 
 [workspace.dependencies]
