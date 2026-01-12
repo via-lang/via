@@ -12,8 +12,8 @@ use anyhow::Result;
 use std::io::Write;
 use via_core::compiler::{
     ast::stmt::Stmt,
-    lexer::{Lexer, token::Token},
-    parser::{Parser, error::Error as ParserError},
+    lexer::{token::Token, tokenize},
+    parser::{error::Error as ParserError, parse},
     source::Source,
 };
 
@@ -36,10 +36,8 @@ pub fn run(src: &str) -> Result<Fixture> {
     println!("Running program...");
 
     let source = Source::new(src.to_string());
-    let mut lexer = Lexer::new(&source);
-    let tokens = lexer.tokenize();
-    let mut parser = Parser::new(&tokens);
-    let ast = parser.parse();
+    let tokens = tokenize(&source);
+    let ast = parse(tokens.as_slice());
 
     Ok(Fixture { tokens, ast })
 }
