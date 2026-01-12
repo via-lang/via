@@ -6,6 +6,3 @@
 ** ------------------------------------------------ **
 **         https://github.com/via-lang/via          **
 ** ================================================ */
-
-pub mod execution;
-pub(crate) mod instruction;
