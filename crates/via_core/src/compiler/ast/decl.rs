@@ -7,7 +7,7 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::{Body, Node, Parameter, expr::Expr, macros::ast, typ};
+use super::{Body, Node, Parameter, expr::Expr, macros::ast, ty};
 use crate::compiler::{lexer::token::Token, source::Span};
 
 ast! {
@@ -15,24 +15,24 @@ ast! {
         Variable {
             span: Span,
             symbol: Token,
-            typ: Option<Box<typ::Type>>,
+            ty: Option<Box<ty::Ty>>,
             expr: Box<Expr>,
         },
         Function {
             span: Span,
             symbol: Token,
             params: Vec<Parameter>,
-            result: Option<Box<typ::Type>>,
+            result: Option<Box<ty::Ty>>,
             body: Body,
         },
         Use {
             span: Span,
             symbol: Token,
         },
-        Type {
+        Ty {
             span: Span,
             symbol: Token,
-            typ: Box<typ::Type>,
+            ty: Box<ty::Ty>,
         },
         Const {
             span: Span,
@@ -58,7 +58,7 @@ impl Node for Decl {
             Self::Variable(d) => d.span,
             Self::Function(d) => d.span,
             Self::Use(d) => d.span,
-            Self::Type(d) => d.span,
+            Self::Ty(d) => d.span,
             Self::Const(d) => d.span,
             Self::Struct(d) => d.span,
             Self::Import(d) => d.span,

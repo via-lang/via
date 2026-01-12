@@ -8,11 +8,19 @@
 ** ================================================ */
 
 use super::{Body, Node, macros::ast};
-use super::{expr::Expr, typ::Type};
-use crate::compiler::{lexer::token::Token, source::Span};
+use super::{expr::Expr, ty::Ty};
+use crate::compiler::{
+    lexer::token::Token,
+    source::{Span, span},
+};
 
 ast! {
     pub enum Control {
+        Assign {
+            op: Token,
+            lhs: Box<Expr>,
+            rhs: Box<Expr>,
+        },
         Break { span: Span },
         Continue { span: Span },
         Return {
@@ -37,13 +45,7 @@ ast! {
         },
         For {
             span: Span,
-            cond: Box<Expr>,
-            action: Box<Expr>,
-            body: Body,
-        },
-        ForEach {
-            span: Span,
-            param: (Token, Option<Box<Type>>),
+            param: (Token, Option<Box<Ty>>),
             expr: Box<Expr>,
             body: Body,
         },
@@ -53,6 +55,7 @@ ast! {
 impl Node for Control {
     fn span(&self) -> Span {
         match self {
+            Self::Assign(c) => span![c.lhs.span().begin, c.rhs.span().end],
             Self::Break(c) => c.span,
             Self::Continue(c) => c.span,
             Self::Return(c) => c.span,
@@ -60,7 +63,6 @@ impl Node for Control {
             Self::If(c) => c.span,
             Self::While(c) => c.span,
             Self::For(c) => c.span,
-            Self::ForEach(c) => c.span,
         }
     }
 }

@@ -7,7 +7,7 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::{Body, Node, Parameter, attr, expr::Expr, macros::ast, place::Place, typ::Type};
+use super::{Body, Node, Parameter, attr, expr::Expr, macros::ast, place::Place, ty::Ty};
 use crate::compiler::{lexer::token::Token, source::Span};
 use bitflags::bitflags;
 
@@ -34,6 +34,12 @@ ast! {
         Integer { token: Token },
         Float { token: Token },
         String { token: Token },
+        Range {
+            span: Span,
+            lhs: Box<Expr>,
+            rhs: Box<Expr>,
+            inclusive: bool,
+        },
         Tuple {
             span: Span,
             exprs: Vec<Expr>,
@@ -49,7 +55,7 @@ ast! {
         Lambda {
             span: Span,
             params: Vec<Parameter>,
-            result: Option<Box<Type>>,
+            result: Option<Box<Ty>>,
             body: Body,
         },
         Unary {
@@ -77,7 +83,7 @@ ast! {
         Cast {
             span: Span,
             expr: Box<Expr>,
-            typ: Box<Type>,
+            typ: Box<Ty>,
         },
         Attr {
             span: Span,
@@ -97,6 +103,7 @@ impl Node for Value {
             Value::Integer(v) => v.token.span,
             Value::Float(v) => v.token.span,
             Value::String(v) => v.token.span,
+            Value::Range(v) => v.span,
             Value::Tuple(v) => v.span,
             Value::Array(v) => v.span,
             Value::Map(v) => v.span,

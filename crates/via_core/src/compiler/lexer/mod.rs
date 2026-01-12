@@ -17,19 +17,12 @@ use symbols::SYMBOLS;
 use token::{Token, TokenKind};
 use unicode_ident::*;
 
-pub struct Lexer<'m> {
-    source: &'m Source,
-    position: u32,
+struct Lexer<'m> {
+    pub(self) source: &'m Source,
+    pub(self) position: u32,
 }
 
 impl<'m> Lexer<'m> {
-    pub fn new(src: &'m Source) -> Self {
-        Self {
-            source: src,
-            position: 0,
-        }
-    }
-
     fn peek(&self) -> Option<char> {
         self.source.0[(self.position as usize)..].chars().next()
     }
@@ -184,7 +177,7 @@ impl<'m> Lexer<'m> {
         }
     }
 
-    pub fn tokenize(&mut self) -> Vec<Token> {
+    pub(self) fn tokenize(&mut self) -> Vec<Token> {
         let mut tokens: Vec<Token> = vec![];
         loop {
             let token = self.next_token();
@@ -195,4 +188,12 @@ impl<'m> Lexer<'m> {
             }
         }
     }
+}
+
+pub fn tokenize(source: &Source) -> Vec<Token> {
+    Lexer {
+        source,
+        position: 0,
+    }
+    .tokenize()
 }

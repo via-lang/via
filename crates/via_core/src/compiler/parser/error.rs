@@ -7,10 +7,31 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use crate::compiler::lexer::token::Token;
+use super::context::Context;
+use crate::compiler::lexer::token::{Token, TokenKind};
 
 #[derive(Debug)]
-pub enum Error {
+pub enum ErrorKind {
     UnexpectedEndOfFile,
-    UnexpectedToken { token: Token, task: String },
+    UnexpectedToken {
+        expected: Vec<TokenKind>,
+        got: Token,
+    },
 }
+
+impl Into<Error> for ErrorKind {
+    fn into(self) -> Error {
+        Error {
+            contexts: Vec::new(),
+            kind: self,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Error {
+    pub contexts: Vec<Context>,
+    pub kind: ErrorKind,
+}
+
+pub type Result<T> = std::result::Result<T, Error>;

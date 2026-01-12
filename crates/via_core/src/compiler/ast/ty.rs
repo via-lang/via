@@ -11,33 +11,33 @@ use super::{Node, expr::Expr, macros::ast};
 use crate::compiler::{lexer::token::Token, source::Span};
 
 ast! {
-    pub enum Type {
+    pub enum Ty {
         Builtin {
             span: Span,
             token: Token,
         },
         Optional {
             span: Span,
-            typ: Box<Type>,
+            ty: Box<Ty>,
         },
         Union {
             span: Span,
-            lhs: Box<Type>,
-            rhs: Box<Type>
+            lhs: Box<Ty>,
+            rhs: Box<Ty>
         },
         Array {
             span: Span,
-            typ: Box<Type>,
+            ty: Box<Ty>,
         },
         Map {
             span: Span,
-            key: Box<Type>,
-            value: Box<Type>,
+            key: Box<Ty>,
+            value: Box<Ty>,
         },
         Function {
             span: Span,
-            params: Vec<Type>,
-            result: Box<Type>,
+            params: Vec<Ty>,
+            result: Box<Ty>,
         },
         TypeOf {
             span: Span,
@@ -46,7 +46,7 @@ ast! {
     }
 }
 
-impl Node for Type {
+impl Node for Ty {
     fn span(&self) -> Span {
         match self {
             Self::Builtin(t) => t.span,

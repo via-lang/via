@@ -14,7 +14,7 @@ pub mod expr;
 pub mod macros;
 pub mod place;
 pub mod stmt;
-pub mod typ;
+pub mod ty;
 pub mod value;
 
 use crate::compiler::{
@@ -22,7 +22,7 @@ use crate::compiler::{
     source::{Span, span},
 };
 use stmt::Stmt;
-use typ::Type;
+use ty::Ty;
 
 pub trait Node {
     fn span(&self) -> Span;
@@ -32,7 +32,7 @@ pub trait Node {
 pub struct Body<T: Node = Stmt>(pub Span, pub Vec<T>);
 
 #[derive(Debug)]
-pub struct Parameter(pub Token, pub Box<Type>);
+pub struct Parameter(pub Token, pub Box<Ty>);
 
 impl Node for Body {
     fn span(&self) -> Span {
