@@ -17,23 +17,35 @@ macro_rules! ast {
             ),* $(,)?
         }
     ) => {
-        // structs
         $(
             #[derive(Debug, Eq, PartialEq)]
             $vis struct $name {
+                pub span: Span,
                 $(pub $field : $ty),*
             }
         )*
-
-        // apply attributes once via helper
+        $(
+            impl Node for $name {
+                fn span(&self) -> Span {
+                    self.span
+                }
+            }
+        )*
         #[derive(Debug, Eq, PartialEq)]
         $vis enum $enum {
             $(
                 $name($name),
             )*
         }
-
-        // lifting impls
+        impl crate::node::Node for $enum {
+            fn span(&self) -> Span {
+                match self {
+                    $(
+                        $enum::$name(inner) => inner.span(),
+                    )*
+                }
+            }
+        }
         $(
             impl From<$name> for $enum {
                 fn from(v: $name) -> Self {
@@ -41,6 +53,29 @@ macro_rules! ast {
                 }
             }
         )*
+    };
+    (
+        $vis:vis enum $enum:ident {
+            $(
+                $name:ident($field:ident)
+            ),* $(,)?
+        }
+    ) => {
+        #[derive(Debug, Eq, PartialEq)]
+        $vis enum $enum {
+            $(
+                $name($name),
+            )*
+        }
+        impl crate::node::Node for $enum {
+            fn span(&self) -> viac_source::span::Span {
+                match self {
+                    $(
+                        $enum::$name(inner) => inner.span(),
+                    )*
+                }
+            }
+        }
     };
 }
 

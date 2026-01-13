@@ -10,6 +10,7 @@
 use crate::context::Context;
 use crate::error::{Error, ErrorKind, Result};
 use via_macros::bug;
+use viac_ast::attr::Attr;
 use viac_ast::body::Body;
 use viac_ast::control::{self, Control};
 use viac_ast::decl::{self, Decl};
@@ -191,7 +192,13 @@ impl<'a> Parser<'a> {
             match tok.kind {
                 TokenKind::Identifier => {
                     p.consume()?;
-                    Ok(Expr::Place(place::Symbol { token: tok }.into()))
+                    Ok(Expr::Place(
+                        place::Symbol {
+                            span: tok.span,
+                            token: tok,
+                        }
+                        .into(),
+                    ))
                 }
                 TokenKind::KwSelf => {
                     p.consume()?;
@@ -211,15 +218,33 @@ impl<'a> Parser<'a> {
                 }
                 TokenKind::LitInt | TokenKind::LitXint | TokenKind::LitBint => {
                     p.consume()?;
-                    Ok(Expr::Value(value::Integer { token: tok }.into()))
+                    Ok(Expr::Value(
+                        value::Integer {
+                            span: tok.span,
+                            token: tok,
+                        }
+                        .into(),
+                    ))
                 }
                 TokenKind::LitFloat => {
                     p.consume()?;
-                    Ok(Expr::Value(value::Float { token: tok }.into()))
+                    Ok(Expr::Value(
+                        value::Float {
+                            span: tok.span,
+                            token: tok,
+                        }
+                        .into(),
+                    ))
                 }
                 TokenKind::LitString => {
                     p.consume()?;
-                    Ok(Expr::Value(value::String { token: tok }.into()))
+                    Ok(Expr::Value(
+                        value::String {
+                            span: tok.span,
+                            token: tok,
+                        }
+                        .into(),
+                    ))
                 }
                 TokenKind::ParenOpen => {
                     let first = p.consume()?;
@@ -858,6 +883,7 @@ impl<'a> Parser<'a> {
                             let rhs = self.parse_expr()?;
                             Ok(Stmt::Control(
                                 control::Assign {
+                                    span: span![expr.span().begin, rhs.span().end],
                                     op: op,
                                     lhs: Box::new(expr),
                                     rhs: Box::new(rhs),

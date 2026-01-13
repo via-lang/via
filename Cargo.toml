@@ -11,5 +11,4 @@ members = [
 ]
 
 [workspace.dependencies]
-bumpalo = "3.19.0"
 bitflags = "2.10.0"

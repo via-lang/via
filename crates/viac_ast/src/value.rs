@@ -32,97 +32,49 @@ bitflags! {
 
 ast! {
     pub enum Value {
-        Group {
-            span: Span,
-            expr: Box<Expr>,
-        },
-        None { span: Span },
-        True { span: Span },
-        False { span: Span },
+        Group { expr: Box<Expr> },
+        None {  },
+        True {  },
+        False {  },
         Integer { token: Token },
         Float { token: Token },
         String { token: Token },
         Range {
-            span: Span,
             lhs: Box<Expr>,
             rhs: Box<Expr>,
             inclusive: bool,
         },
-        Tuple {
-            span: Span,
-            exprs: Vec<Expr>,
-        },
-        Array {
-            span: Span,
-            exprs: Vec<Expr>,
-        },
-        Map {
-            span: Span,
-            pairs: Vec<(Expr, Expr)>,
-        },
+        Tuple { exprs: Vec<Expr> },
+        Array { exprs: Vec<Expr> },
+        Map { pairs: Vec<(Expr, Expr)> },
         Lambda {
-            span: Span,
             params: Vec<Param>,
             result: Option<Box<Ty>>,
             body: Body,
         },
         Unary {
-            span: Span,
             op: Token,
             expr: Box<Expr>,
         },
         Binary {
-            span: Span,
             op: Token,
             lhs: Box<Expr>,
             rhs: Box<Expr>,
         },
         Reference {
-            span: Span,
             flags: ReferenceFlags,
             expr: Box<Expr>,
         },
         Ternary {
-            span: Span,
             cond: Box<Expr>,
             iftrue: Box<Expr>,
             iffalse: Box<Expr>,
         },
         Cast {
-            span: Span,
             expr: Box<Expr>,
             typ: Box<Ty>,
         },
-        Attr {
-            span: Span,
-            attr: attr::Attr,
-        },
+        Attr { attr: attr::Attr },
         Read { place: Place },
-    }
-}
-
-impl Node for Value {
-    fn span(&self) -> Span {
-        match self {
-            Value::Group(v) => v.span,
-            Value::None(v) => v.span,
-            Value::True(v) => v.span,
-            Value::False(v) => v.span,
-            Value::Integer(v) => v.token.span,
-            Value::Float(v) => v.token.span,
-            Value::String(v) => v.token.span,
-            Value::Range(v) => v.span,
-            Value::Tuple(v) => v.span,
-            Value::Array(v) => v.span,
-            Value::Map(v) => v.span,
-            Value::Lambda(v) => v.span,
-            Value::Unary(v) => v.span,
-            Value::Binary(v) => v.span,
-            Value::Reference(v) => v.span,
-            Value::Ternary(v) => v.span,
-            Value::Cast(v) => v.span,
-            Value::Attr(v) => v.span,
-            Value::Read(v) => v.place.span(),
-        }
     }
 }

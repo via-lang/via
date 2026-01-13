@@ -15,34 +15,19 @@ use viac_source::span::Span;
 
 ast! {
     pub enum Place {
-        This { span: Span },
+        This { },
         Symbol { token: Token },
         Dynamic {
-            span: Span,
             expr: Box<Expr>,
             field: Token,
         },
         Static {
-            span: Span,
             expr: Box<Expr>,
             field: Token,
         },
         Subscript {
-            span: Span,
             expr: Box<Expr>,
             index: Box<Expr>,
         },
-    }
-}
-
-impl Node for Place {
-    fn span(&self) -> Span {
-        match self {
-            Self::This(p) => p.span,
-            Self::Symbol(p) => p.token.span,
-            Self::Dynamic(p) => p.span,
-            Self::Static(p) => p.span,
-            Self::Subscript(p) => p.span,
-        }
     }
 }

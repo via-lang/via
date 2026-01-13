@@ -10,24 +10,12 @@
 use crate::control::Control;
 use crate::decl::Decl;
 use crate::expr::Expr;
-use crate::node::Node;
-use viac_source::span::Span;
+use crate::macros::ast;
 
-#[derive(Debug, Eq, PartialEq)]
-pub enum Stmt {
-    Empty(Span),
-    Decl(Decl),
-    Control(Control),
-    Expr(Expr),
-}
-
-impl Node for Stmt {
-    fn span(&self) -> Span {
-        match self {
-            Self::Empty(span) => *span,
-            Self::Decl(decl) => decl.span(),
-            Self::Control(ctrl) => ctrl.span(),
-            Self::Expr(expr) => expr.span(),
-        }
+ast! {
+    pub enum Stmt {
+        Decl(Decl),
+        Control(Control),
+        Expr(Expr),
     }
 }

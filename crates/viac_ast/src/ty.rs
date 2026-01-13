@@ -15,50 +15,21 @@ use viac_source::span::Span;
 
 ast! {
     pub enum Ty {
-        Builtin {
-            span: Span,
-            token: Token,
-        },
-        Optional {
-            span: Span,
-            ty: Box<Ty>,
-        },
-        Union {
-            span: Span,
-            lhs: Box<Ty>,
-            rhs: Box<Ty>
-        },
-        Array {
-            span: Span,
-            ty: Box<Ty>,
-        },
+        Builtin { token: Token },
+        Optional { ty: Box<Ty> },
+        Array { ty: Box<Ty> },
         Map {
-            span: Span,
             key: Box<Ty>,
             value: Box<Ty>,
         },
         Function {
-            span: Span,
             params: Vec<Ty>,
             result: Box<Ty>,
         },
-        TypeOf {
-            span: Span,
-            expr: Box<Expr>,
+        Union {
+            lhs: Box<Ty>,
+            rhs: Box<Ty>
         },
-    }
-}
-
-impl Node for Ty {
-    fn span(&self) -> Span {
-        match self {
-            Self::Builtin(t) => t.span,
-            Self::Optional(t) => t.span,
-            Self::Union(t) => t.span,
-            Self::Array(t) => t.span,
-            Self::Map(t) => t.span,
-            Self::Function(t) => t.span,
-            Self::TypeOf(t) => t.span,
-        }
+        TypeOf { expr: Box<Expr> },
     }
 }
