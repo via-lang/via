@@ -10,6 +10,7 @@
 use crate::TreeType;
 use anyhow::Result;
 use std::io::Write;
+use viac_ast::node::Node;
 use viac_ast::stmt::Stmt;
 use viac_lexer::lexer;
 use viac_lexer::token::Token;
@@ -19,7 +20,7 @@ use viac_source::source::Source;
 
 pub struct Fixture {
     pub tokens: Vec<Token>,
-    pub ast: Result<Vec<Stmt>, ParseError>,
+    pub ast: Result<Vec<Node<Stmt>>, ParseError>,
 }
 
 impl Fixture {
@@ -35,7 +36,7 @@ impl Fixture {
 pub fn run(src: &str) -> Result<Fixture> {
     let source = Source::new(src.to_string());
     let tokens = lexer::tokenize(&source);
-    let ast = parser::parse(tokens.as_slice());
+    let ast = parser::parse(&source, tokens.as_slice());
 
     Ok(Fixture { tokens, ast })
 }

@@ -20,16 +20,9 @@ macro_rules! ast {
         $(
             #[derive(Debug, Eq, PartialEq)]
             $vis struct $name {
-                pub span: Span,
                 $(pub $field : $ty),*
             }
-        )*
-        $(
-            impl Node for $name {
-                fn span(&self) -> Span {
-                    self.span
-                }
-            }
+            impl crate::node::Ast for $name {}
         )*
         #[derive(Debug, Eq, PartialEq)]
         $vis enum $enum {
@@ -37,16 +30,13 @@ macro_rules! ast {
                 $name($name),
             )*
         }
-        impl crate::node::Node for $enum {
-            fn span(&self) -> Span {
-                match self {
-                    $(
-                        $enum::$name(inner) => inner.span(),
-                    )*
-                }
-            }
-        }
+        impl crate::node::Ast for $enum {}
         $(
+            // impl From<crate::node::Node<$name>> for $enum {
+            //     fn from(v: crate::node::Node<$name>) -> Self {
+            //
+            //     }
+            // }
             impl From<$name> for $enum {
                 fn from(v: $name) -> Self {
                     $enum::$name(v)
@@ -67,15 +57,7 @@ macro_rules! ast {
                 $name($name),
             )*
         }
-        impl crate::node::Node for $enum {
-            fn span(&self) -> viac_source::span::Span {
-                match self {
-                    $(
-                        $enum::$name(inner) => inner.span(),
-                    )*
-                }
-            }
-        }
+        impl crate::node::Ast for $enum {}
     };
 }
 

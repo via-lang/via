@@ -8,11 +8,10 @@
 ** ================================================ */
 
 use crate::attr;
-use crate::body::Body;
 use crate::expr::Expr;
+use crate::extra::{Body, Param};
 use crate::macros::ast;
-use crate::node::Node;
-use crate::param::Param;
+use crate::node::{Node, NodeRef};
 use crate::place::Place;
 use crate::ty::Ty;
 use bitflags::bitflags;
@@ -32,7 +31,7 @@ bitflags! {
 
 ast! {
     pub enum Value {
-        Group { expr: Box<Expr> },
+        Group { expr: NodeRef<Expr> },
         None {  },
         True {  },
         False {  },
@@ -40,41 +39,42 @@ ast! {
         Float { token: Token },
         String { token: Token },
         Range {
-            lhs: Box<Expr>,
-            rhs: Box<Expr>,
+            lhs: NodeRef<Expr>,
+            rhs: NodeRef<Expr>,
             inclusive: bool,
         },
-        Tuple { exprs: Vec<Expr> },
-        Array { exprs: Vec<Expr> },
-        Map { pairs: Vec<(Expr, Expr)> },
+        Tuple { exprs: Vec<Node<Expr>> },
+        Array { exprs: Vec<Node<Expr>> },
+        Map { pairs: Vec<(Node<Expr>, Node<Expr>)> },
         Lambda {
-            params: Vec<Param>,
-            result: Option<Box<Ty>>,
-            body: Body,
+            params: Vec<Node<Param>>,
+            result: Option<NodeRef<Ty>>,
+            body: Node<Body>,
         },
         Unary {
             op: Token,
-            expr: Box<Expr>,
+            expr: NodeRef<Expr>,
         },
         Binary {
             op: Token,
-            lhs: Box<Expr>,
-            rhs: Box<Expr>,
+            lhs: NodeRef<Expr>,
+            rhs: NodeRef<Expr>,
         },
         Reference {
             flags: ReferenceFlags,
-            expr: Box<Expr>,
+            expr: NodeRef<Expr>,
         },
         Ternary {
-            cond: Box<Expr>,
-            iftrue: Box<Expr>,
-            iffalse: Box<Expr>,
+            cond: NodeRef<Expr>,
+            iftrue: NodeRef<Expr>,
+            iffalse: NodeRef<Expr>,
         },
         Cast {
-            expr: Box<Expr>,
-            typ: Box<Ty>,
+            expr: NodeRef<Expr>,
+            typ: NodeRef<Ty>,
         },
-        Attr { attr: attr::Attr },
-        Read { place: Place },
+        Type { ty: NodeRef<Ty> },
+        Attr { attr: NodeRef<attr::Attr> },
+        Read { place: NodeRef<Place> },
     }
 }

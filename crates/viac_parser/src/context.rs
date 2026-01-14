@@ -35,4 +35,6 @@ pub enum Context {
     ReturnType,
     ParameterList,
     ArgumentList,
+    Attr,
+    AttrDistinct,
 }

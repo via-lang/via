@@ -9,7 +9,7 @@
 
 use crate::expr::Expr;
 use crate::macros::ast;
-use crate::node::Node;
+use crate::node::{Node, NodeRef};
 use viac_lexer::token::Token;
 use viac_source::span::Span;
 
@@ -18,16 +18,16 @@ ast! {
         This { },
         Symbol { token: Token },
         Dynamic {
-            expr: Box<Expr>,
+            expr: NodeRef<Expr>,
             field: Token,
         },
         Static {
-            expr: Box<Expr>,
+            expr: NodeRef<Expr>,
             field: Token,
         },
         Subscript {
-            expr: Box<Expr>,
-            index: Box<Expr>,
+            expr: NodeRef<Expr>,
+            index: NodeRef<Expr>,
         },
     }
 }

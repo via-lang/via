@@ -7,15 +7,28 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use crate::node::Node;
+use crate::node::{Ast, Node, NodeRef};
 use crate::stmt::Stmt;
-use viac_source::span::Span;
+use crate::ty::Ty;
+use viac_lexer::token::Token;
 
-#[derive(Debug, Eq, PartialEq)]
-pub struct Body<T: Node = Stmt>(pub Span, pub Vec<T>);
+#[derive(Debug, PartialEq, Eq)]
+pub struct Body<T: Ast = Stmt> {
+    pub stmts: Vec<Node<T>>,
+}
 
-impl Node for Body {
-    fn span(&self) -> Span {
-        self.0
+impl<T: Ast> Ast for Body<T> {}
+
+#[derive(Debug, Eq)]
+pub struct Param {
+    pub name: Token,
+    pub ty: NodeRef<Ty>,
+}
+
+impl Ast for Param {}
+
+impl PartialEq for Param {
+    fn eq(&self, other: &Self) -> bool {
+        self.ty == other.ty
     }
 }

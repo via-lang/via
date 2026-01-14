@@ -7,43 +7,42 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use crate::body::Body;
 use crate::expr::Expr;
+use crate::extra::Body;
 use crate::macros::ast;
-use crate::node::Node;
+use crate::node::{Node, NodeRef};
 use crate::ty::Ty;
 use viac_lexer::token::Token;
-use viac_source::span::Span;
 
 ast! {
     pub enum Control {
         Break {},
         Continue {},
         Return {
-            expr: Option<Box<Expr>>,
+            expr: Option<NodeRef<Expr>>,
         },
         Raise {
-            expr: Box<Expr>,
+            expr: NodeRef<Expr>,
         },
         If {
-            cond: Box<Expr>,
-            body: Body,
-            elifs: Vec<(Expr, Body)>,
-            els: Option<Body>,
+            cond: NodeRef<Expr>,
+            body: Node<Body>,
+            elseif: Vec<(Node<Expr>, Node<Body>)>,
+            else_body: Option<Node<Body>>,
         },
         While {
-            cond: Box<Expr>,
-            body: Body,
+            cond: NodeRef<Expr>,
+            body: Node<Body>,
         },
         For {
-            param: (Token, Option<Box<Ty>>),
-            expr: Box<Expr>,
-            body: Body,
+            param: (Token, Option<NodeRef<Ty>>),
+            expr: NodeRef<Expr>,
+            body: Node<Body>,
         },
         Assign {
             op: Token,
-            lhs: Box<Expr>,
-            rhs: Box<Expr>,
+            lhs: NodeRef<Expr>,
+            rhs: NodeRef<Expr>,
         },
     }
 }

@@ -9,27 +9,26 @@
 
 use crate::expr::Expr;
 use crate::macros::ast;
-use crate::node::Node;
+use crate::node::{Node, NodeRef};
 use viac_lexer::token::Token;
-use viac_source::span::Span;
 
 ast! {
     pub enum Ty {
         Builtin { token: Token },
-        Optional { ty: Box<Ty> },
-        Array { ty: Box<Ty> },
+        Optional { ty: NodeRef<Ty> },
+        Array { ty: NodeRef<Ty> },
         Map {
-            key: Box<Ty>,
-            value: Box<Ty>,
+            key: NodeRef<Ty>,
+            value: NodeRef<Ty>,
         },
         Function {
-            params: Vec<Ty>,
-            result: Box<Ty>,
+            params: Vec<Node<Ty>>,
+            result: NodeRef<Ty>,
         },
         Union {
-            lhs: Box<Ty>,
-            rhs: Box<Ty>
+            lhs: NodeRef<Ty>,
+            rhs: NodeRef<Ty>
         },
-        TypeOf { expr: Box<Expr> },
+        TypeOf { expr: NodeRef<Expr> },
     }
 }

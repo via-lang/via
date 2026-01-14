@@ -7,18 +7,16 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
+use crate::expr::Expr;
 use crate::macros::ast;
-use crate::node::Node;
-use viac_source::span::Span;
+use crate::node::NodeRef;
+use crate::ty::Ty;
 
 ast! {
     pub enum Attr {
         Native {},
         Inline {},
-        Strong {},
-        Public {},
-        Private {},
-        ReadOnly {},
-        Fallthrough {},
+        Distinct { ty: NodeRef<Ty> },
+        Assert { expr: NodeRef<Ty>, out: Option<NodeRef<Expr>> },
     }
 }

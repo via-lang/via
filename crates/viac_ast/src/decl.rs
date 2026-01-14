@@ -7,40 +7,39 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use crate::body::Body;
 use crate::expr::Expr;
+use crate::extra::Body;
+use crate::extra::Param;
 use crate::macros::ast;
-use crate::node::Node;
-use crate::param::Param;
+use crate::node::{Node, NodeRef};
 use crate::ty::Ty;
 use viac_lexer::token::Token;
-use viac_source::span::Span;
 
 ast! {
     pub enum Decl {
         Variable {
             symbol: Token,
-            ty: Option<Box<Ty>>,
-            expr: Box<Expr>,
+            ty: Option<NodeRef<Ty>>,
+            expr: NodeRef<Expr>,
         },
         Function {
             symbol: Token,
             params: Vec<Param>,
-            result: Option<Box<Ty>>,
-            body: Body,
+            result: Option<NodeRef<Ty>>,
+            body: Node<Body>,
         },
         Use { symbol: Token },
         Type {
             symbol: Token,
-            ty: Box<Ty>,
+            ty: NodeRef<Ty>,
         },
         Const {
             symbol: Token,
-            expr: Box<Expr>,
+            expr: NodeRef<Expr>,
         },
         Struct {
             symbol: Token,
-            body: Body<Decl>,
+            body: Node<Body<Decl>>,
         },
         Import {
             path: Vec<Token>,
