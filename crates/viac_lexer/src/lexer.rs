@@ -52,9 +52,9 @@ impl<'a> Lexer<'a> {
         Some(chr)
     }
 
-    fn consume_while(&mut self, mut f: impl FnMut(char) -> bool) {
+    fn consume_while(&mut self, mut f: impl FnMut(&Lexer, char) -> bool) {
         while let Some(ch) = self.peek() {
-            if !f(ch) {
+            if !f(&self, ch) {
                 break;
             }
             self.position += ch.len_utf8() as u32;
@@ -65,8 +65,10 @@ impl<'a> Lexer<'a> {
         let begin = self.position;
         let mut kind = TokenKind::LitInt;
 
-        self.consume_while(|ch| match ch {
-            '.' if kind != TokenKind::LitFloat => {
+        self.consume_while(|l, ch| match ch {
+            '.' if kind != TokenKind::LitFloat
+                && l.peek_ahead(1).is_some_and(|ch| ch.is_ascii_digit()) =>
+            {
                 kind = TokenKind::LitFloat;
                 true
             }
@@ -81,7 +83,7 @@ impl<'a> Lexer<'a> {
 
         self.consume(); // 0
         self.consume(); // x
-        self.consume_while(|ch| ch.is_ascii_hexdigit());
+        self.consume_while(|_, ch| ch.is_ascii_hexdigit());
 
         Token::new(TokenKind::LitXint, span![begin, self.position])
     }
@@ -91,7 +93,7 @@ impl<'a> Lexer<'a> {
 
         self.consume(); // 0
         self.consume(); // b
-        self.consume_while(|ch| ch == '0' || ch == '1');
+        self.consume_while(|_, ch| ch == '0' || ch == '1');
 
         Token::new(TokenKind::LitBint, span![begin, self.position])
     }
@@ -100,7 +102,7 @@ impl<'a> Lexer<'a> {
         let begin = self.position;
 
         self.consume();
-        self.consume_while(|ch| ch == '_' || is_xid_continue(ch));
+        self.consume_while(|_, ch| ch == '_' || is_xid_continue(ch));
 
         let span = span![begin, self.position];
         let lexeme = self.source.slice(span);
@@ -118,7 +120,7 @@ impl<'a> Lexer<'a> {
         let begin = self.position;
 
         self.consume(); // opening "
-        self.consume_while(|ch| ch != '"');
+        self.consume_while(|_, ch| ch != '"');
 
         if self.peek() == Some('"') {
             self.consume();
@@ -163,7 +165,7 @@ impl<'a> Lexer<'a> {
     }
 
     fn next_token(&mut self) -> Token {
-        self.consume_while(|ch| ch.is_whitespace());
+        self.consume_while(|_, ch| ch.is_whitespace());
 
         let begin = self.position;
 

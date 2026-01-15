@@ -9,9 +9,8 @@
 
 use crate::expr::Expr;
 use crate::macros::ast;
-use crate::node::{Node, NodeRef};
+use crate::node::NodeRef;
 use viac_lexer::token::Token;
-use viac_source::span::Span;
 
 ast! {
     pub enum Place {

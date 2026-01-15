@@ -8,8 +8,9 @@
 ** ================================================ */
 
 use crate::expr::Expr;
+use crate::extra::NodeList;
 use crate::macros::ast;
-use crate::node::{Node, NodeRef};
+use crate::node::NodeRef;
 use viac_lexer::token::Token;
 
 ast! {
@@ -22,7 +23,7 @@ ast! {
             value: NodeRef<Ty>,
         },
         Function {
-            params: Vec<Node<Ty>>,
+            params: NodeList<Ty>,
             result: NodeRef<Ty>,
         },
         Union {

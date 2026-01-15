@@ -11,13 +11,17 @@ use crate::node::{Ast, Node, NodeRef};
 use crate::stmt::Stmt;
 use crate::ty::Ty;
 use viac_lexer::token::Token;
+use viac_source::span::Span;
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Body<T: Ast = Stmt> {
-    pub stmts: Vec<Node<T>>,
+pub struct NodeList<T: Ast = Stmt> {
+    pub list: Vec<Node<T>>,
+    pub span: Span,
 }
 
-impl<T: Ast> Ast for Body<T> {}
+pub type Body = NodeList<Stmt>;
+
+impl<T: Ast> Ast for NodeList<T> {}
 
 #[derive(Debug, Eq)]
 pub struct Param {

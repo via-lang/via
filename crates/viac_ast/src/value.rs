@@ -9,14 +9,13 @@
 
 use crate::attr;
 use crate::expr::Expr;
-use crate::extra::{Body, Param};
+use crate::extra::{Body, NodeList, Param};
 use crate::macros::ast;
 use crate::node::{Node, NodeRef};
 use crate::place::Place;
 use crate::ty::Ty;
 use bitflags::bitflags;
 use viac_lexer::token::Token;
-use viac_source::span::Span;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct ReferenceFlags(u8);
@@ -31,7 +30,6 @@ bitflags! {
 
 ast! {
     pub enum Value {
-        Group { expr: NodeRef<Expr> },
         None {  },
         True {  },
         False {  },
@@ -47,9 +45,9 @@ ast! {
         Array { exprs: Vec<Node<Expr>> },
         Map { pairs: Vec<(Node<Expr>, Node<Expr>)> },
         Lambda {
-            params: Vec<Node<Param>>,
+            params: NodeList<Param>,
             result: Option<NodeRef<Ty>>,
-            body: Node<Body>,
+            body: Body,
         },
         Unary {
             op: Token,

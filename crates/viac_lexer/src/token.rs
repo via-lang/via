@@ -10,6 +10,7 @@
 use strum::AsRefStr;
 use viac_source::span::Span;
 
+#[repr(u8)]
 #[derive(AsRefStr, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenKind {
     EndOfFile,

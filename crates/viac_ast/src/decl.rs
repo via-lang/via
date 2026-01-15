@@ -9,6 +9,7 @@
 
 use crate::expr::Expr;
 use crate::extra::Body;
+use crate::extra::NodeList;
 use crate::extra::Param;
 use crate::macros::ast;
 use crate::node::{Node, NodeRef};
@@ -26,7 +27,7 @@ ast! {
             symbol: Token,
             params: Vec<Param>,
             result: Option<NodeRef<Ty>>,
-            body: Node<Body>,
+            body: Body,
         },
         Use { symbol: Token },
         Type {
@@ -39,7 +40,7 @@ ast! {
         },
         Struct {
             symbol: Token,
-            body: Node<Body<Decl>>,
+            body: NodeList<Decl>,
         },
         Import {
             path: Vec<Token>,

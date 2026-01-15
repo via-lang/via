@@ -26,18 +26,18 @@ ast! {
         },
         If {
             cond: NodeRef<Expr>,
-            body: Node<Body>,
-            elseif: Vec<(Node<Expr>, Node<Body>)>,
-            else_body: Option<Node<Body>>,
+            body: Body,
+            elseif: Vec<(Node<Expr>, Body)>,
+            else_body: Option<Body>,
         },
         While {
             cond: NodeRef<Expr>,
-            body: Node<Body>,
+            body: Body,
         },
         For {
             param: (Token, Option<NodeRef<Ty>>),
             expr: NodeRef<Expr>,
-            body: Node<Body>,
+            body: Body,
         },
         Assign {
             op: Token,

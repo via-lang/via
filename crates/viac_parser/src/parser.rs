@@ -14,7 +14,7 @@ use viac_ast::attr::{self, Attr};
 use viac_ast::control::{self, Control};
 use viac_ast::decl::{self, Decl};
 use viac_ast::expr::Expr;
-use viac_ast::extra::{Body, Param};
+use viac_ast::extra::{NodeList, Param};
 use viac_ast::node::{Ast, IntoNode, Node};
 use viac_ast::place;
 use viac_ast::stmt::Stmt;
@@ -23,7 +23,6 @@ use viac_ast::value;
 use viac_lexer::token::{Token, TokenKind};
 use viac_source::source::Source;
 use viac_source::span;
-use viac_source::span::Span;
 
 pub struct Parser<'a> {
     source: &'a Source,
@@ -123,32 +122,30 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse_body<F, T>(&mut self, mut parse: F) -> Result<Node<Body<T>>>
-    where
-        F: FnMut(&mut Self) -> Result<Node<T>>,
-        T: Ast,
-    {
-        let first = self.expect_consume(TokenKind::BraceOpen)?;
-        let mut stmts = Vec::new();
-
-        while !self.check(TokenKind::BraceClose) {
-            let node = parse(self)?;
-            stmts.push(node);
-        }
-
-        let last = self.expect_consume(TokenKind::BraceClose)?;
-        Ok(Node {
-            node: Body { stmts },
-            span: span![first.span.begin, last.span.end],
-        })
+    fn optional(&mut self, kind: TokenKind) -> bool {
+        self.check(kind)
+            .then(|| self.consume().is_ok())
+            .unwrap_or(false)
     }
 
-    fn parse_list<F, T>(&mut self, mut parse: F) -> Result<(Span, Vec<Node<T>>)>
+    fn parse_body<F, T>(&mut self, parse: F) -> Result<NodeList<T>>
     where
         F: FnMut(&mut Self) -> Result<Node<T>>,
         T: Ast,
     {
-        let first = self.expect_consume(TokenKind::ParenOpen)?;
+        self.parse_list((TokenKind::BraceOpen, TokenKind::BraceClose), parse)
+    }
+
+    fn parse_list<F, T>(
+        &mut self,
+        brackets: (TokenKind, TokenKind),
+        mut parse: F,
+    ) -> Result<NodeList<T>>
+    where
+        F: FnMut(&mut Self) -> Result<Node<T>>,
+        T: Ast,
+    {
+        let first = self.expect_consume(brackets.0)?;
         let mut body = vec![];
 
         loop {
@@ -161,8 +158,11 @@ impl<'a> Parser<'a> {
             }
         }
 
-        let last = self.expect_consume(TokenKind::ParenClose)?;
-        Ok((span![first.span.begin, last.span.end], body))
+        let last = self.expect_consume(brackets.1)?;
+        Ok(NodeList {
+            list: body,
+            span: span![first.span.begin, last.span.end],
+        })
     }
 
     fn parse_attr(&mut self) -> Result<Node<Attr>> {
@@ -211,6 +211,7 @@ impl<'a> Parser<'a> {
                 | TokenKind::OpTilde
                 | TokenKind::OpBang
                 | TokenKind::ParenOpen
+                | TokenKind::BraceOpen
                 | TokenKind::BracketOpen)
         )
     }
@@ -277,15 +278,12 @@ impl<'a> Parser<'a> {
                 }
                 TokenKind::ParenOpen => {
                     let first = p.consume()?;
-                    let expr = p.parse_expr()?;
-
+                    let inner = p.parse_expr()?;
                     let expr = if p.check(TokenKind::Comma) {
                         p.push_context(Context::ExprTuple);
+                        let mut exprs = vec![inner];
 
-                        let mut exprs = vec![expr];
-
-                        while p.check(TokenKind::Comma) {
-                            p.consume()?;
+                        while p.optional(TokenKind::Comma) {
                             if p.check(TokenKind::ParenClose) {
                                 break;
                             }
@@ -301,15 +299,54 @@ impl<'a> Parser<'a> {
                         }
                     } else {
                         p.push_context(Context::ExprGroup);
-
                         let last = p.expect_consume(TokenKind::ParenClose)?;
                         Node {
-                            node: Expr::Value(value::Group { expr: expr.into() }.into()),
+                            node: inner.node,
                             span: span![first.span.begin, last.span.end],
                         }
                     };
+
                     p.pop_context();
                     Ok(expr)
+                }
+                TokenKind::BracketOpen => {
+                    let first = p.consume()?;
+                    let mut exprs = Vec::new();
+
+                    while !p.check(TokenKind::BracketClose) {
+                        exprs.push(p.parse_expr()?);
+
+                        if !p.optional(TokenKind::Comma) {
+                            break;
+                        }
+                    }
+
+                    let last = p.expect_consume(TokenKind::BracketClose)?;
+                    Ok(Node {
+                        node: Expr::Value(value::Array { exprs }.into()),
+                        span: span![first.span.begin, last.span.end],
+                    })
+                }
+                TokenKind::BraceOpen => {
+                    let first = p.consume()?;
+                    let mut pairs = vec![];
+
+                    while !p.check(TokenKind::BraceClose) {
+                        let key = p.parse_expr()?;
+                        p.expect_consume(TokenKind::Colon)?;
+                        let value = p.parse_expr()?;
+                        pairs.push((key, value));
+
+                        if !p.optional(TokenKind::Comma) {
+                            break;
+                        }
+                    }
+
+                    let last = p.expect_consume(TokenKind::BraceClose)?;
+                    Ok(Node {
+                        node: Expr::Value(value::Map { pairs }.into()),
+                        span: span![first.span.begin, last.span.end],
+                    })
                 }
                 TokenKind::OpMinus | TokenKind::OpBang | TokenKind::OpAmp | TokenKind::OpTilde => {
                     p.consume()?;
@@ -328,26 +365,31 @@ impl<'a> Parser<'a> {
                 }
                 TokenKind::KwFn => p.with_context(Context::ExprLambda, |p| {
                     p.consume()?;
-                    let mut params = vec![];
+                    let params = p
+                        .check(TokenKind::ParenOpen)
+                        .then(|| {
+                            Ok(
+                                p.parse_list((TokenKind::ParenOpen, TokenKind::ParenClose), |p| {
+                                    let name = p.expect_consume(TokenKind::Identifier)?;
+                                    p.expect_consume(TokenKind::Colon)?;
+                                    let ty = p.parse_type()?;
+                                    let last = ty.span;
 
-                    if p.check(TokenKind::ParenOpen) {
-                        params = p
-                            .parse_list(|p| {
-                                let name = p.expect_consume(TokenKind::Identifier)?;
-                                p.expect_consume(TokenKind::Colon)?;
-                                let ty = p.parse_type()?;
-                                let last = ty.span;
-
-                                Ok(Node {
-                                    node: Param {
-                                        name,
-                                        ty: ty.into(),
-                                    },
-                                    span: span![name.span.begin, last.end],
-                                })
-                            })?
-                            .1;
-                    }
+                                    Ok(Node {
+                                        node: Param {
+                                            name,
+                                            ty: ty.into(),
+                                        },
+                                        span: span![name.span.begin, last.end],
+                                    })
+                                })?,
+                            )
+                        })
+                        .transpose()?
+                        .unwrap_or(NodeList {
+                            list: vec![],
+                            span: token.span,
+                        });
 
                     let result = p.with_context(Context::ReturnType, |p| {
                         p.check(TokenKind::Arrow)
@@ -397,6 +439,7 @@ impl<'a> Parser<'a> {
                     TokenKind::Period => {
                         self.consume()?;
                         let field = self.expect_consume(TokenKind::Identifier)?;
+                        let first = expr.span;
 
                         expr = Node {
                             node: Expr::Place(
@@ -406,12 +449,13 @@ impl<'a> Parser<'a> {
                                 }
                                 .into(),
                             ),
-                            span: span![token.span.begin, field.span.end],
+                            span: span![first.begin, field.span.end],
                         };
                     }
                     TokenKind::ColonColon => {
                         self.consume()?;
                         let field = self.expect_consume(TokenKind::Identifier)?;
+                        let first = expr.span;
 
                         expr = Node {
                             node: Expr::Place(
@@ -421,12 +465,13 @@ impl<'a> Parser<'a> {
                                 }
                                 .into(),
                             ),
-                            span: span![token.span.begin, field.span.end],
+                            span: span![first.begin, field.span.end],
                         };
                     }
                     TokenKind::BracketOpen => {
                         self.consume()?;
                         let index = self.parse_expr()?;
+                        let first = expr.span;
                         let last = self.expect_consume(TokenKind::BracketClose)?;
 
                         expr = Node {
@@ -437,8 +482,27 @@ impl<'a> Parser<'a> {
                                 }
                                 .into(),
                             ),
-                            span: span![token.span.begin, last.span.end],
+                            span: span![first.begin, last.span.end],
                         };
+                    }
+                    TokenKind::OpDotDot => {
+                        self.consume()?;
+                        let inclusive = self.optional(TokenKind::OpEq);
+                        let end = self.parse_expr()?;
+                        let first = expr.span;
+                        let last = end.span;
+
+                        expr = Node {
+                            node: Expr::Value(
+                                value::Range {
+                                    lhs: expr.into(),
+                                    rhs: end.into(),
+                                    inclusive,
+                                }
+                                .into(),
+                            ),
+                            span: span![first.begin, last.end],
+                        }
                     }
                     _ => {}
                 }
@@ -481,11 +545,11 @@ impl<'a> Parser<'a> {
         Ok(lhs)
     }
 
-    fn parse_expr(&mut self) -> Result<Node<Expr>> {
+    pub(crate) fn parse_expr(&mut self) -> Result<Node<Expr>> {
         self.parse_expr_binary(0)
     }
 
-    fn parse_type(&mut self) -> Result<Node<Ty>> {
+    pub(crate) fn parse_type(&mut self) -> Result<Node<Ty>> {
         let token = self.peek()?;
         let mut lhs = match token.kind {
             TokenKind::KwNone
@@ -529,14 +593,17 @@ impl<'a> Parser<'a> {
             })?,
             TokenKind::KwFn => self.with_context(Context::TypeLambda, |p| {
                 p.consume()?;
-                let params = p.parse_list(Self::parse_type)?;
+                let params = p.parse_list(
+                    (TokenKind::ParenOpen, TokenKind::ParenClose),
+                    Self::parse_type,
+                )?;
                 p.expect_consume(TokenKind::Arrow)?;
                 let result = p.parse_type()?;
                 let last = result.span;
 
                 Ok(Node {
                     node: ty::Function {
-                        params: params.1,
+                        params,
                         result: result.into(),
                     }
                     .into(),
