@@ -14,19 +14,7 @@ use crate::macros::ast;
 use crate::node::{Node, NodeRef};
 use crate::place::Place;
 use crate::ty::Ty;
-use bitflags::bitflags;
 use viac_lexer::token::Token;
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub struct ReferenceFlags(u8);
-
-bitflags! {
-    impl ReferenceFlags: u8 {
-        const None = 0b00;
-        const Mutable = 0b10;
-        const Strong = 0b01;
-    }
-}
 
 ast! {
     pub enum Value {
@@ -41,8 +29,8 @@ ast! {
             rhs: NodeRef<Expr>,
             inclusive: bool,
         },
-        Tuple { exprs: Vec<Node<Expr>> },
-        Array { exprs: Vec<Node<Expr>> },
+        Tuple { exprs: NodeList<Expr> },
+        Array { exprs: NodeList<Expr> },
         Map { pairs: Vec<(Node<Expr>, Node<Expr>)> },
         Lambda {
             params: NodeList<Param>,
@@ -59,7 +47,8 @@ ast! {
             rhs: NodeRef<Expr>,
         },
         Reference {
-            flags: ReferenceFlags,
+            strong: bool,
+            mutable: bool,
             expr: NodeRef<Expr>,
         },
         Ternary {
@@ -69,7 +58,7 @@ ast! {
         },
         Cast {
             expr: NodeRef<Expr>,
-            typ: NodeRef<Ty>,
+            ty: NodeRef<Ty>,
         },
         Type { ty: NodeRef<Ty> },
         Attr { attr: NodeRef<attr::Attr> },

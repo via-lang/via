@@ -9,7 +9,10 @@
 
 use crate::keyword::KEYWORD_LIST;
 use crate::symbol::SYMBOL_LIST;
-use crate::token::{Token, TokenKind};
+use crate::token::{
+    Token,
+    TokenKind::{self, *},
+};
 use unicode_ident::*;
 use viac_source::source::Source;
 use viac_source::span;
@@ -63,13 +66,11 @@ impl<'a> Lexer<'a> {
 
     fn read_number(&mut self) -> Token {
         let begin = self.position;
-        let mut kind = TokenKind::LitInt;
+        let mut kind = LitInt;
 
         self.consume_while(|l, ch| match ch {
-            '.' if kind != TokenKind::LitFloat
-                && l.peek_ahead(1).is_some_and(|ch| ch.is_ascii_digit()) =>
-            {
-                kind = TokenKind::LitFloat;
+            '.' if kind != LitFloat && l.peek_ahead(1).is_some_and(|ch| ch.is_ascii_digit()) => {
+                kind = LitFloat;
                 true
             }
             _ => ch.is_ascii_digit(),
@@ -85,7 +86,7 @@ impl<'a> Lexer<'a> {
         self.consume(); // x
         self.consume_while(|_, ch| ch.is_ascii_hexdigit());
 
-        Token::new(TokenKind::LitXint, span![begin, self.position])
+        Token::new(LitXint, span![begin, self.position])
     }
 
     fn read_bint(&mut self) -> Token {
@@ -95,7 +96,7 @@ impl<'a> Lexer<'a> {
         self.consume(); // b
         self.consume_while(|_, ch| ch == '0' || ch == '1');
 
-        Token::new(TokenKind::LitBint, span![begin, self.position])
+        Token::new(LitBint, span![begin, self.position])
     }
 
     fn read_ident(&mut self) -> Token {
@@ -108,10 +109,7 @@ impl<'a> Lexer<'a> {
         let lexeme = self.source.slice(span);
 
         Token::new(
-            KEYWORD_LIST
-                .get(&lexeme)
-                .unwrap_or(&TokenKind::Identifier)
-                .clone(),
+            KEYWORD_LIST.get(&lexeme).unwrap_or(&Identifier).clone(),
             span,
         )
     }
@@ -125,7 +123,7 @@ impl<'a> Lexer<'a> {
         if self.peek() == Some('"') {
             self.consume();
         }
-        Token::new(TokenKind::LitString, span![begin, self.position])
+        Token::new(LitString, span![begin, self.position])
     }
 
     fn read_format_string(&mut self) -> Token {
@@ -161,7 +159,7 @@ impl<'a> Lexer<'a> {
         }
 
         self.position += 1;
-        Token::new(TokenKind::Illegal, span![begin, self.position])
+        Token::new(Illegal, span![begin, self.position])
     }
 
     fn next_token(&mut self) -> Token {
@@ -176,10 +174,10 @@ impl<'a> Lexer<'a> {
             Some('b') if self.check_ahead('"', 1) => self.read_binary_string(),
             Some('r') if self.check_ahead('"', 1) => self.read_raw_string(),
             Some('"') => self.read_string(),
-            Some(ch) if is_xid_start(ch) => self.read_ident(),
+            Some(ch) if ch == '_' || is_xid_start(ch) => self.read_ident(),
             Some(ch) if ch.is_ascii_digit() => self.read_number(),
             Some(_) => self.read_operator(),
-            None => Token::new(TokenKind::EndOfFile, span![begin, self.position]),
+            None => Token::new(EndOfFile, span![begin, self.position]),
         }
     }
 
@@ -189,7 +187,7 @@ impl<'a> Lexer<'a> {
             let token = self.next_token();
             let kind = token.kind;
             tokens.push(token);
-            if kind == TokenKind::EndOfFile {
+            if kind == EndOfFile {
                 break tokens;
             }
         }

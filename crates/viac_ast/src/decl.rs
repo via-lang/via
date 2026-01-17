@@ -12,7 +12,7 @@ use crate::extra::Body;
 use crate::extra::NodeList;
 use crate::extra::Param;
 use crate::macros::ast;
-use crate::node::{Node, NodeRef};
+use crate::node::NodeRef;
 use crate::ty::Ty;
 use viac_lexer::token::Token;
 
@@ -25,7 +25,7 @@ ast! {
         },
         Function {
             symbol: Token,
-            params: Vec<Param>,
+            params: NodeList<Param>,
             result: Option<NodeRef<Ty>>,
             body: Body,
         },

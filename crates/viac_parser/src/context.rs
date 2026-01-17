@@ -9,32 +9,37 @@
 
 #[derive(Debug, Clone, Copy)]
 pub enum Context {
+    Attr,
+    AttrDistinct,
+
+    ExprPrimary,
     ExprTuple,
     ExprGroup,
+    ExprArray,
+    ExprMap,
     ExprLambda,
-    ExprBody,
-    ExprPrimary,
-    ExprPostfix,
+
+    TypeRet,
+    TypeArray,
     TypeMap,
     TypeLambda,
     TypeId,
+
     ControlReturn,
     ControlRaise,
     ControlIf,
     ControlElseIf,
-    ControlElse,
     ControlWhile,
     ControlFor,
+
     DeclVariable,
     DeclFunction,
+    DeclUse,
     DeclType,
     DeclConst,
     DeclStruct,
     DeclImport,
-    Body,
-    ReturnType,
-    ParameterList,
-    ArgumentList,
-    Attr,
-    AttrDistinct,
+
+    Param,
+    ParamList,
 }

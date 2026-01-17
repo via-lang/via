@@ -7,4 +7,4 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-pub mod bug;
+mod bug;

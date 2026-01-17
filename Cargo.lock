@@ -426,7 +426,6 @@ version = "0.1.0"
 name = "viac_ast"
 version = "0.1.0"
 dependencies = [
- "bitflags",
  "viac_lexer",
  "viac_source",
 ]
