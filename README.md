@@ -36,55 +36,23 @@
 
 # Features
 
-- Non-intrusive static typing
-- No garbage collector\*
 - Modern, clean and sane standard library and syntax
 - Built-in types for strings, arrays, maps, tuples, optionals, unions, etc.
-- Powerful metaprogramming
+- Powerful type system and metaprogramming
 - Advanced compiler hints & intrinsics
 - Multi-paradigm design, including object-oriented and functional programming
 - High performance
-- Platform independence\*
-- Rich C++ interface
+- Platform independence
+- Rich Rust API
+- No garbage collection
 
 # Installation
 
-## Linux
-
-### From source
-
-Install the following binaries with your systems official package manager:
-
-- `git`
-- `g++` (15.x+)
-- `cmake`
-- `ninja` (`ninja-build` in some repos)
-
-Clone the official git repository and `cd` into it:
+## Cargo (recommended)
 
 ```sh
-git clone --recursive https://github.com/via-lang/via.git
-cd via
+cargo install via
 ```
-
-Now generate build files using `cmake` and build & install the binaries:
-
-```sh
-cmake -B build -G Ninja
-cmake --build build
-sudo cmake --install build
-```
-
-You can test your installation with this command:
-
-```sh
-which via
-# /bin/via
-via
-# error: missing required positional: input
-```
-
-If you get a warning about the language core directory not being found or don't get output from one or more command, it probably means that the installation process failed. Try restarting your shell or creating an issue with appropriate information attached.
 
 # Credits
 
