@@ -30,11 +30,11 @@
 > [!WARNING]
 > This is an **experimental** project and currently not production-ready. Most features are under conception/development and may be incomplete/unstable. Implementations are subject to change as the project evolves. That said, by no means is it a non-serious project.
 
-# Introduction
+## Introduction
 
 **via** is a performant, multi-paradigm, deterministic scripting language designed for **performance-critical applications** and **embeddability**.
 
-# Features
+## Features
 
 - Modern, clean and sane standard library and syntax
 - Built-in types for strings, arrays, maps, tuples, optionals, unions, etc.
@@ -46,15 +46,15 @@
 - Rich Rust API
 - No garbage collection
 
-# Installation
+## Installation
 
-## Cargo (recommended)
+### Cargo (recommended)
 
 ```sh
 cargo install via
 ```
 
-# Credits
+## Credits
 
 - **@XnLogicaL** – Lead developer/maintainer
 - **Kasen L. Daniels** – Project name and banner design
