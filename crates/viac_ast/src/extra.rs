@@ -13,7 +13,7 @@ use crate::ty::Ty;
 use viac_lexer::token::Token;
 use viac_source::span::Span;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub struct NodeList<T: Ast = Stmt> {
     pub list: Vec<Node<T>>,
     pub span: Span,
@@ -23,7 +23,7 @@ pub type Body = NodeList<Stmt>;
 
 impl<T: Ast> Ast for NodeList<T> {}
 
-#[derive(Debug, Eq)]
+#[derive(Debug)]
 pub struct Param {
     pub name: Token,
     pub ty: NodeRef<Ty>,

@@ -9,39 +9,31 @@
 
 use super::Parser;
 use super::prelude::*;
+use crate::macros::yes_or_no;
 use via_macros::bug;
 use viac_ast::decl::{self, Decl};
 use viac_ast::node::IntoNode;
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
-pub enum AllowImport {
-    Yes,
-    No,
-}
-
-impl From<AllowImport> for bool {
-    fn from(value: AllowImport) -> Self {
-        value == AllowImport::Yes
-    }
-}
+yes_or_no!(pub AllowImport);
 
 impl<'a> Parser<'a> {
     pub(crate) fn parse_decl_variable(&mut self) -> Result<Node<decl::Variable>> {
         self.with_context(Context::DeclVariable, |p| {
-            let first = p.expect_consume(KwVar)?.span;
-            let symbol = p.expect_consume(Identifier)?;
-            let ty = p
-                .check(Colon)
+            let first = expect_token!(p, KwVar)?.span;
+            let symbol = expect_token!(p, Identifier(_))?;
+            let ty = check_token!(p, Colon)
                 .then(|| {
                     p.consume()?;
                     Ok(p.parse_type()?)
                 })
                 .transpose()?;
 
-            p.expect_consume(OpEq)?;
+            expect_token!(p, OpEq)?;
 
             let expr = p.parse_expr()?;
             let last = expr.span;
+
+            optional_token!(p, Semicolon);
 
             Ok(Node {
                 node: decl::Variable {
@@ -50,6 +42,7 @@ impl<'a> Parser<'a> {
                     expr: expr.into(),
                 },
                 span: span![first.begin, last.end],
+                attrs: vec![],
             })
         })
     }
@@ -57,16 +50,13 @@ impl<'a> Parser<'a> {
     fn parse_decl_function(&mut self) -> Result<Node<decl::Function>> {
         self.push_context(Context::DeclFunction);
 
-        let first = self.expect_consume(KwFn)?.span;
-        let symbol = self.expect_consume(Identifier)?;
+        let first = expect_token!(self, KwFn)?.span;
+        let symbol = expect_token!(self, Identifier(_))?;
         let params = self.with_context(Context::ParamList, |p| {
             p.parse_list((ParenOpen, ParenClose), Self::parse_param)
         })?;
 
-        let result = self
-            .check(Arrow)
-            .then(|| self.parse_return_ty())
-            .transpose()?;
+        let result = self.parse_return_ty()?;
 
         self.pop_context();
 
@@ -77,10 +67,11 @@ impl<'a> Parser<'a> {
             node: decl::Function {
                 symbol: symbol,
                 params,
-                result: result.map(IntoNode::into_node).map(Into::into),
+                result: result.map(Into::into),
                 body,
             },
             span: span![first.begin, last.end],
+            attrs: vec![],
         })
     }
 
@@ -90,12 +81,14 @@ impl<'a> Parser<'a> {
 
     fn parse_decl_type(&mut self) -> Result<Node<decl::Type>> {
         self.with_context(Context::DeclType, |p| {
-            let begin = p.expect_consume(KwType)?;
-            let symbol = p.expect_consume(Identifier)?;
-            p.expect_consume(OpEq)?;
+            let begin = expect_token!(p, KwType)?;
+            let symbol = expect_token!(p, Identifier(_))?;
+            expect_token!(p, OpEq)?;
 
             let ty = p.parse_type()?;
             let last = ty.span;
+
+            optional_token!(p, Semicolon);
 
             Ok(Node {
                 node: decl::Type {
@@ -103,18 +96,21 @@ impl<'a> Parser<'a> {
                     ty: ty.into(),
                 },
                 span: span![begin.span.begin, last.end],
+                attrs: vec![],
             })
         })
     }
 
     fn parse_decl_const(&mut self) -> Result<Node<decl::Const>> {
         self.with_context(Context::DeclConst, |p| {
-            let begin = p.expect_consume(KwConst)?;
-            let symbol = p.expect_consume(Identifier)?;
-            p.expect_consume(OpEq)?;
+            let begin = expect_token!(p, KwConst)?;
+            let symbol = expect_token!(p, Identifier(_))?;
+            expect_token!(p, OpEq)?;
 
             let expr = p.parse_expr()?;
             let last = expr.span;
+
+            optional_token!(p, Semicolon);
 
             Ok(Node {
                 node: decl::Const {
@@ -122,6 +118,7 @@ impl<'a> Parser<'a> {
                     expr: expr.into(),
                 },
                 span: span![begin.span.begin, last.end],
+                attrs: vec![],
             })
         })
     }
@@ -129,8 +126,8 @@ impl<'a> Parser<'a> {
     fn parse_decl_struct(&mut self) -> Result<Node<decl::Struct>> {
         self.push_context(Context::DeclStruct);
 
-        let first = self.expect_consume(KwStruct)?;
-        let symbol = self.expect_consume(Identifier)?;
+        let first = expect_token!(self, KwStruct)?;
+        let symbol = expect_token!(self, Identifier(_))?;
 
         self.pop_context();
 
@@ -140,47 +137,42 @@ impl<'a> Parser<'a> {
         Ok(Node {
             node: decl::Struct { symbol, body },
             span: span![first.span.begin, last.end],
+            attrs: vec![],
         })
     }
 
     fn parse_decl_import(&mut self) -> Result<Node<decl::Import>> {
         self.with_context(Context::DeclImport, |p| {
-            let first = p.expect_consume(KwImport)?;
-            let mut path = vec![p.expect_consume(Identifier)?];
-            while p.check(Period) {
+            let first = expect_token!(p, KwImport)?;
+            let mut path = vec![expect_token!(p, Identifier(_))?];
+            while check_token!(p, Period) {
                 p.consume()?;
-                let token = p.expect_consume(Identifier)?;
+                let token = expect_token!(p, Identifier(_))?;
                 path.push(token);
             }
 
-            let alias = p
-                .check(KwAs)
+            let alias = check_token!(p, KwAs)
                 .then(|| {
                     p.consume()?;
-                    Ok(p.expect_consume(Identifier)?)
+                    Ok(expect_token!(p, Identifier(_))?)
                 })
                 .transpose()?;
 
-            let span = span![
-                first.span.begin,
-                alias
-                    .unwrap_or(
-                        path.last()
-                            .unwrap_or_else(|| bug!("misparsed import path"))
-                            .clone()
-                    )
+            let last = alias.clone().map(|t| t.span).unwrap_or_else(|| {
+                path.last()
+                    .unwrap_or_else(|| bug!("misparsed import path"))
                     .span
-                    .end
-            ];
+            });
 
             Ok(Node {
                 node: decl::Import { path, alias },
-                span,
+                span: span![first.span.begin, last.end],
+                attrs: vec![],
             })
         })
     }
 
-    pub(crate) fn parse_decl(&mut self, import_policy: AllowImport) -> Result<Node<Decl>> {
+    pub(crate) fn parse_decl(&mut self, allow_import: AllowImport) -> Result<Node<Decl>> {
         if let Ok(token) = self.peek() {
             match token.kind {
                 KwVar => self.parse_decl_variable().map(IntoNode::into_node),
@@ -189,7 +181,7 @@ impl<'a> Parser<'a> {
                 KwType => self.parse_decl_type().map(IntoNode::into_node),
                 KwConst => self.parse_decl_const().map(IntoNode::into_node),
                 KwStruct => self.parse_decl_struct().map(IntoNode::into_node),
-                KwImport if import_policy.into() => {
+                KwImport if allow_import.into() => {
                     self.parse_decl_import().map(IntoNode::into_node)
                 }
                 _ => self.error(ErrorKind::UnexpectedToken {

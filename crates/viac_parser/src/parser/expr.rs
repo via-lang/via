@@ -9,25 +9,26 @@
 
 use super::Parser;
 use super::prelude::*;
+use crate::macros::yes_or_no;
 use viac_ast::expr::Expr;
 use viac_ast::place;
 use viac_ast::value;
+
+yes_or_no!(AllowPrefix);
 
 impl<'a> Parser<'a> {
     pub(super) fn is_expr_start(&self) -> bool {
         matches!(
             self.peek().map(|t| t.kind),
-            Ok(Identifier
+            Ok(Identifier(_)
                 | KwTrue
                 | KwFalse
                 | KwNone
                 | KwFn
                 | KwSelf
-                | LitInt
-                | LitBint
-                | LitXint
-                | LitFloat
-                | LitString
+                | LitInt(_, _)
+                | LitFloat(_)
+                | LitString(_)
                 | OpMinus
                 | OpAmp
                 | OpTilde
@@ -38,15 +39,17 @@ impl<'a> Parser<'a> {
         )
     }
 
-    fn parse_expr_primary(&mut self, allow_prefix: bool) -> Result<Node<Expr>> {
+    fn parse_expr_primary(&mut self, allow_prefix: AllowPrefix) -> Result<Node<Expr>> {
         self.with_context(Context::ExprPrimary, |p| {
             let token = p.peek()?;
             match token.kind {
-                Identifier => {
+                Identifier(_) => {
                     p.consume()?;
+                    let span = token.span;
                     Ok(Node {
                         node: Expr::Place(place::Symbol { token }.into()),
-                        span: token.span,
+                        span,
+                        attrs: vec![],
                     })
                 }
                 KwSelf => {
@@ -54,6 +57,7 @@ impl<'a> Parser<'a> {
                     Ok(Node {
                         node: Expr::Place(place::This {}.into()),
                         span: token.span,
+                        attrs: vec![],
                     })
                 }
                 KwNone => {
@@ -61,6 +65,7 @@ impl<'a> Parser<'a> {
                     Ok(Node {
                         node: Expr::Value(value::None {}.into()),
                         span: token.span,
+                        attrs: vec![],
                     })
                 }
                 KwTrue => {
@@ -68,6 +73,7 @@ impl<'a> Parser<'a> {
                     Ok(Node {
                         node: Expr::Value(value::True {}.into()),
                         span: token.span,
+                        attrs: vec![],
                     })
                 }
                 KwFalse => {
@@ -75,27 +81,34 @@ impl<'a> Parser<'a> {
                     Ok(Node {
                         node: Expr::Value(value::False {}.into()),
                         span: token.span,
+                        attrs: vec![],
                     })
                 }
-                LitInt | LitXint | LitBint => {
+                LitInt(_, _) => {
                     p.consume()?;
+                    let span = token.span;
                     Ok(Node {
                         node: Expr::Value(value::Integer { token }.into()),
-                        span: token.span,
+                        span,
+                        attrs: vec![],
                     })
                 }
-                LitFloat => {
+                LitFloat(_) => {
                     p.consume()?;
+                    let span = token.span;
                     Ok(Node {
                         node: Expr::Value(value::Float { token }.into()),
-                        span: token.span,
+                        span,
+                        attrs: vec![],
                     })
                 }
-                LitString => {
+                LitString(_) => {
                     p.consume()?;
+                    let span = token.span;
                     Ok(Node {
                         node: Expr::Value(value::String { token }.into()),
-                        span: token.span,
+                        span,
+                        attrs: vec![],
                     })
                 }
                 ParenOpen => {
@@ -103,19 +116,19 @@ impl<'a> Parser<'a> {
                     let inner = p.parse_expr()?;
                     let first_elem = inner.span;
 
-                    let expr = if p.check(Comma) {
+                    let expr = if check_token!(p, Comma) {
                         p.push_context(Context::ExprTuple);
                         let mut exprs = vec![inner];
 
-                        while p.optional(Comma) {
-                            if p.check(ParenClose) {
+                        while optional_token!(p, Comma) {
+                            if check_token!(p, ParenClose) {
                                 break;
                             }
                             let next = p.parse_expr()?;
                             exprs.push(next);
                         }
 
-                        let last = p.expect_consume(ParenClose)?;
+                        let last = expect_token!(p, ParenClose)?;
                         let last_elem = exprs.last().expect("parsed empty tuple").span;
 
                         Node {
@@ -129,13 +142,15 @@ impl<'a> Parser<'a> {
                                 .into(),
                             ),
                             span: span![first.span.begin, last.span.end],
+                            attrs: vec![],
                         }
                     } else {
                         p.push_context(Context::ExprGroup);
-                        let last = p.expect_consume(ParenClose)?;
+                        let last = expect_token!(p, ParenClose)?;
                         Node {
                             node: inner.node,
                             span: span![first.span.begin, last.span.end],
+                            attrs: vec![],
                         }
                     };
 
@@ -149,33 +164,35 @@ impl<'a> Parser<'a> {
                     Ok(Node {
                         node: Expr::Value(value::Array { exprs }.into()),
                         span,
+                        attrs: vec![],
                     })
                 }),
                 BraceOpen => p.with_context(Context::ExprMap, |p| {
                     let first = p.consume()?;
                     let mut pairs = vec![];
 
-                    while !p.check(BraceClose) {
+                    while !check_token!(p, BraceClose) {
                         let key = p.parse_expr()?;
-                        p.expect_consume(Colon)?;
+                        expect_token!(p, Colon)?;
                         let value = p.parse_expr()?;
                         pairs.push((key, value));
 
-                        if !p.optional(Comma) {
+                        if !optional_token!(p, Comma) {
                             break;
                         }
                     }
 
-                    let last = p.expect_consume(BraceClose)?;
+                    let last = expect_token!(p, BraceClose)?;
                     Ok(Node {
                         node: Expr::Value(value::Map { pairs }.into()),
                         span: span![first.span.begin, last.span.end],
+                        attrs: vec![],
                     })
                 }),
-                OpAmp if allow_prefix => {
+                OpAmp if allow_prefix.into() => {
                     p.consume()?;
-                    let strong = p.optional(OpQuote);
-                    let mutable = p.optional(KwMut);
+                    let strong = optional_token!(p, OpQuote);
+                    let mutable = optional_token!(p, KwMut);
                     let expr = p.parse_expr()?;
                     let last = expr.span;
 
@@ -189,12 +206,16 @@ impl<'a> Parser<'a> {
                             .into(),
                         ),
                         span: span![token.span.begin, last.end],
+                        attrs: vec![],
                     })
                 }
-                OpMinus | OpBang | OpTilde if allow_prefix => {
+                OpMinus | OpBang | OpTilde if allow_prefix.into() => {
                     p.consume()?;
-                    let inner = p.parse_expr_primary(false)?;
+
+                    let inner = p.parse_expr_primary(AllowPrefix::No)?;
+                    let first = token.span;
                     let last = inner.span;
+
                     Ok(Node {
                         node: Expr::Value(
                             value::Unary {
@@ -203,36 +224,21 @@ impl<'a> Parser<'a> {
                             }
                             .into(),
                         ),
-                        span: span![token.span.begin, last.end],
+                        span: span![first.begin, last.end],
+                        attrs: vec![],
                     })
                 }
                 KwFn => p.with_context(Context::ExprLambda, |p| {
                     p.consume()?;
-                    let params = p
-                        .check(ParenOpen)
-                        .then(|| {
-                            Ok(p.parse_list((ParenOpen, ParenClose), |p| {
-                                let name = p.expect_consume(Identifier)?;
-                                p.expect_consume(Colon)?;
-                                let ty = p.parse_type()?;
-                                let last = ty.span;
-
-                                Ok(Node {
-                                    node: Param {
-                                        name,
-                                        ty: ty.into(),
-                                    },
-                                    span: span![name.span.begin, last.end],
-                                })
-                            })?)
-                        })
+                    let params = check_token!(p, ParenOpen)
+                        .then(|| Ok(p.parse_list((ParenOpen, ParenClose), Self::parse_param)?))
                         .transpose()?
                         .unwrap_or(NodeList {
                             list: vec![],
                             span: token.span,
                         });
 
-                    let result = p.check(Arrow).then(|| p.parse_return_ty()).transpose()?;
+                    let result = p.parse_return_ty()?;
                     let body = p.parse_body(Self::parse_stmt)?;
                     let last = body.span;
 
@@ -246,6 +252,7 @@ impl<'a> Parser<'a> {
                             .into(),
                         ),
                         span: span![token.span.begin, last.end],
+                        attrs: vec![],
                     })
                 }),
                 OpHash => {
@@ -254,10 +261,11 @@ impl<'a> Parser<'a> {
                     Ok(Node {
                         node: Expr::Value(value::Attr { attr: attr.into() }.into()),
                         span,
+                        attrs: vec![],
                     })
                 }
                 _ => p.error(ErrorKind::UnexpectedToken {
-                    expected: vec![Identifier],
+                    expected: vec![],
                     got: token,
                 }),
             }
@@ -265,14 +273,15 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expr_postfix(&mut self) -> Result<Node<Expr>> {
-        let mut expr = self.parse_expr_primary(true)?;
+        let mut expr = self.parse_expr_primary(AllowPrefix::Yes)?;
         loop {
             if let Ok(token) = self.peek() {
                 match token.kind {
                     Period => {
                         self.consume()?;
-                        let field = self.expect_consume(Identifier)?;
+                        let field = expect_token!(self, Identifier(_))?;
                         let first = expr.span;
+                        let last = field.span;
 
                         expr = Node {
                             node: Expr::Place(
@@ -282,13 +291,15 @@ impl<'a> Parser<'a> {
                                 }
                                 .into(),
                             ),
-                            span: span![first.begin, field.span.end],
+                            span: span![first.begin, last.end],
+                            attrs: vec![],
                         };
                     }
                     ColonColon => {
                         self.consume()?;
-                        let field = self.expect_consume(Identifier)?;
+                        let field = expect_token!(self, Identifier(_))?;
                         let first = expr.span;
+                        let last = field.span;
 
                         expr = Node {
                             node: Expr::Place(
@@ -298,14 +309,15 @@ impl<'a> Parser<'a> {
                                 }
                                 .into(),
                             ),
-                            span: span![first.begin, field.span.end],
+                            span: span![first.begin, last.end],
+                            attrs: vec![],
                         };
                     }
                     BracketOpen => {
                         self.consume()?;
                         let index = self.parse_expr()?;
                         let first = expr.span;
-                        let last = self.expect_consume(BracketClose)?;
+                        let last = expect_token!(self, BracketClose)?;
 
                         expr = Node {
                             node: Expr::Place(
@@ -316,11 +328,12 @@ impl<'a> Parser<'a> {
                                 .into(),
                             ),
                             span: span![first.begin, last.span.end],
+                            attrs: vec![],
                         };
                     }
                     OpDotDot => {
                         self.consume()?;
-                        let inclusive = self.optional(OpEq);
+                        let inclusive = optional_token!(self, OpEq);
                         let end = self.parse_expr()?;
                         let first = expr.span;
                         let last = end.span;
@@ -335,6 +348,7 @@ impl<'a> Parser<'a> {
                                 .into(),
                             ),
                             span: span![first.begin, last.end],
+                            attrs: vec![],
                         }
                     }
                     KwIf => {
@@ -342,7 +356,7 @@ impl<'a> Parser<'a> {
 
                         let first = expr.span;
                         let cond = self.parse_expr()?;
-                        self.expect_consume(KwElse)?;
+                        expect_token!(self, KwElse)?;
 
                         let alt = self.parse_expr()?;
                         let last = alt.span;
@@ -357,6 +371,7 @@ impl<'a> Parser<'a> {
                                 .into(),
                             ),
                             span: span![first.begin, last.end],
+                            attrs: vec![],
                         }
                     }
                     KwAs => {
@@ -375,6 +390,7 @@ impl<'a> Parser<'a> {
                                 .into(),
                             ),
                             span: span![first.begin, last.end],
+                            attrs: vec![],
                         }
                     }
                     _ => {}
@@ -413,6 +429,7 @@ impl<'a> Parser<'a> {
                     .into(),
                 ),
                 span: span![first.begin, last.end],
+                attrs: vec![],
             };
         }
         Ok(lhs)

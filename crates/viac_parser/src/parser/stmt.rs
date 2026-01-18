@@ -42,11 +42,13 @@ impl<'a> Parser<'a> {
                                     .into(),
                                 ),
                                 span: span![first.begin, last.end],
+                                attrs: vec![],
                             })
                         }
                         _ => Ok(Node {
                             node: Stmt::Expr(expr.node),
                             span: expr.span,
+                            attrs: vec![],
                         }),
                     }
                 }

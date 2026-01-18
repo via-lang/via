@@ -7,12 +7,19 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use crate::macros::ast;
-
-ast! {
-    pub enum Attr {
-        Native {},
-        Inline {},
-        Distinct {},
-    }
+macro_rules! yes_or_no {
+    ($vis:vis $name:ident) => {
+        #[derive(Debug, Clone, Copy, Eq, PartialEq)]
+        $vis enum $name {
+            Yes,
+            No,
+        }
+        impl From<$name> for bool {
+            fn from(value: $name) -> Self {
+                value == $name::Yes
+            }
+        }
+    };
 }
+
+pub(crate) use yes_or_no;

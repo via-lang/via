@@ -7,6 +7,8 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
+use std::vec;
+
 use super::Parser;
 use super::prelude::*;
 use viac_ast::control::{self, Control};
@@ -15,31 +17,37 @@ use viac_ast::node::IntoNode;
 impl<'a> Parser<'a> {
     fn parse_control_return(&mut self) -> Result<Node<control::Return>> {
         self.with_context(Context::ControlReturn, |p| {
-            let first = p.expect_consume(KwReturn)?;
+            let first = expect_token!(p, KwReturn)?;
             let expr = p.is_expr_start().then(|| p.parse_expr()).transpose()?;
             let last = match &expr {
                 Some(e) => e.span,
                 _ => first.span,
             };
 
+            optional_token!(p, Semicolon);
+
             Ok(Node {
                 node: control::Return {
                     expr: expr.map(Into::into),
                 },
                 span: span![first.span.begin, last.end],
+                attrs: vec![],
             })
         })
     }
 
     fn parse_control_raise(&mut self) -> Result<Node<control::Raise>> {
         self.with_context(Context::ControlRaise, |p| {
-            let first = p.expect_consume(KwRaise)?.span;
+            let first = expect_token!(p, KwRaise)?.span;
             let expr = p.parse_expr()?;
             let last = expr.span;
+
+            optional_token!(p, Semicolon);
 
             Ok(Node {
                 node: control::Raise { expr: expr.into() },
                 span: span![first.begin, last.end],
+                attrs: vec![],
             })
         })
     }
@@ -47,7 +55,7 @@ impl<'a> Parser<'a> {
     fn parse_control_if(&mut self) -> Result<Node<control::If>> {
         self.push_context(Context::ControlIf);
 
-        let first = self.expect_consume(KwIf)?.span;
+        let first = expect_token!(self, KwIf)?.span;
         let cond = self.parse_expr()?;
 
         self.pop_context();
@@ -56,7 +64,7 @@ impl<'a> Parser<'a> {
         let mut last = body.span;
         let mut elseif = vec![];
 
-        while self.check(KwElse) && self.check_ahead(KwIf, 1) {
+        while check_token!(self, KwElse) && check_token!(self, KwIf, 1) {
             self.push_context(Context::ControlElseIf);
             self.consume()?;
             self.consume()?;
@@ -69,8 +77,7 @@ impl<'a> Parser<'a> {
             elseif.push((cond, body));
         }
 
-        let else_body = self
-            .check(KwElse)
+        let else_body = check_token!(self, KwElse)
             .then(|| {
                 self.consume()?;
                 let body = self.parse_body(Self::parse_stmt)?;
@@ -87,12 +94,13 @@ impl<'a> Parser<'a> {
                 else_body: else_body.map(Into::into),
             },
             span: span![first.begin, last.end],
+            attrs: vec![],
         })
     }
 
     fn parse_control_while(&mut self) -> Result<Node<control::While>> {
         self.push_context(Context::ControlWhile);
-        let first = self.expect_consume(KwWhile)?.span;
+        let first = expect_token!(self, KwWhile)?.span;
         let cond = self.parse_expr()?;
         self.pop_context();
 
@@ -105,23 +113,23 @@ impl<'a> Parser<'a> {
                 body,
             },
             span: span![first.begin, last.end],
+            attrs: vec![],
         })
     }
 
     fn parse_control_for(&mut self) -> Result<Node<control::For>> {
         self.push_context(Context::ControlFor);
 
-        let first = self.expect_consume(KwFor)?.span;
-        let param = self.expect_consume(Identifier)?;
-        let ty = self
-            .check(Colon)
+        let first = expect_token!(self, KwFor)?.span;
+        let param = expect_token!(self, Identifier(_))?;
+        let ty = check_token!(self, Colon)
             .then(|| {
                 self.consume()?;
                 Ok(self.parse_type()?)
             })
             .transpose()?;
 
-        self.expect_consume(KwIn)?;
+        expect_token!(self, KwIn)?;
 
         let expr = self.parse_expr()?;
         self.pop_context();
@@ -136,6 +144,7 @@ impl<'a> Parser<'a> {
                 body,
             },
             span: span![first.begin, last.end],
+            attrs: vec![],
         })
     }
 
@@ -145,10 +154,12 @@ impl<'a> Parser<'a> {
                 KwBreak => self.consume().map(|token| Node {
                     node: control::Break {}.into(),
                     span: token.span,
+                    attrs: vec![],
                 }),
                 KwContinue => self.consume().map(|token| Node {
                     node: control::Continue {}.into(),
                     span: token.span,
+                    attrs: vec![],
                 }),
                 KwReturn => self.parse_control_return().map(IntoNode::into_node),
                 KwRaise => self.parse_control_raise().map(IntoNode::into_node),

@@ -14,23 +14,14 @@ use viac_ast::attr::{self, Attr};
 impl<'a> Parser<'a> {
     pub(crate) fn parse_attr(&mut self) -> Result<Node<Attr>> {
         self.with_context(Context::Attr, |p| {
-            let first = p.expect_consume(OpHash)?;
-            let name = p.expect_consume(Identifier)?;
+            let first = expect_token!(p, OpHash)?;
+            let name = expect_token!(p, Identifier(_))?;
             let span = span![first.span.begin, name.span.end];
 
             match p.source.slice(name.span) {
                 "native" => Ok(Node::new(attr::Native {}.into(), span)),
                 "inline" => Ok(Node::new(attr::Inline {}.into(), span)),
-                "distinct" => p.with_context(Context::AttrDistinct, |p| {
-                    let first = p.expect_consume(ParenOpen)?;
-                    let ty = p.parse_type()?;
-                    let last = p.expect_consume(ParenClose)?;
-
-                    Ok(Node {
-                        node: attr::Distinct { ty: ty.into() }.into(),
-                        span: span![first.span.begin, last.span.end],
-                    })
-                }),
+                "distinct" => Ok(Node::new(attr::Distinct {}.into(), span)),
                 _ => p.error(ErrorKind::UnexpectedToken {
                     expected: vec![],
                     got: name,

@@ -18,13 +18,13 @@ macro_rules! ast {
         }
     ) => {
         $(
-            #[derive(Debug, Eq, PartialEq)]
+            #[derive(Debug, PartialEq)]
             $vis struct $name {
                 $(pub $field : $ty),*
             }
             impl crate::node::Ast for $name {}
         )*
-        #[derive(Debug, Eq, PartialEq)]
+        #[derive(Debug, PartialEq)]
         $vis enum $enum {
             $(
                 $name($name),
@@ -51,7 +51,7 @@ macro_rules! ast {
             ),* $(,)?
         }
     ) => {
-        #[derive(Debug, Eq, PartialEq)]
+        #[derive(Debug, PartialEq)]
         $vis enum $enum {
             $(
                 $name($name),

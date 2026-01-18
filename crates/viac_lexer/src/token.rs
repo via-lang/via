@@ -7,21 +7,25 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use strum::AsRefStr;
 use viac_source::span::Span;
 
 #[repr(u8)]
-#[derive(AsRefStr, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
+pub enum Base {
+    Binary = 2,
+    Decimal = 10,
+    Hex = 16,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum TokenKind {
     EndOfFile,
     Illegal,
-    Identifier,
 
-    LitInt,
-    LitBint,
-    LitXint,
-    LitFloat,
-    LitString,
+    LitInt(i128, Base),
+    LitFloat(f64),
+    LitString(String),
+    Identifier(String),
 
     KwVar,
     KwMut,
@@ -110,38 +114,30 @@ pub enum TokenKind {
 
 impl TokenKind {
     pub fn bin_prec(&self) -> Option<u8> {
+        use TokenKind::*;
         match &self {
-            TokenKind::OpPipePipe => Some(0),
-            TokenKind::OpAmpAmp => Some(1),
-            TokenKind::OpEqEq
-            | TokenKind::OpBangEq
-            | TokenKind::OpLt
-            | TokenKind::OpLtEq
-            | TokenKind::OpGt
-            | TokenKind::OpGtEq => Some(2),
-            TokenKind::OpAmp => Some(3),
-            TokenKind::OpCaret => Some(4),
-            TokenKind::OpPipe => Some(5),
-            TokenKind::OpShl | TokenKind::OpShr => Some(6),
-            TokenKind::OpPlus | TokenKind::OpMinus => Some(7),
-            TokenKind::OpStar | TokenKind::OpSlash | TokenKind::OpPercent => Some(8),
-            TokenKind::OpStarStar => Some(9),
+            OpPipePipe => Some(0),
+            OpAmpAmp => Some(1),
+            OpEqEq | OpBangEq | OpLt | OpLtEq | OpGt | OpGtEq => Some(2),
+            OpAmp => Some(3),
+            OpCaret => Some(4),
+            OpPipe => Some(5),
+            OpShl | OpShr => Some(6),
+            OpPlus | OpMinus => Some(7),
+            OpStar | OpSlash | OpPercent => Some(8),
+            OpStarStar => Some(9),
             _ => None,
         }
     }
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Token {
     pub kind: TokenKind,
     pub span: Span,
 }
 
 impl Token {
-    pub fn new(kind: TokenKind, span: Span) -> Self {
-        Self { kind, span }
-    }
-
     pub fn length(&self) -> usize {
         self.span.length()
     }

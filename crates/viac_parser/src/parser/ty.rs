@@ -25,7 +25,7 @@ impl<'a> Parser<'a> {
             BracketOpen => {
                 self.consume()?;
                 let ty = self.parse_type()?;
-                let last = self.expect_consume(BracketClose)?;
+                let last = expect_token!(self, BracketClose)?;
 
                 Node {
                     node: ty::Array { ty: ty.into() }.into(),
@@ -36,10 +36,10 @@ impl<'a> Parser<'a> {
                 p.consume()?;
                 let key = p.parse_type()?;
 
-                p.expect_consume(Colon)?;
+                expect_token!(p, Colon)?;
 
                 let value = p.parse_type()?;
-                let last = p.expect_consume(BraceClose)?;
+                let last = expect_token!(p, BraceClose)?;
 
                 Ok(Node {
                     node: ty::Map {
@@ -52,8 +52,10 @@ impl<'a> Parser<'a> {
             })?,
             KwFn => self.with_context(Context::TypeLambda, |p| {
                 p.consume()?;
-                let params = p.parse_list((ParenOpen, ParenClose), Self::parse_type)?;
-                p.expect_consume(Arrow)?;
+                let params = p.parse_list((ParenOpen, ParenClose), |p| p.parse_type())?;
+
+                expect_token!(p, Arrow)?;
+
                 let result = p.parse_type()?;
                 let last = result.span;
 
@@ -68,10 +70,10 @@ impl<'a> Parser<'a> {
             })?,
             KwType => self.with_context(Context::TypeId, |p| {
                 p.consume()?;
-                p.expect_consume(ParenOpen)?;
+                expect_token!(p, ParenOpen)?;
 
                 let expr = p.parse_expr()?;
-                let last = p.expect_consume(ParenClose)?;
+                let last = expect_token!(p, ParenClose)?;
 
                 Ok(Node {
                     node: ty::TypeOf { expr: expr.into() }.into(),
@@ -86,11 +88,14 @@ impl<'a> Parser<'a> {
             }
         };
 
+        let mut found_optional = false;
+
         loop {
             let token = self.peek()?;
             let first = lhs.span;
             let postfix = match token.kind {
-                Question => {
+                Question if !found_optional => {
+                    found_optional = true;
                     self.consume()?;
                     Node {
                         node: ty::Optional { ty: lhs.into() }.into(),
@@ -116,10 +121,11 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub(crate) fn parse_return_ty(&mut self) -> Result<Node<Ty>> {
+    pub(crate) fn parse_return_ty(&mut self) -> Result<Option<Node<Ty>>> {
         self.with_context(Context::TypeRet, |p| {
-            p.expect_consume(Arrow)?;
-            p.parse_type()
+            optional_token!(p, Arrow)
+                .then(|| p.parse_type())
+                .transpose()
         })
     }
 

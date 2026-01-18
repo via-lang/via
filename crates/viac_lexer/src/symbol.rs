@@ -36,6 +36,7 @@ pub const SYMBOL_LIST: phf::Map<&'static str, TokenKind> = phf_map! {
     "|" => OpPipe,
     "<<" => OpShl,
     ">>" => OpShr,
+    "#" => OpHash,
     "!" => OpBang,
     "'" => OpQuote,
     "&&" => OpAmpAmp,

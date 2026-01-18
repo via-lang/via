@@ -7,17 +7,17 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-mod attr;
-mod control;
-mod decl;
-mod expr;
-mod stmt;
-mod ty;
+pub(crate) mod attr;
+pub(crate) mod control;
+pub(crate) mod decl;
+pub(crate) mod expr;
+pub(crate) mod stmt;
+pub(crate) mod ty;
 
-pub mod prelude {
+pub(super) mod prelude {
     pub use crate::context::Context;
     pub use crate::error::{Error, ErrorKind, Result};
-    pub use viac_ast::extra::{Body, NodeList, Param};
+    pub use viac_ast::extra::{NodeList, Param};
     pub use viac_ast::node::{Ast, Node};
     pub use viac_lexer::token::{
         Token,
@@ -25,16 +25,77 @@ pub mod prelude {
     };
     pub use viac_source::source::Source;
     pub use viac_source::span;
+
+    macro_rules! check_token {
+        ($this:expr, $kind:pat_param) => {
+            $this.peek().is_ok_and(|token| matches!(token.kind, $kind))
+        };
+        ($this:expr, $kind:expr) => {
+            $this.peek().is_ok_and(|token| token.kind == $kind)
+        };
+        ($this:expr, $kind:pat_param, $ahead:expr) => {
+            $this
+                .peek_ahead($ahead)
+                .is_ok_and(|token| matches!(token.kind, $kind))
+        };
+        ($this:expr, $kind:expr, $ahead:expr) => {
+            $this
+                .peek_ahead($ahead)
+                .is_ok_and(|token| token.kind == $kind)
+        };
+    }
+
+    macro_rules! optional_token {
+        ($this:expr, $kind:pat_param) => {
+            check_token!($this, $kind)
+                .then(|| $this.consume().is_ok())
+                .unwrap_or(false)
+        };
+        ($this:expr, $kind:expr) => {
+            check_token!($this, $kind)
+                .then(|| $this.consume().is_ok())
+                .unwrap_or(false)
+        };
+    }
+
+    macro_rules! expect_token(
+        ($this:expr, $kind:pat_param) => {
+            match $this.consume()? {
+                token if matches!(&token.kind, $kind) => Ok(token),
+                token => $this.error::<Token>(ErrorKind::UnexpectedToken {
+                    expected: vec![],
+                    got: token,
+                }),
+            }
+        };
+        ($this:expr, $kind:expr) => {
+            match $this.consume()? {
+                token if token.kind == $kind => Ok(token),
+                token => $this.error::<Token>(ErrorKind::UnexpectedToken {
+                    expected: vec![],
+                    got: token,
+                }),
+            }
+        }
+    );
+
+    pub(super) use check_token;
+    pub(super) use expect_token;
+    pub(super) use optional_token;
 }
 
 use prelude::*;
+use viac_ast::attr::Attr;
 use viac_ast::stmt::Stmt;
 
 pub struct Parser<'a> {
     source: &'a Source,
     tokens: &'a [Token],
     position: usize,
+    // Parse context stack
     contexts: Vec<Context>,
+    // Pre-node attribute stack
+    attrs: Vec<Node<Attr>>,
 }
 
 impl<'a> Parser<'a> {
@@ -43,7 +104,8 @@ impl<'a> Parser<'a> {
             source,
             tokens,
             position: 0,
-            contexts: Vec::new(),
+            contexts: vec![],
+            attrs: vec![],
         }
     }
 
@@ -95,59 +157,20 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn check(&self, kind: TokenKind) -> bool {
-        self.peek().is_ok_and(|token| token.kind == kind)
-    }
-
-    fn check_ahead(&self, kind: TokenKind, ahead: u32) -> bool {
-        self.peek_ahead(ahead).is_ok_and(|token| token.kind == kind)
-    }
-
-    #[allow(dead_code)]
-    fn expect(&self, kind: TokenKind) -> Result<Token> {
-        let token = self.peek()?;
-        (token.kind == kind).then_some(token).ok_or_else(|| {
-            self.error::<Token>(ErrorKind::UnexpectedToken {
-                expected: vec![kind],
-                got: token,
-            })
-            .err()
-            .unwrap()
-        })
-    }
-
-    fn expect_consume(&mut self, kind: TokenKind) -> Result<Token> {
-        let token = self.consume()?;
-        (token.kind == kind).then_some(token).ok_or_else(|| {
-            self.error::<Token>(ErrorKind::UnexpectedToken {
-                expected: vec![kind],
-                got: token,
-            })
-            .err()
-            .unwrap()
-        })
-    }
-
-    fn optional(&mut self, kind: TokenKind) -> bool {
-        self.check(kind)
-            .then(|| self.consume().is_ok())
-            .unwrap_or(false)
-    }
-
     pub(super) fn parse_body<F, T>(&mut self, mut parse: F) -> Result<NodeList<T>>
     where
         F: FnMut(&mut Self) -> Result<Node<T>>,
         T: Ast,
     {
-        let first = self.expect_consume(BraceOpen)?;
+        let first = expect_token!(self, BraceOpen)?;
         let mut body = vec![];
 
-        while !self.check(BraceClose) {
+        while !check_token!(self, BraceClose) {
             let node = parse(self)?;
             body.push(node);
         }
 
-        let last = self.expect_consume(BraceClose)?;
+        let last = expect_token!(self, BraceClose)?;
         Ok(NodeList {
             list: body,
             span: span![first.span.begin, last.span.end],
@@ -163,18 +186,18 @@ impl<'a> Parser<'a> {
         F: FnMut(&mut Self) -> Result<Node<T>>,
         T: Ast,
     {
-        let first = self.expect_consume(brackets.0)?;
+        let first = expect_token!(self, brackets.0)?;
         let mut body = vec![];
 
-        loop {
+        while !check_token!(self, brackets.1) {
             let node = parse(self)?;
             body.push(node);
-            if !self.optional(Comma) {
+            if !optional_token!(self, Comma) {
                 break;
             }
         }
 
-        let last = self.expect_consume(brackets.1)?;
+        let last = expect_token!(self, brackets.1)?;
         Ok(NodeList {
             list: body,
             span: span![first.span.begin, last.span.end],
@@ -183,8 +206,11 @@ impl<'a> Parser<'a> {
 
     pub(super) fn parse_param(&mut self) -> Result<Node<Param>> {
         self.with_context(Context::Param, |p| {
-            let name = p.expect_consume(Identifier)?;
-            p.expect_consume(Colon)?;
+            let name = expect_token!(p, Identifier(_))?;
+            let first = name.span;
+
+            expect_token!(p, Colon)?;
+
             let ty = p.parse_param_ty()?;
             let last = ty.span;
 
@@ -193,7 +219,8 @@ impl<'a> Parser<'a> {
                     name,
                     ty: ty.into(),
                 },
-                span: span![name.span.begin, last.end],
+                span: span![first.begin, last.end],
+                attrs: vec![],
             })
         })
     }
@@ -201,7 +228,7 @@ impl<'a> Parser<'a> {
     fn parse(&mut self) -> Result<Vec<Node<Stmt>>> {
         let mut ast = vec![];
         loop {
-            if self.check(EndOfFile) {
+            if check_token!(self, EndOfFile) {
                 break Ok(ast);
             }
             let stmt = self.parse_stmt()?;
@@ -211,11 +238,5 @@ impl<'a> Parser<'a> {
 }
 
 pub fn parse(source: &Source, tokens: &[Token]) -> Result<Vec<Node<Stmt>>> {
-    Parser {
-        source,
-        tokens,
-        position: 0,
-        contexts: vec![],
-    }
-    .parse()
+    Parser::new(&source, &tokens).parse()
 }

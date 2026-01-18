@@ -9,6 +9,7 @@
 
 pub mod context;
 pub mod error;
+mod macros;
 pub mod parser;
 
 #[cfg(test)]

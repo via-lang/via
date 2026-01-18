@@ -7,6 +7,7 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
+use crate::attr::Attr;
 use viac_source::span::Span;
 
 pub trait Ast: PartialEq {}
@@ -15,21 +16,27 @@ pub trait IntoNode<T: Ast> {
     fn into_node(self) -> Node<T>;
 }
 
-#[derive(Debug, Eq)]
+#[derive(Debug)]
 pub struct Node<T: Ast> {
     pub node: T,
     pub span: Span,
+    pub attrs: Vec<Node<Attr>>,
 }
 
 impl<T: Ast> Node<T> {
     pub fn new(node: T, span: Span) -> Self {
-        Self { node, span }
+        Self {
+            node,
+            span,
+            attrs: vec![],
+        }
     }
 
     pub fn map<U: Ast>(self, f: impl FnOnce(T) -> U) -> Node<U> {
         Node {
             node: f(self.node),
             span: self.span,
+            attrs: vec![],
         }
     }
 }
@@ -39,6 +46,7 @@ impl<T: Ast, U: Ast + From<T>> IntoNode<U> for Node<T> {
         Node {
             node: self.node.into(),
             span: self.span,
+            attrs: self.attrs,
         }
     }
 }
@@ -54,14 +62,16 @@ impl<T: Ast> Into<NodeRef<T>> for Node<T> {
         NodeRef {
             node: Box::new(self.node),
             span: self.span,
+            attrs: self.attrs,
         }
     }
 }
 
-#[derive(Debug, Eq)]
+#[derive(Debug)]
 pub struct NodeRef<T: Ast> {
     pub node: Box<T>,
     pub span: Span,
+    pub attrs: Vec<Node<Attr>>,
 }
 
 impl<T: Ast> NodeRef<T> {
@@ -69,6 +79,7 @@ impl<T: Ast> NodeRef<T> {
         Self {
             node: Box::new(node),
             span,
+            attrs: vec![],
         }
     }
 }
