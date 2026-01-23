@@ -7,6 +7,7 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
+use strum::IntoStaticStr;
 use viac_source::span::Span;
 
 #[repr(u8)]
@@ -17,15 +18,15 @@ pub enum Base {
     Hex = 16,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(IntoStaticStr, Debug, Clone, PartialEq)]
 pub enum TokenKind {
     EndOfFile,
     Illegal,
 
-    LitInt(i128, Base),
-    LitFloat(f64),
-    LitString(String),
-    Identifier(String),
+    LitInt { base: Base },
+    LitFloat,
+    LitString { terminated: bool },
+    Identifier,
 
     KwVar,
     KwMut,

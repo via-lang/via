@@ -13,7 +13,7 @@ use super::prelude::*;
 use viac_ast::control;
 use viac_ast::stmt::Stmt;
 
-impl<'a> Parser<'a> {
+impl Parser {
     pub(super) fn parse_stmt(&mut self) -> Result<Node<Stmt>> {
         if let Ok(token) = self.peek() {
             match token.kind {
@@ -53,7 +53,7 @@ impl<'a> Parser<'a> {
                     }
                 }
                 _ => self.error(ErrorKind::UnexpectedToken {
-                    expected: vec![],
+                    exp: vec![].into(),
                     got: token,
                 }),
             }

@@ -7,7 +7,4 @@ edition = "2024"
 anyhow = "1.0.100"
 clap = { version = "4.5.54", features = ["derive"] }
 clio = { version = "0.3.5" , features = ["clap-parse"] }
-viac_ast = { path = "../viac_ast" }
-viac_lexer = { path = "../viac_lexer" }
-viac_parser = { path = "../viac_parser" }
-viac_source = { path = "../viac_source" }
+viac = { path = "../viac" }

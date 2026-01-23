@@ -10,17 +10,21 @@
 use crate::TreeType;
 use anyhow::Result;
 use std::io::Write;
-use viac_ast::node::Node;
-use viac_ast::stmt::Stmt;
-use viac_lexer::lexer;
-use viac_lexer::token::Token;
-use viac_parser::error::Error as ParseError;
-use viac_parser::parser;
-use viac_source::source::Source;
+use std::rc::Rc;
+use viac::prelude::{
+    ast::{node::Node, stmt::Stmt},
+    diags::{
+        context::Context as DiagContext,
+        renderer::{Renderer, TermRenderer},
+    },
+    lexer::{self, token::Token},
+    parser,
+    source::Source,
+};
 
 pub struct Fixture {
-    pub tokens: Vec<Token>,
-    pub ast: Result<Vec<Node<Stmt>>, ParseError>,
+    pub tokens: Rc<[Token]>,
+    pub ast: Rc<[Node<Stmt>]>,
 }
 
 impl Fixture {
@@ -35,8 +39,17 @@ impl Fixture {
 
 pub fn run(src: &str) -> Result<Fixture> {
     let source = Source::new(src.to_string());
+    let renderer = TermRenderer::default();
+    let mut diag_ctxt = DiagContext::new(renderer, Some(&source));
+
     let tokens = lexer::tokenize(&source);
-    let ast = parser::parse(&source, tokens.as_slice());
+    let ast = match parser::parse(&source, &tokens) {
+        Ok(toks) => toks,
+        Err(e) => {
+            diag_ctxt.emit(e)?;
+            return Err(anyhow::Error::msg("compilation failure"));
+        }
+    };
 
     Ok(Fixture { tokens, ast })
 }

@@ -16,11 +16,11 @@ use viac_ast::node::IntoNode;
 
 yes_or_no!(pub AllowImport);
 
-impl<'a> Parser<'a> {
+impl Parser {
     pub(crate) fn parse_decl_variable(&mut self) -> Result<Node<decl::Variable>> {
         self.with_context(Context::DeclVariable, |p| {
             let first = expect_token!(p, KwVar)?.span;
-            let symbol = expect_token!(p, Identifier(_))?;
+            let symbol = expect_token!(p, Identifier)?;
             let ty = check_token!(p, Colon)
                 .then(|| {
                     p.consume()?;
@@ -51,7 +51,7 @@ impl<'a> Parser<'a> {
         self.push_context(Context::DeclFunction);
 
         let first = expect_token!(self, KwFn)?.span;
-        let symbol = expect_token!(self, Identifier(_))?;
+        let symbol = expect_token!(self, Identifier)?;
         let params = self.with_context(Context::ParamList, |p| {
             p.parse_list((ParenOpen, ParenClose), Self::parse_param)
         })?;
@@ -82,7 +82,7 @@ impl<'a> Parser<'a> {
     fn parse_decl_type(&mut self) -> Result<Node<decl::Type>> {
         self.with_context(Context::DeclType, |p| {
             let begin = expect_token!(p, KwType)?;
-            let symbol = expect_token!(p, Identifier(_))?;
+            let symbol = expect_token!(p, Identifier)?;
             expect_token!(p, OpEq)?;
 
             let ty = p.parse_type()?;
@@ -104,7 +104,7 @@ impl<'a> Parser<'a> {
     fn parse_decl_const(&mut self) -> Result<Node<decl::Const>> {
         self.with_context(Context::DeclConst, |p| {
             let begin = expect_token!(p, KwConst)?;
-            let symbol = expect_token!(p, Identifier(_))?;
+            let symbol = expect_token!(p, Identifier)?;
             expect_token!(p, OpEq)?;
 
             let expr = p.parse_expr()?;
@@ -127,7 +127,7 @@ impl<'a> Parser<'a> {
         self.push_context(Context::DeclStruct);
 
         let first = expect_token!(self, KwStruct)?;
-        let symbol = expect_token!(self, Identifier(_))?;
+        let symbol = expect_token!(self, Identifier)?;
 
         self.pop_context();
 
@@ -144,17 +144,17 @@ impl<'a> Parser<'a> {
     fn parse_decl_import(&mut self) -> Result<Node<decl::Import>> {
         self.with_context(Context::DeclImport, |p| {
             let first = expect_token!(p, KwImport)?;
-            let mut path = vec![expect_token!(p, Identifier(_))?];
+            let mut path = vec![expect_token!(p, Identifier)?];
             while check_token!(p, Period) {
                 p.consume()?;
-                let token = expect_token!(p, Identifier(_))?;
+                let token = expect_token!(p, Identifier)?;
                 path.push(token);
             }
 
             let alias = check_token!(p, KwAs)
                 .then(|| {
                     p.consume()?;
-                    Ok(expect_token!(p, Identifier(_))?)
+                    Ok(expect_token!(p, Identifier)?)
                 })
                 .transpose()?;
 
@@ -185,7 +185,7 @@ impl<'a> Parser<'a> {
                     self.parse_decl_import().map(IntoNode::into_node)
                 }
                 _ => self.error(ErrorKind::UnexpectedToken {
-                    expected: vec![],
+                    exp: vec![].into(),
                     got: token,
                 }),
             }

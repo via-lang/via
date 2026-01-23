@@ -14,7 +14,7 @@ use super::prelude::*;
 use viac_ast::control::{self, Control};
 use viac_ast::node::IntoNode;
 
-impl<'a> Parser<'a> {
+impl Parser {
     fn parse_control_return(&mut self) -> Result<Node<control::Return>> {
         self.with_context(Context::ControlReturn, |p| {
             let first = expect_token!(p, KwReturn)?;
@@ -121,7 +121,7 @@ impl<'a> Parser<'a> {
         self.push_context(Context::ControlFor);
 
         let first = expect_token!(self, KwFor)?.span;
-        let param = expect_token!(self, Identifier(_))?;
+        let param = expect_token!(self, Identifier)?;
         let ty = check_token!(self, Colon)
             .then(|| {
                 self.consume()?;
@@ -168,7 +168,7 @@ impl<'a> Parser<'a> {
                 KwIf => self.parse_control_if().map(IntoNode::into_node),
                 _ => self.error(
                     ErrorKind::UnexpectedToken {
-                        expected: vec![],
+                        exp: vec![].into(),
                         got: token,
                     }
                     .into(),

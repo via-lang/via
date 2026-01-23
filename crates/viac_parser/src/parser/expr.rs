@@ -16,26 +16,29 @@ use viac_ast::value;
 
 yes_or_no!(AllowPrefix);
 
-impl<'a> Parser<'a> {
+impl Parser {
     pub(super) fn is_expr_start(&self) -> bool {
         matches!(
             self.peek().map(|t| t.kind),
-            Ok(Identifier(_)
+            Ok(
+                Identifier
                 | KwTrue
                 | KwFalse
                 | KwNone
                 | KwFn
                 | KwSelf
-                | LitInt(_, _)
-                | LitFloat(_)
-                | LitString(_)
+                | LitInt { base: _ }
+                | LitFloat
+                | LitString { terminated: _ }
                 | OpMinus
-                | OpAmp
-                | OpTilde
-                | OpBang
-                | ParenOpen
-                | BraceOpen
-                | BracketOpen)
+                | OpAmp // unary
+                | OpTilde // unary
+                | OpBang // unary
+                | OpHash // attribute
+                | ParenOpen // group or tuple
+                | BraceOpen // map
+                | BracketOpen // array
+            )
         )
     }
 
@@ -43,7 +46,7 @@ impl<'a> Parser<'a> {
         self.with_context(Context::ExprPrimary, |p| {
             let token = p.peek()?;
             match token.kind {
-                Identifier(_) => {
+                Identifier => {
                     p.consume()?;
                     let span = token.span;
                     Ok(Node {
@@ -84,7 +87,7 @@ impl<'a> Parser<'a> {
                         attrs: vec![],
                     })
                 }
-                LitInt(_, _) => {
+                LitInt { base: _ } => {
                     p.consume()?;
                     let span = token.span;
                     Ok(Node {
@@ -93,7 +96,7 @@ impl<'a> Parser<'a> {
                         attrs: vec![],
                     })
                 }
-                LitFloat(_) => {
+                LitFloat => {
                     p.consume()?;
                     let span = token.span;
                     Ok(Node {
@@ -102,7 +105,10 @@ impl<'a> Parser<'a> {
                         attrs: vec![],
                     })
                 }
-                LitString(_) => {
+                LitString { terminated } => {
+                    if !terminated {
+                        return p.error(ErrorKind::UnterminatedStringLiteral { tok: token });
+                    }
                     p.consume()?;
                     let span = token.span;
                     Ok(Node {
@@ -228,8 +234,10 @@ impl<'a> Parser<'a> {
                         attrs: vec![],
                     })
                 }
-                KwFn => p.with_context(Context::ExprLambda, |p| {
+                KwFn => {
                     p.consume()?;
+                    p.push_context(Context::ExprLambda);
+
                     let params = check_token!(p, ParenOpen)
                         .then(|| Ok(p.parse_list((ParenOpen, ParenClose), Self::parse_param)?))
                         .transpose()?
@@ -239,6 +247,8 @@ impl<'a> Parser<'a> {
                         });
 
                     let result = p.parse_return_ty()?;
+                    p.pop_context();
+
                     let body = p.parse_body(Self::parse_stmt)?;
                     let last = body.span;
 
@@ -254,7 +264,7 @@ impl<'a> Parser<'a> {
                         span: span![token.span.begin, last.end],
                         attrs: vec![],
                     })
-                }),
+                }
                 OpHash => {
                     let attr = p.parse_attr()?;
                     let span = attr.span;
@@ -265,7 +275,7 @@ impl<'a> Parser<'a> {
                     })
                 }
                 _ => p.error(ErrorKind::UnexpectedToken {
-                    expected: vec![],
+                    exp: vec![].into(),
                     got: token,
                 }),
             }
@@ -279,7 +289,7 @@ impl<'a> Parser<'a> {
                 match token.kind {
                     Period => {
                         self.consume()?;
-                        let field = expect_token!(self, Identifier(_))?;
+                        let field = expect_token!(self, Identifier)?;
                         let first = expr.span;
                         let last = field.span;
 
@@ -297,7 +307,7 @@ impl<'a> Parser<'a> {
                     }
                     ColonColon => {
                         self.consume()?;
-                        let field = expect_token!(self, Identifier(_))?;
+                        let field = expect_token!(self, Identifier)?;
                         let first = expr.span;
                         let last = field.span;
 

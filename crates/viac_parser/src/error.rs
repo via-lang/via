@@ -8,30 +8,77 @@
 ** ================================================ */
 
 use crate::context::Context;
-use viac_lexer::token::{Token, TokenKind};
+use escape_string::escape;
+use std::fmt;
+use viac_diags::Diagnostic;
+use viac_diags::builder::Builder;
+use viac_diags::diag::{DiagKind, Note};
+use viac_lexer::token::Token;
 
 #[derive(Debug)]
-pub enum ErrorKind {
-    UnexpectedEndOfFile,
-    UnexpectedToken {
-        expected: Vec<TokenKind>,
-        got: Token,
-    },
+pub struct ExpectedList(pub Vec<&'static str>);
+
+impl From<Vec<&'static str>> for ExpectedList {
+    fn from(value: Vec<&'static str>) -> Self {
+        ExpectedList(value)
+    }
 }
 
-impl Into<Error> for ErrorKind {
-    fn into(self) -> Error {
-        Error {
-            contexts: Vec::new(),
-            kind: self,
-        }
+impl fmt::Display for ExpectedList {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.0)
     }
 }
 
 #[derive(Debug)]
+pub enum ErrorKind {
+    UnexpectedEndOfFile,
+    UnexpectedToken { exp: ExpectedList, got: Token },
+    UnterminatedStringLiteral { tok: Token },
+}
+
+#[derive(Debug)]
 pub struct Error {
-    pub contexts: Vec<Context>,
+    pub ctxts: Vec<Context>,
     pub kind: ErrorKind,
+}
+
+impl Diagnostic for Error {
+    fn build(self, b: &mut Builder) {
+        let src = b
+            .source
+            .clone()
+            .expect("parse error builder must have source context");
+
+        for ctxt in &self.ctxts {
+            b.context(format!("while parsing {ctxt}"));
+        }
+
+        match self.kind {
+            ErrorKind::UnexpectedEndOfFile => b
+                .kind(DiagKind::Error)
+                .message("unexpected end of file".to_string())
+                .location(src.end_span()),
+            ErrorKind::UnexpectedToken { exp, got } => {
+                let text = escape(src.slice(got.span));
+                b.kind(DiagKind::Error)
+                    .message(format!(
+                        "unexpected token '{}'",
+                        if text.len() > 20 {
+                            "<truncated>"
+                        } else {
+                            text.as_ref()
+                        }
+                    ))
+                    .location(got.span)
+                    .note(Note::Note(format!("expected {}", exp)))
+            }
+            ErrorKind::UnterminatedStringLiteral { tok } => b
+                .kind(DiagKind::Error)
+                .message("unterminated string literal".to_string())
+                .location(tok.span),
+        };
+    }
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

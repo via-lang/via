@@ -23,7 +23,7 @@ pub(super) mod prelude {
         Token,
         TokenKind::{self, *},
     };
-    pub use viac_source::source::Source;
+    pub use viac_source::Source;
     pub use viac_source::span;
 
     macro_rules! check_token {
@@ -63,16 +63,16 @@ pub(super) mod prelude {
             match $this.consume()? {
                 token if matches!(&token.kind, $kind) => Ok(token),
                 token => $this.error::<Token>(ErrorKind::UnexpectedToken {
-                    expected: vec![],
+                    exp: vec![].into(),
                     got: token,
                 }),
             }
         };
         ($this:expr, $kind:expr) => {
             match $this.consume()? {
-                token if token.kind == $kind => Ok(token),
+                token if $kind == token.kind => Ok(token),
                 token => $this.error::<Token>(ErrorKind::UnexpectedToken {
-                    expected: vec![],
+                    exp: vec![].into(),
                     got: token,
                 }),
             }
@@ -84,37 +84,27 @@ pub(super) mod prelude {
     pub(super) use optional_token;
 }
 
+use crate::Parser;
 use prelude::*;
-use viac_ast::attr::Attr;
+use std::rc::Rc;
 use viac_ast::stmt::Stmt;
 
-pub struct Parser<'a> {
-    source: &'a Source,
-    tokens: &'a [Token],
-    position: usize,
-    // Parse context stack
-    contexts: Vec<Context>,
-    // Pre-node attribute stack
-    attrs: Vec<Node<Attr>>,
-}
-
-impl<'a> Parser<'a> {
-    pub fn new(source: &'a Source, tokens: &'a [Token]) -> Self {
+impl Parser {
+    pub fn new(src: &Rc<Source>, toks: &Rc<[Token]>) -> Self {
         Self {
-            source,
-            tokens,
-            position: 0,
-            contexts: vec![],
-            attrs: vec![],
+            src: src.clone(),
+            toks: toks.clone(),
+            pos: 0,
+            ctxts: vec![],
         }
     }
 
     fn push_context(&mut self, ctx: Context) {
-        self.contexts.push(ctx);
+        self.ctxts.push(ctx);
     }
 
     fn pop_context(&mut self) {
-        self.contexts.pop();
+        self.ctxts.pop();
     }
 
     fn with_context<T>(&mut self, ctx: Context, f: impl FnOnce(&mut Self) -> T) -> T {
@@ -127,12 +117,12 @@ impl<'a> Parser<'a> {
     fn error<T>(&self, kind: ErrorKind) -> Result<T> {
         Err(Error {
             kind,
-            contexts: self.contexts.clone(),
+            ctxts: self.ctxts.clone(),
         })
     }
 
     fn peek(&self) -> Result<Token> {
-        self.tokens.get(self.position).cloned().ok_or_else(|| {
+        self.toks.get(self.pos).cloned().ok_or_else(|| {
             self.error::<Token>(ErrorKind::UnexpectedEndOfFile)
                 .err()
                 .unwrap()
@@ -140,8 +130,8 @@ impl<'a> Parser<'a> {
     }
 
     fn peek_ahead(&self, ahead: u32) -> Result<Token> {
-        self.tokens
-            .get(self.position + ahead as usize)
+        self.toks
+            .get(self.pos + ahead as usize)
             .cloned()
             .ok_or_else(|| {
                 self.error::<Token>(ErrorKind::UnexpectedEndOfFile)
@@ -152,7 +142,7 @@ impl<'a> Parser<'a> {
 
     fn consume(&mut self) -> Result<Token> {
         self.peek().map(|token| {
-            self.position += 1;
+            self.pos += 1;
             token
         })
     }
@@ -206,7 +196,7 @@ impl<'a> Parser<'a> {
 
     pub(super) fn parse_param(&mut self) -> Result<Node<Param>> {
         self.with_context(Context::Param, |p| {
-            let name = expect_token!(p, Identifier(_))?;
+            let name = expect_token!(p, Identifier)?;
             let first = name.span;
 
             expect_token!(p, Colon)?;
@@ -225,18 +215,14 @@ impl<'a> Parser<'a> {
         })
     }
 
-    fn parse(&mut self) -> Result<Vec<Node<Stmt>>> {
+    pub(crate) fn parse(&mut self) -> Result<Rc<[Node<Stmt>]>> {
         let mut ast = vec![];
         loop {
             if check_token!(self, EndOfFile) {
-                break Ok(ast);
+                break Ok(Rc::from(ast));
             }
             let stmt = self.parse_stmt()?;
             ast.push(stmt);
         }
     }
-}
-
-pub fn parse(source: &Source, tokens: &[Token]) -> Result<Vec<Node<Stmt>>> {
-    Parser::new(&source, &tokens).parse()
 }

@@ -11,7 +11,7 @@ use super::Parser;
 use super::prelude::*;
 use viac_ast::ty::{self, Ty};
 
-impl<'a> Parser<'a> {
+impl Parser {
     pub(crate) fn parse_type(&mut self) -> Result<Node<Ty>> {
         let token = self.peek()?;
         let mut lhs = match token.kind {
@@ -21,6 +21,7 @@ impl<'a> Parser<'a> {
                 }
                 .into(),
                 span: token.span,
+                attrs: vec![],
             },
             BracketOpen => {
                 self.consume()?;
@@ -30,6 +31,7 @@ impl<'a> Parser<'a> {
                 Node {
                     node: ty::Array { ty: ty.into() }.into(),
                     span: span![token.span.begin, last.span.end],
+                    attrs: vec![],
                 }
             }
             BraceOpen => self.with_context(Context::TypeMap, |p| {
@@ -48,9 +50,10 @@ impl<'a> Parser<'a> {
                     }
                     .into(),
                     span: span![token.span.begin, last.span.end],
+                    attrs: vec![],
                 })
             })?,
-            KwFn => self.with_context(Context::TypeLambda, |p| {
+            KwFn => self.with_context(Context::TypeFn, |p| {
                 p.consume()?;
                 let params = p.parse_list((ParenOpen, ParenClose), |p| p.parse_type())?;
 
@@ -66,6 +69,7 @@ impl<'a> Parser<'a> {
                     }
                     .into(),
                     span: span![token.span.begin, last.end],
+                    attrs: vec![],
                 })
             })?,
             KwType => self.with_context(Context::TypeId, |p| {
@@ -78,11 +82,12 @@ impl<'a> Parser<'a> {
                 Ok(Node {
                     node: ty::TypeOf { expr: expr.into() }.into(),
                     span: span![token.span.begin, last.span.end],
+                    attrs: vec![],
                 })
             })?,
             _ => {
                 return self.error(ErrorKind::UnexpectedToken {
-                    expected: vec![],
+                    exp: vec![].into(),
                     got: token,
                 });
             }
@@ -100,6 +105,7 @@ impl<'a> Parser<'a> {
                     Node {
                         node: ty::Optional { ty: lhs.into() }.into(),
                         span: span![first.begin, token.span.end],
+                        attrs: vec![],
                     }
                 }
                 OpPipe => {
@@ -113,6 +119,7 @@ impl<'a> Parser<'a> {
                         }
                         .into(),
                         span: span![first.begin, last.end],
+                        attrs: vec![],
                     }
                 }
                 _ => break Ok(lhs),

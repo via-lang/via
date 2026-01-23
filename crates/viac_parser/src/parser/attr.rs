@@ -11,22 +11,29 @@ use super::Parser;
 use super::prelude::*;
 use viac_ast::attr::{self, Attr};
 
-impl<'a> Parser<'a> {
+impl Parser {
     pub(crate) fn parse_attr(&mut self) -> Result<Node<Attr>> {
         self.with_context(Context::Attr, |p| {
             let first = expect_token!(p, OpHash)?;
-            let name = expect_token!(p, Identifier(_))?;
+            let name = expect_token!(p, Identifier)?;
             let span = span![first.span.begin, name.span.end];
 
-            match p.source.slice(name.span) {
+            match p.src.slice(name.span) {
                 "native" => Ok(Node::new(attr::Native {}.into(), span)),
                 "inline" => Ok(Node::new(attr::Inline {}.into(), span)),
                 "distinct" => Ok(Node::new(attr::Distinct {}.into(), span)),
                 _ => p.error(ErrorKind::UnexpectedToken {
-                    expected: vec![],
+                    exp: vec!["native", "inline", "distinct"].into(),
                     got: name,
                 }),
             }
         })
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn parse_attrs(&mut self) -> Result<Vec<Node<Attr>>> {
+        check_token!(self, OpHash)
+            .then(|| self.parse_attr().map(|a| vec![a]))
+            .unwrap_or(Ok(Vec::new()))
     }
 }

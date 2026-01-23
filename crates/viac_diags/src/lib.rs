@@ -7,29 +7,11 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
+pub mod builder;
 pub mod context;
-pub mod error;
-mod macros;
-mod parser;
+pub mod diag;
+pub mod renderer;
 
-#[cfg(test)]
-mod test;
-
-use context::Context;
-use error::Result;
-use std::rc::Rc;
-use viac_ast::node::Node;
-use viac_ast::stmt::Stmt;
-use viac_lexer::token::Token;
-use viac_source::Source;
-
-pub struct Parser {
-    src: Rc<Source>,
-    toks: Rc<[Token]>,
-    pos: usize,
-    ctxts: Vec<Context>,
-}
-
-pub fn parse(src: &Rc<Source>, toks: &Rc<[Token]>) -> Result<Rc<[Node<Stmt>]>> {
-    Parser::new(&src, &toks).parse()
+pub trait Diagnostic {
+    fn build(self, b: &mut builder::Builder);
 }

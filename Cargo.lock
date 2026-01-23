@@ -148,6 +148,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "escape_string"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "59e867569975c88fdf73833a30bd6e0978aa6ab6bd784b648fcece07450951ba"
+
+[[package]]
 name = "fastrand"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -394,6 +400,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "termcolor"
+version = "1.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06794f8f6c5c898b3275aebefa6b8a1cb24cd2c6c79397ab15774837a0bc5755"
+dependencies = [
+ "winapi-util",
+]
+
+[[package]]
 name = "unicode-ident"
 version = "1.0.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -412,10 +427,7 @@ dependencies = [
  "anyhow",
  "clap",
  "clio",
- "viac_ast",
- "viac_lexer",
- "viac_parser",
- "viac_source",
+ "viac",
 ]
 
 [[package]]
@@ -423,11 +435,46 @@ name = "via_macros"
 version = "0.1.0"
 
 [[package]]
+name = "viac"
+version = "0.1.0"
+dependencies = [
+ "viac_ast",
+ "viac_diags",
+ "viac_ir",
+ "viac_ir_builder",
+ "viac_lexer",
+ "viac_parser",
+ "viac_source",
+]
+
+[[package]]
 name = "viac_ast"
 version = "0.1.0"
 dependencies = [
  "viac_lexer",
  "viac_source",
+]
+
+[[package]]
+name = "viac_diags"
+version = "0.1.0"
+dependencies = [
+ "termcolor",
+ "viac_source",
+]
+
+[[package]]
+name = "viac_ir"
+version = "0.1.0"
+dependencies = [
+ "bitflags",
+]
+
+[[package]]
+name = "viac_ir_builder"
+version = "0.1.0"
+dependencies = [
+ "viac_ir",
 ]
 
 [[package]]
@@ -446,8 +493,10 @@ name = "viac_parser"
 version = "0.1.0"
 dependencies = [
  "assert_matches",
+ "escape_string",
  "via_macros",
  "viac_ast",
+ "viac_diags",
  "viac_lexer",
  "viac_source",
 ]
