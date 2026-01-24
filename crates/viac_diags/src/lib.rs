@@ -11,7 +11,3 @@ pub mod builder;
 pub mod context;
 pub mod diag;
 pub mod renderer;
-
-pub trait Diagnostic {
-    fn build(self, b: &mut builder::Builder);
-}

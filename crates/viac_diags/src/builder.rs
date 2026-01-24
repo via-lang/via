@@ -20,10 +20,10 @@ pub struct Builder {
 }
 
 impl Builder {
-    pub fn new(src: &Rc<Source>) -> Self {
+    pub fn new(src: &Rc<Source>, kind: DiagKind) -> Self {
         Self {
             diag: Diag {
-                kind: None,
+                kind,
                 message: "<no message>".to_string(),
                 location: None,
                 context: Vec::new(),
@@ -31,11 +31,6 @@ impl Builder {
             },
             src: src.clone(),
         }
-    }
-
-    pub fn kind(&mut self, kind: DiagKind) -> &mut Self {
-        self.diag.kind = Some(kind);
-        self
     }
 
     pub fn message(&mut self, msg: String) -> &mut Self {
@@ -58,7 +53,7 @@ impl Builder {
         self
     }
 
-    pub(crate) fn build(&self) -> Diag {
+    pub fn build(&self) -> Diag {
         self.diag.clone()
     }
 }

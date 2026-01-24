@@ -7,8 +7,7 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use crate::Diagnostic;
-use crate::builder::Builder;
+use crate::diag::IntoDiag;
 use crate::renderer::Renderer;
 use std::rc::Rc;
 use viac_source::Source;
@@ -29,11 +28,8 @@ impl<R: Renderer> Context<R> {
         }
     }
 
-    pub fn emit<D: Diagnostic>(&mut self, diag: D) -> Result<(), R::E> {
-        let mut builder = Builder::new(&self.src);
-        diag.build(&mut builder);
-
-        let diag = builder.build();
+    pub fn emit<D: IntoDiag>(&mut self, diag: D) -> Result<(), R::E> {
+        let diag = diag.into_diag(&self.src);
         self.count += 1;
         self.renderer.render(&diag)
     }

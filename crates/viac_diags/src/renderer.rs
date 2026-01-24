@@ -14,6 +14,7 @@ use std::io::{Error as IOError, Result as IOResult, Write};
 use std::rc::Rc;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 use viac_source::Source;
+use viac_source::span;
 use viac_source::span::Span;
 
 pub trait Renderer {
@@ -44,25 +45,20 @@ impl TermRenderer {
         Ok(())
     }
 
-    fn render_header(&mut self, diag: &Diag) -> IOResult<Option<Color>> {
-        let color = diag.kind.map(Into::<HeaderInfo>::into);
-        let result = if let Some(HeaderInfo(color, text)) = color {
-            self.out.set_color(
-                ColorSpec::new()
-                    .set_fg(Some(color))
-                    .set_bold(true)
-                    .set_intense(true),
-            )?;
+    fn render_header(&mut self, diag: &Diag) -> IOResult<Color> {
+        let HeaderInfo(color, text) = Into::<HeaderInfo>::into(diag.kind);
 
-            write!(self.out, "{text}")?;
-            self.out.reset()?;
+        self.out.set_color(
+            ColorSpec::new()
+                .set_fg(Some(color))
+                .set_bold(true)
+                .set_intense(true),
+        )?;
 
-            write!(self.out, " {}", diag.message)?;
-            Ok(Some(color))
-        } else {
-            write!(self.out, "{}", diag.message)?;
-            Ok(None)
-        };
+        write!(self.out, "{text}:")?;
+        self.out.reset()?;
+
+        write!(self.out, " {}", diag.message)?;
 
         if let Some(span) = diag.location {
             self.out.set_color(ColorSpec::new().set_dimmed(true))?;
@@ -88,15 +84,15 @@ impl TermRenderer {
         } else {
             writeln!(self.out, "")?;
         }
-        result
+        Ok(color)
     }
 
     fn write_source_line(
         &mut self,
         width: usize,
         line_no: u32,
-        highlight: Option<(usize, usize)>,
-        color: Option<Color>,
+        highlight: Option<(Span, bool)>,
+        color: Color,
     ) -> IOResult<()> {
         self.out.set_color(ColorSpec::new().set_dimmed(true))?;
         write!(self.out, " {:width$} | ", line_no + 1, width = width)?;
@@ -106,19 +102,21 @@ impl TermRenderer {
             None => {
                 writeln!(self.out, "{text}")?;
             }
-            Some((start, end)) => {
-                let start = start.min(text.len());
-                let end = end.min(text.len()).max(start);
+            Some((span, builtin_highlight)) => {
+                let start = (span.begin as usize).min(text.len());
+                let end = (span.end as usize).min(text.len()).max(start);
 
                 let (pre, rest) = text.split_at(start);
                 let (mid, post) = rest.split_at(end - start);
 
                 write!(self.out, "{pre}")?;
-
-                if let Some(color) = color {
-                    self.out
-                        .set_color(ColorSpec::new().set_fg(Some(color)).set_dimmed(true))?;
-                }
+                self.out.set_color(
+                    ColorSpec::new()
+                        .set_fg(Some(color))
+                        .set_underline(builtin_highlight)
+                        .set_dimmed(true)
+                        .set_bold(true),
+                )?;
 
                 write!(self.out, "{mid}")?;
                 self.out.set_color(ColorSpec::new().set_dimmed(true))?;
@@ -136,7 +134,7 @@ impl TermRenderer {
         width: usize,
         col_start: usize,
         len: usize,
-        color: Option<Color>,
+        color: Color,
     ) -> IOResult<()> {
         self.out.set_color(ColorSpec::new().set_dimmed(true))?;
 
@@ -149,20 +147,15 @@ impl TermRenderer {
             col_start = col_start
         )?;
 
-        self.out.reset()?;
-
-        if let Some(color) = color {
-            self.out
-                .set_color(ColorSpec::new().set_fg(Some(color)).set_bold(true))?;
-        }
-
+        self.out
+            .set_color(ColorSpec::new().set_fg(Some(color)).set_bold(true))?;
         writeln!(self.out, "{:^<len$}", "", len = len)?;
 
         self.out.reset()?;
         Ok(())
     }
 
-    fn render_span(&mut self, span: Span, color: Option<Color>) -> IOResult<()> {
+    fn render_span(&mut self, span: Span, color: Color) -> IOResult<()> {
         let (begin, end) = self.src.span_line_col(span);
         let max_line = self.src.line_count();
 
@@ -182,30 +175,38 @@ impl TermRenderer {
             .then(|| end_line + 1);
 
         if let Some(line_no) = context_before {
-            self.write_source_line(width, line_no, None, None)?;
+            self.write_source_line(width, line_no, None, color)?;
         }
 
         for line_no in start_line..=end_line {
             let text = self.src.line(line_no);
+            let fancy = self.out.supports_color();
             let highlight = if start_line == end_line {
-                Some((begin.column as usize, end.column as usize))
+                Some((span![begin.column, end.column], fancy))
             } else if line_no == start_line {
-                Some((begin.column as usize, text.len()))
+                Some((span![begin.column, text.len() as u32], fancy))
             } else if line_no == end_line {
-                Some((0, end.column as usize))
+                Some((span![0, end.column], fancy))
             } else {
-                Some((0, text.len()))
+                Some((span![0, text.len() as u32], fancy))
             };
 
             self.write_source_line(width, line_no, highlight, color)?;
 
-            if let Some((start, end)) = highlight {
-                self.write_highlight(width, start, (end - start).max(1), color)?;
+            if let Some((span, _)) = highlight
+                && !fancy
+            {
+                self.write_highlight(
+                    width,
+                    span.begin as usize,
+                    (span.end - span.begin).max(1) as usize,
+                    color,
+                )?;
             }
         }
 
         if let Some(line_no) = context_after {
-            self.write_source_line(width, line_no, None, None)?;
+            self.write_source_line(width, line_no, None, color)?;
         }
         Ok(())
     }

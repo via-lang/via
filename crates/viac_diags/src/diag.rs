@@ -7,12 +7,18 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
+use std::rc::Rc;
 use termcolor::Color;
+use viac_source::Source;
 use viac_source::span::Span;
+
+pub trait IntoDiag {
+    fn into_diag(self, src: &Rc<Source>) -> Diag;
+}
 
 #[derive(Debug, Clone)]
 pub struct Diag {
-    pub kind: Option<DiagKind>,
+    pub kind: DiagKind,
     pub message: String,
     pub location: Option<Span>,
     pub context: Vec<String>,
@@ -38,9 +44,9 @@ pub(crate) struct HeaderInfo(pub Color, pub &'static str);
 impl From<DiagKind> for HeaderInfo {
     fn from(value: DiagKind) -> Self {
         match value {
-            DiagKind::Info => Self(Color::Cyan, "info:"),
-            DiagKind::Warn => Self(Color::Yellow, "warning:"),
-            DiagKind::Error => Self(Color::Red, "error:"),
+            DiagKind::Info => Self(Color::Cyan, "info"),
+            DiagKind::Warn => Self(Color::Yellow, "warning"),
+            DiagKind::Error => Self(Color::Red, "error"),
         }
     }
 }

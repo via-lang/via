@@ -10,10 +10,12 @@
 use crate::context::Context;
 use escape_string::escape;
 use std::fmt;
-use viac_diags::Diagnostic;
+use std::rc::Rc;
 use viac_diags::builder::Builder;
+use viac_diags::diag::{Diag, IntoDiag};
 use viac_diags::diag::{DiagKind, Note};
 use viac_lexer::token::Token;
+use viac_source::Source;
 
 #[derive(Debug)]
 pub struct ExpectedList(pub Vec<&'static str>);
@@ -43,8 +45,10 @@ pub struct Error {
     pub kind: ErrorKind,
 }
 
-impl Diagnostic for Error {
-    fn build(self, b: &mut Builder) {
+impl IntoDiag for Error {
+    fn into_diag(self, src: &Rc<Source>) -> Diag {
+        let mut b = Builder::new(&src, DiagKind::Error);
+
         for ctxt in &self.ctxts {
             b.context(format!("while parsing {ctxt}"));
         }
@@ -52,8 +56,7 @@ impl Diagnostic for Error {
         match self.kind {
             ErrorKind::UnexpectedEndOfFile => {
                 let end_span = b.src.end_span();
-                b.kind(DiagKind::Error)
-                    .message("unexpected end of file".to_string())
+                b.message("unexpected end of file".to_string())
                     .location(end_span)
             }
             ErrorKind::UnexpectedToken { exp, got } => {
@@ -61,23 +64,22 @@ impl Diagnostic for Error {
                 // but the borrow checker is being a bitch
                 let slice = b.src.slice(got.span).to_string();
                 let text = escape(slice.as_str());
-                b.kind(DiagKind::Error)
-                    .message(format!(
-                        "unexpected token '{}'",
-                        if text.len() > 20 {
-                            "<truncated>"
-                        } else {
-                            text.as_ref()
-                        }
-                    ))
-                    .location(got.span)
-                    .note(Note::Note(format!("expected {}", exp)))
+                b.message(format!(
+                    "unexpected token '{}'",
+                    if text.len() > 20 {
+                        "<truncated>"
+                    } else {
+                        text.as_ref()
+                    }
+                ))
+                .location(got.span)
+                .note(Note::Note(format!("expected {}", exp)))
             }
             ErrorKind::UnterminatedStringLiteral { tok } => b
-                .kind(DiagKind::Error)
                 .message("unterminated string literal".to_string())
                 .location(tok.span),
         };
+        b.build()
     }
 }
 
