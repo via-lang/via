@@ -8,4 +8,5 @@ phf = { workspace = true }
 strum = { version = "0.27", features = ["derive"] }
 strum_macros = "0.27"
 unicode-ident = "1"
+via_proc_macros = { path = "../via_proc_macros" }
 viac_source = { path = "../viac_source" }

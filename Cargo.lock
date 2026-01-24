@@ -435,6 +435,14 @@ name = "via_macros"
 version = "0.1.0"
 
 [[package]]
+name = "via_proc_macros"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "viac"
 version = "0.1.0"
 dependencies = [
@@ -485,6 +493,7 @@ dependencies = [
  "strum",
  "strum_macros",
  "unicode-ident",
+ "via_proc_macros",
  "viac_source",
 ]
 

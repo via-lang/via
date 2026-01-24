@@ -3,6 +3,7 @@ resolver = "3"
 members = [
     "crates/via_cli",
     "crates/via_macros",
+    "crates/via_proc_macros",
     "crates/viac",
     "crates/viac_diags",
     "crates/viac_source",

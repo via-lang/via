@@ -419,7 +419,7 @@ impl Parser {
                 _ => break,
             };
 
-            let prec = match op.kind.bin_prec() {
+            let prec = match op.kind.prec() {
                 Some(prec) if prec >= min_prec => prec,
                 _ => break,
             };

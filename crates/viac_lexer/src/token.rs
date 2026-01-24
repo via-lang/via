@@ -8,6 +8,7 @@
 ** ================================================ */
 
 use strum::IntoStaticStr;
+use via_proc_macros::PrecData;
 use viac_source::span::Span;
 
 #[repr(u8)]
@@ -18,16 +19,19 @@ pub enum Base {
     Hex = 16,
 }
 
-#[derive(IntoStaticStr, Debug, Clone, PartialEq)]
+#[derive(PrecData, IntoStaticStr, Debug, Clone, PartialEq)]
+#[prec_data(u8)]
 pub enum TokenKind {
     EndOfFile,
     Illegal,
-
-    LitInt { base: Base },
+    LitInt {
+        base: Base,
+    },
     LitFloat,
-    LitString { terminated: bool },
+    LitString {
+        terminated: bool,
+    },
     Identifier,
-
     KwVar,
     KwMut,
     KwConst,
@@ -60,7 +64,6 @@ pub enum TokenKind {
     KwInt,
     KwFloat,
     KwString,
-
     Period,
     Comma,
     Semicolon,
@@ -75,27 +78,58 @@ pub enum TokenKind {
     BraceOpen,
     BraceClose,
 
+    #[prec(7)]
     OpPlus,
+
+    #[prec(7)]
     OpMinus,
+
+    #[prec(8)]
     OpStar,
+
+    #[prec(8)]
     OpSlash,
+
+    #[prec(9)]
     OpStarStar,
+
+    #[prec(8)]
     OpPercent,
+
+    #[prec(3)]
     OpAmp,
     OpTilde,
+
+    #[prec(4)]
     OpCaret,
+
+    #[prec(5)]
     OpPipe,
+
+    #[prec(6)]
     OpShl,
+
+    #[prec(6)]
     OpShr,
     OpHash,
     OpBang,
     OpQuote,
+
+    #[prec(2)]
     OpLt,
+
+    #[prec(2)]
     OpGt,
     OpDotDot,
+
+    #[prec(1)]
     OpAmpAmp,
+
+    #[prec(0)]
     OpPipePipe,
     OpEq,
+
+    #[prec(2)]
     OpEqEq,
     OpPlusEq,
     OpMinusEq,
@@ -108,28 +142,15 @@ pub enum TokenKind {
     OpPipeEq,
     OpShlEq,
     OpShrEq,
-    OpBangEq,
-    OpLtEq,
-    OpGtEq,
-}
 
-impl TokenKind {
-    pub fn bin_prec(&self) -> Option<u8> {
-        use TokenKind::*;
-        match &self {
-            OpPipePipe => Some(0),
-            OpAmpAmp => Some(1),
-            OpEqEq | OpBangEq | OpLt | OpLtEq | OpGt | OpGtEq => Some(2),
-            OpAmp => Some(3),
-            OpCaret => Some(4),
-            OpPipe => Some(5),
-            OpShl | OpShr => Some(6),
-            OpPlus | OpMinus => Some(7),
-            OpStar | OpSlash | OpPercent => Some(8),
-            OpStarStar => Some(9),
-            _ => None,
-        }
-    }
+    #[prec(2)]
+    OpBangEq,
+
+    #[prec(2)]
+    OpLtEq,
+
+    #[prec(2)]
+    OpGtEq,
 }
 
 #[derive(Debug, Clone, PartialEq)]

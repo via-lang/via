@@ -10,7 +10,7 @@
 use crate::token::TokenKind::{self, *};
 use phf::phf_map;
 
-pub const SYMBOL_LIST: phf::Map<&'static str, TokenKind> = phf_map! {
+pub const OPERATOR_LIST: phf::Map<&'static str, TokenKind> = phf_map! {
     "(" => ParenOpen,
     ")" => ParenClose,
     "[" => BracketOpen,
