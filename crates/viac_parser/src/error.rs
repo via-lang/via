@@ -45,22 +45,22 @@ pub struct Error {
 
 impl Diagnostic for Error {
     fn build(self, b: &mut Builder) {
-        let src = b
-            .source
-            .clone()
-            .expect("parse error builder must have source context");
-
         for ctxt in &self.ctxts {
             b.context(format!("while parsing {ctxt}"));
         }
 
         match self.kind {
-            ErrorKind::UnexpectedEndOfFile => b
-                .kind(DiagKind::Error)
-                .message("unexpected end of file".to_string())
-                .location(src.end_span()),
+            ErrorKind::UnexpectedEndOfFile => {
+                let end_span = b.src.end_span();
+                b.kind(DiagKind::Error)
+                    .message("unexpected end of file".to_string())
+                    .location(end_span)
+            }
             ErrorKind::UnexpectedToken { exp, got } => {
-                let text = escape(src.slice(got.span));
+                // TODO: This shit does not actually need to allocate,
+                // but the borrow checker is being a bitch
+                let slice = b.src.slice(got.span).to_string();
+                let text = escape(slice.as_str());
                 b.kind(DiagKind::Error)
                     .message(format!(
                         "unexpected token '{}'",

@@ -16,11 +16,11 @@ use viac_source::span::Span;
 #[derive(Debug)]
 pub struct Builder {
     diag: Diag,
-    pub source: Option<Rc<Source>>,
+    pub src: Rc<Source>,
 }
 
 impl Builder {
-    pub fn new(source: Option<Rc<Source>>) -> Self {
+    pub fn new(src: &Rc<Source>) -> Self {
         Self {
             diag: Diag {
                 kind: None,
@@ -29,7 +29,7 @@ impl Builder {
                 context: Vec::new(),
                 notes: Vec::new(),
             },
-            source,
+            src: src.clone(),
         }
     }
 

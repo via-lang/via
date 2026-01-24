@@ -13,10 +13,7 @@ use std::io::Write;
 use std::rc::Rc;
 use viac::prelude::{
     ast::{node::Node, stmt::Stmt},
-    diags::{
-        context::Context as DiagContext,
-        renderer::{Renderer, TermRenderer},
-    },
+    diags::{context::Context as DiagContext, renderer::TermRenderer},
     lexer::{self, token::Token},
     parser,
     source::Source,
@@ -39,8 +36,8 @@ impl Fixture {
 
 pub fn run(src: &str) -> Result<Fixture> {
     let source = Source::new(src.to_string());
-    let renderer = TermRenderer::default();
-    let mut diag_ctxt = DiagContext::new(renderer, Some(&source));
+    let renderer = TermRenderer::new(&source, None);
+    let mut diag_ctxt = DiagContext::new(&source, renderer);
 
     let tokens = lexer::tokenize(&source);
     let ast = match parser::parse(&source, &tokens) {
