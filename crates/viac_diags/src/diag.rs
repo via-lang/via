@@ -19,6 +19,7 @@ pub trait IntoDiag {
 #[derive(Debug, Clone)]
 pub struct Diag {
     pub kind: DiagKind,
+    pub code: Option<&'static str>,
     pub message: String,
     pub location: Option<Span>,
     pub context: Vec<String>,

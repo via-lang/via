@@ -55,7 +55,13 @@ impl TermRenderer {
                 .set_intense(true),
         )?;
 
-        write!(self.out, "{text}:")?;
+        write!(self.out, "{text}")?;
+
+        if let Some(code) = &diag.code {
+            write!(self.out, "[{}]", code)?;
+        }
+
+        write!(self.out, ":")?;
         self.out.reset()?;
 
         write!(self.out, " {}", diag.message)?;

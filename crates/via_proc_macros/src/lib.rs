@@ -7,9 +7,15 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
+mod diag_code;
 mod prec_data;
 
 use proc_macro::TokenStream;
+
+#[proc_macro_derive(DiagCode, attributes(diag))]
+pub fn diag_code(input: TokenStream) -> TokenStream {
+    diag_code::expand(input)
+}
 
 #[proc_macro_derive(PrecData, attributes(prec_data, prec))]
 pub fn prec_data(input: TokenStream) -> TokenStream {

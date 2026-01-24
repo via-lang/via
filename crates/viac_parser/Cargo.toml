@@ -7,6 +7,7 @@ edition = "2024"
 assert_matches = { workspace = true }
 escape_string = "0.1.2"
 via_macros = { path = "../via_macros" }
+via_proc_macros = { path = "../via_proc_macros" }
 viac_diags = { path = "../viac_diags" }
 viac_ast = { path = "../viac_ast" }
 viac_lexer = { path = "../viac_lexer" }

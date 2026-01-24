@@ -438,6 +438,7 @@ version = "0.1.0"
 name = "via_proc_macros"
 version = "0.1.0"
 dependencies = [
+ "proc-macro2",
  "quote",
  "syn",
 ]
@@ -504,6 +505,7 @@ dependencies = [
  "assert_matches",
  "escape_string",
  "via_macros",
+ "via_proc_macros",
  "viac_ast",
  "viac_diags",
  "viac_lexer",

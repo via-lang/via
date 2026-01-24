@@ -24,6 +24,7 @@ impl Builder {
         Self {
             diag: Diag {
                 kind,
+                code: None,
                 message: "<no message>".to_string(),
                 location: None,
                 context: Vec::new(),
@@ -31,6 +32,11 @@ impl Builder {
             },
             src: src.clone(),
         }
+    }
+
+    pub fn code(&mut self, code: &'static str) -> &mut Self {
+        self.diag.code = Some(code);
+        self
     }
 
     pub fn message(&mut self, msg: String) -> &mut Self {

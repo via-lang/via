@@ -11,6 +11,7 @@ use crate::context::Context;
 use escape_string::escape;
 use std::fmt;
 use std::rc::Rc;
+use via_proc_macros::DiagCode;
 use viac_diags::builder::Builder;
 use viac_diags::diag::{Diag, IntoDiag};
 use viac_diags::diag::{DiagKind, Note};
@@ -32,7 +33,8 @@ impl fmt::Display for ExpectedList {
     }
 }
 
-#[derive(Debug)]
+#[derive(DiagCode, Debug)]
+#[diag(prefix = "E", start = 0)]
 pub enum ErrorKind {
     UnexpectedEndOfFile,
     UnexpectedToken { exp: ExpectedList, got: Token },
@@ -48,6 +50,7 @@ pub struct Error {
 impl IntoDiag for Error {
     fn into_diag(self, src: &Rc<Source>) -> Diag {
         let mut b = Builder::new(&src, DiagKind::Error);
+        b.code(self.kind.code());
 
         for ctxt in &self.ctxts {
             b.context(format!("while parsing {ctxt}"));
