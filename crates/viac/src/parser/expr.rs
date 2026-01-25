@@ -12,7 +12,7 @@ use super::macros::yes_or_no;
 use super::prelude::*;
 use crate::ast::expr::Expr;
 use crate::ast::place;
-use crate::ast::value;
+use crate::ast::value::{self, Value};
 
 yes_or_no!(AllowPrefix);
 
@@ -229,15 +229,19 @@ impl Parser {
                     p.consume()?;
                     p.push_context(Context::ExprLambda);
 
-                    let params = check_token!(p, OpPipe)
-                        .then(|| Ok(p.parse_list((OpPipe, OpPipe), Self::parse_param)?))
+                    let params = check_token!(p, ParenOpen)
+                        .then(|| Ok(p.parse_list((ParenOpen, ParenClose), Self::parse_param)?))
                         .transpose()?
                         .unwrap_or(NodeList {
                             list: vec![],
                             span: token.span,
                         });
 
-                    let result = p.parse_return_ty()?;
+                    let result = optional_token!(p, Arrow)
+                        .then(|| p.parse_return_ty())
+                        .transpose()?
+                        .map(Into::into);
+
                     p.pop_context();
 
                     let body = p.parse_body(Self::parse_stmt)?;
@@ -247,7 +251,7 @@ impl Parser {
                         node: Expr::Value(
                             value::Lambda {
                                 params,
-                                result: result.map(Into::into),
+                                result,
                                 body,
                             }
                             .into(),
@@ -276,130 +280,170 @@ impl Parser {
     fn parse_expr_postfix(&mut self) -> Result<Node<Expr>> {
         let mut expr = self.parse_expr_primary(AllowPrefix::Yes)?;
         loop {
-            if let Ok(token) = self.peek() {
-                match token.kind {
-                    Period => {
-                        self.consume()?;
-                        let field = expect_token!(self, Identifier)?;
-                        let first = expr.span;
-                        let last = field.span;
-
-                        expr = Node {
-                            node: Expr::Place(
-                                place::Dynamic {
-                                    expr: expr.into(),
-                                    field,
-                                }
-                                .into(),
-                            ),
-                            span: span![first.begin, last.end],
-                            attrs: vec![],
-                        };
+            expr = match self.peek().map(|t| t.kind) {
+                Ok(Period) if matches!(self.peek_ahead(1).map(|t| t.kind), Ok(KwAwait)) => {
+                    self.consume()?;
+                    let tok = self.consume()?;
+                    if matches!(expr.node, Expr::Value(Value::Await(_))) {
+                        return self.error(ErrorKind::MultiplePostfixAwait { tok });
                     }
-                    ColonColon => {
-                        self.consume()?;
-                        let field = expect_token!(self, Identifier)?;
-                        let first = expr.span;
-                        let last = field.span;
 
-                        expr = Node {
-                            node: Expr::Place(
-                                place::Static {
-                                    expr: expr.into(),
-                                    field,
-                                }
-                                .into(),
-                            ),
-                            span: span![first.begin, last.end],
-                            attrs: vec![],
-                        };
+                    let first = expr.span;
+                    Node {
+                        node: Expr::Value(value::Await { expr: expr.into() }.into()),
+                        span: span![first.begin, tok.span.end],
+                        attrs: vec![],
                     }
-                    BracketOpen => {
-                        self.consume()?;
-                        let index = self.parse_expr()?;
-                        let first = expr.span;
-                        let last = expect_token!(self, BracketClose)?;
-
-                        expr = Node {
-                            node: Expr::Place(
-                                place::Subscript {
-                                    expr: expr.into(),
-                                    index: index.into(),
-                                }
-                                .into(),
-                            ),
-                            span: span![first.begin, last.span.end],
-                            attrs: vec![],
-                        };
-                    }
-                    OpDotDot => {
-                        self.consume()?;
-                        let inclusive = optional_token!(self, OpEq);
-                        let end = self.parse_expr()?;
-                        let first = expr.span;
-                        let last = end.span;
-
-                        expr = Node {
-                            node: Expr::Value(
-                                value::Range {
-                                    lhs: expr.into(),
-                                    rhs: end.into(),
-                                    inclusive,
-                                }
-                                .into(),
-                            ),
-                            span: span![first.begin, last.end],
-                            attrs: vec![],
-                        }
-                    }
-                    KwIf => {
-                        self.consume()?;
-
-                        let first = expr.span;
-                        let cond = self.parse_expr()?;
-                        expect_token!(self, KwElse)?;
-
-                        let alt = self.parse_expr()?;
-                        let last = alt.span;
-
-                        expr = Node {
-                            node: Expr::Value(
-                                value::Ternary {
-                                    cond: cond.into(),
-                                    iftrue: expr.into(),
-                                    iffalse: alt.into(),
-                                }
-                                .into(),
-                            ),
-                            span: span![first.begin, last.end],
-                            attrs: vec![],
-                        }
-                    }
-                    KwAs => {
-                        self.consume()?;
-
-                        let first = expr.span;
-                        let ty = self.parse_cast_ty()?;
-                        let last = ty.span;
-
-                        expr = Node {
-                            node: Expr::Value(
-                                value::Cast {
-                                    expr: expr.into(),
-                                    ty: ty.into(),
-                                }
-                                .into(),
-                            ),
-                            span: span![first.begin, last.end],
-                            attrs: vec![],
-                        }
-                    }
-                    _ => {}
                 }
-            }
-            break;
+                Ok(Period) => {
+                    self.consume()?;
+                    let field = expect_token!(self, Identifier)?;
+                    let first = expr.span;
+                    let last = field.span;
+
+                    Node {
+                        node: Expr::Place(
+                            place::Dynamic {
+                                expr: expr.into(),
+                                field,
+                            }
+                            .into(),
+                        ),
+                        span: span![first.begin, last.end],
+                        attrs: vec![],
+                    }
+                }
+                Ok(ColonColon) => {
+                    self.consume()?;
+                    let field = expect_token!(self, Identifier)?;
+                    let first = expr.span;
+                    let last = field.span;
+
+                    Node {
+                        node: Expr::Place(
+                            place::Static {
+                                expr: expr.into(),
+                                field,
+                            }
+                            .into(),
+                        ),
+                        span: span![first.begin, last.end],
+                        attrs: vec![],
+                    }
+                }
+                Ok(BracketOpen) => {
+                    self.consume()?;
+                    let index = self.parse_expr()?;
+                    let first = expr.span;
+                    let last = expect_token!(self, BracketClose)?;
+
+                    Node {
+                        node: Expr::Place(
+                            place::Subscript {
+                                expr: expr.into(),
+                                index: index.into(),
+                            }
+                            .into(),
+                        ),
+                        span: span![first.begin, last.span.end],
+                        attrs: vec![],
+                    }
+                }
+                Ok(ParenOpen) => {
+                    let args = self.parse_list((ParenOpen, ParenClose), Self::parse_expr)?;
+                    let first = expr.span;
+                    let last = args.span;
+
+                    Node {
+                        node: Expr::Value(
+                            value::Call {
+                                callee: expr.into(),
+                                args,
+                            }
+                            .into(),
+                        ),
+                        span: span![first.begin, last.end],
+                        attrs: vec![],
+                    }
+                }
+                Ok(OpDotDot) => {
+                    self.consume()?;
+                    let inclusive = optional_token!(self, OpEq);
+                    let end = self.parse_expr()?;
+                    let first = expr.span;
+                    let last = end.span;
+
+                    Node {
+                        node: Expr::Value(
+                            value::Range {
+                                lhs: expr.into(),
+                                rhs: end.into(),
+                                inclusive,
+                            }
+                            .into(),
+                        ),
+                        span: span![first.begin, last.end],
+                        attrs: vec![],
+                    }
+                }
+                Ok(KwIf) => {
+                    self.consume()?;
+
+                    let first = expr.span;
+                    let cond = self.parse_expr()?;
+                    expect_token!(self, KwElse)?;
+
+                    let alt = self.parse_expr()?;
+                    let last = alt.span;
+
+                    Node {
+                        node: Expr::Value(
+                            value::Ternary {
+                                cond: cond.into(),
+                                iftrue: expr.into(),
+                                iffalse: alt.into(),
+                            }
+                            .into(),
+                        ),
+                        span: span![first.begin, last.end],
+                        attrs: vec![],
+                    }
+                }
+                Ok(KwAs) => {
+                    self.consume()?;
+
+                    let ty = self.parse_cast_ty()?;
+                    let first = expr.span;
+                    let last = ty.span;
+
+                    Node {
+                        node: Expr::Value(
+                            value::Cast {
+                                expr: expr.into(),
+                                ty: ty.into(),
+                            }
+                            .into(),
+                        ),
+                        span: span![first.begin, last.end],
+                        attrs: vec![],
+                    }
+                }
+                Ok(Question) => {
+                    let tok = self.consume()?;
+                    if matches!(expr.node, Expr::Value(Value::Try(_))) {
+                        return self.error(ErrorKind::MultiplePostfixTry { tok });
+                    }
+
+                    let first = expr.span;
+                    Node {
+                        node: Expr::Value(value::Try { expr: expr.into() }.into()),
+                        span: span![first.begin, tok.span.end],
+                        attrs: vec![],
+                    }
+                }
+                _ => break Ok(expr),
+            };
         }
-        Ok(expr)
     }
 
     fn parse_expr_binary(&mut self, min_prec: u8) -> Result<Node<Expr>> {

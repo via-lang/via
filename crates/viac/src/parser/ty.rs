@@ -26,6 +26,16 @@ impl Parser {
                 span: token.span,
                 attrs: vec![],
             },
+            ParenOpen => {
+                let first = self.consume()?.span;
+                let ty = self.parse_type(allow_effect)?;
+                let last = expect_token!(self, ParenClose)?.span;
+                Node {
+                    node: ty.node,
+                    span: span![first.begin, last.end],
+                    attrs: vec![],
+                }
+            }
             BracketOpen => {
                 self.consume()?;
                 let ty = self.parse_type(AllowEffect::No)?;
@@ -63,7 +73,7 @@ impl Parser {
 
                 expect_token!(p, Arrow)?;
 
-                let result = p.parse_type(AllowEffect::No)?;
+                let result = p.parse_return_ty()?;
                 let last = result.span;
 
                 Ok(Node {
@@ -97,22 +107,22 @@ impl Parser {
             }
         };
 
-        let mut found_optional = false;
-
         loop {
-            let token = self.peek()?;
             let first = lhs.span;
-            let postfix = match token.kind {
-                Question if !found_optional => {
-                    found_optional = true;
-                    self.consume()?;
+            lhs = match self.peek().map(|t| t.kind) {
+                Ok(Question) => {
+                    let tok = self.consume()?;
+                    if matches!(lhs.node, Ty::Optional(_)) {
+                        return self.error(ErrorKind::MultiplePostfixOptional { tok });
+                    }
+
                     Node {
                         node: ty::Optional { ty: lhs.into() }.into(),
                         span: span![first.begin, token.span.end],
                         attrs: vec![],
                     }
                 }
-                OpPipe => {
+                Ok(OpPipe) => {
                     self.consume()?;
                     let rhs = self.parse_type(AllowEffect::No)?;
                     let last = rhs.span;
@@ -126,8 +136,12 @@ impl Parser {
                         attrs: vec![],
                     }
                 }
-                KwRaise if allow_effect.into() => {
-                    self.consume()?;
+                Ok(KwRaise) => {
+                    let tok = self.consume()?;
+                    if !bool::from(allow_effect) {
+                        return self.error(ErrorKind::DisallowedEffect { tok });
+                    }
+
                     let rhs = self.parse_type(AllowEffect::No)?;
                     let last = rhs.span;
                     Node {
@@ -142,16 +156,11 @@ impl Parser {
                 }
                 _ => break Ok(lhs),
             };
-            lhs = postfix;
         }
     }
 
-    pub(crate) fn parse_return_ty(&mut self) -> Result<Option<Node<Ty>>> {
-        self.with_context(Context::TypeRet, |p| {
-            optional_token!(p, Arrow)
-                .then(|| p.parse_type(AllowEffect::Yes))
-                .transpose()
-        })
+    pub(crate) fn parse_return_ty(&mut self) -> Result<Node<Ty>> {
+        self.parse_type(AllowEffect::Yes)
     }
 
     pub(crate) fn parse_param_ty(&mut self) -> Result<Node<Ty>> {

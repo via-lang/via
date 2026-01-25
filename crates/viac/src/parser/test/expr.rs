@@ -167,7 +167,7 @@ fn value_lambda() {
         });
     });
 
-    assert_matches!(parse_expr("fn |_: int| {}"), Ok(Expr::Value(Value::Lambda(l))) => {
+    assert_matches!(parse_expr("fn (_: int) {}"), Ok(Expr::Value(Value::Lambda(l))) => {
         assert!(l.body.list.len() == 0);
         assert_matches!(l.result, None);
         assert_matches!(&l.params.list[..], [a] => {
@@ -175,7 +175,7 @@ fn value_lambda() {
         });
     });
 
-    assert_matches!(parse_expr("fn |_: int| -> int {}"), Ok(Expr::Value(Value::Lambda(l))) => {
+    assert_matches!(parse_expr("fn (_: int) -> int {}"), Ok(Expr::Value(Value::Lambda(l))) => {
         assert!(l.body.list.len() == 0);
         assert_matches!(l.result, Some(r) => {
             assert_matches!(*r.node, Ty::Builtin(_));

@@ -38,6 +38,10 @@ pub enum ErrorKind {
     UnexpectedEndOfFile,
     UnexpectedToken { exp: ExpectedList, got: Token },
     UnterminatedStringLiteral { tok: Token },
+    DisallowedEffect { tok: Token },
+    MultiplePostfixTry { tok: Token },
+    MultiplePostfixAwait { tok: Token },
+    MultiplePostfixOptional { tok: Token },
 }
 
 #[derive(Debug)]
@@ -79,6 +83,18 @@ impl IntoDiag for Error {
             }
             ErrorKind::UnterminatedStringLiteral { tok } => b
                 .message("unterminated string literal".to_string())
+                .location(tok.span),
+            ErrorKind::DisallowedEffect { tok } => b
+                .message("`raise` clause may only appear in function return types".to_string())
+                .location(tok.span),
+            ErrorKind::MultiplePostfixTry { tok } => b
+                .message("multiple postfix `?` operators are not allowed".to_string())
+                .location(tok.span),
+            ErrorKind::MultiplePostfixAwait { tok } => b
+                .message("multiple postfix `await` operators are not allowed".to_string())
+                .location(tok.span),
+            ErrorKind::MultiplePostfixOptional { tok } => b
+                .message("multiple postfix `?` qualifiers are not allowed".to_string())
                 .location(tok.span),
         };
         b.build()

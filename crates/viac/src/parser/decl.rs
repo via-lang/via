@@ -57,7 +57,10 @@ impl Parser {
             p.parse_list((ParenOpen, ParenClose), Self::parse_param)
         })?;
 
-        let result = self.parse_return_ty()?;
+        let result = optional_token!(self, Arrow)
+            .then(|| self.parse_return_ty())
+            .transpose()?
+            .map(Into::into);
 
         self.pop_context();
 
@@ -68,7 +71,7 @@ impl Parser {
             node: decl::Function {
                 symbol: symbol,
                 params,
-                result: result.map(Into::into),
+                result,
                 body,
             },
             span: span![first.begin, last.end],

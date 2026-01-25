@@ -46,18 +46,22 @@ ast! {
             lhs: NodeRef<Expr>,
             rhs: NodeRef<Expr>,
         },
-        Reference {
-            expr: NodeRef<Expr>,
-        },
+        Reference { expr: NodeRef<Expr> },
         Ternary {
             cond: NodeRef<Expr>,
             iftrue: NodeRef<Expr>,
             iffalse: NodeRef<Expr>,
         },
+        Call {
+            callee: NodeRef<Expr>,
+            args: NodeList<Expr>
+        },
         Cast {
             expr: NodeRef<Expr>,
             ty: NodeRef<Ty>,
         },
+        Try { expr: NodeRef<Expr> },
+        Await { expr: NodeRef<Expr> },
         Type { ty: NodeRef<Ty> },
         Attr { attr: NodeRef<attr::Attr> },
         Read { place: NodeRef<Place> },
