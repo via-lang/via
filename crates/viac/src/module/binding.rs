@@ -7,12 +7,24 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-pub mod ast;
-pub mod diags;
-pub mod ir;
-pub mod ir_builder;
-pub mod lexer;
-pub mod module;
-pub mod parser;
-pub mod sema;
-pub mod source;
+use super::symbol::SymbolId;
+use crate::sema::ty::Ty;
+use crate::sema::value::Value;
+
+#[derive(Debug)]
+pub enum Binding {
+    Type {
+        id: SymbolId,
+        ty: Ty,
+    },
+    Constant {
+        id: SymbolId,
+        ty: Ty,
+        value: Value,
+    },
+    Function {
+        id: SymbolId,
+        ret: Ty,
+        params: Vec<Ty>,
+    },
+}

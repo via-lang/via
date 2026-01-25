@@ -7,12 +7,17 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-pub mod ast;
-pub mod diags;
-pub mod ir;
-pub mod ir_builder;
-pub mod lexer;
-pub mod module;
-pub mod parser;
-pub mod sema;
-pub mod source;
+pub mod binding;
+pub mod context;
+pub mod error;
+pub mod symbol;
+pub mod tree;
+
+use binding::Binding;
+use std::collections::HashMap;
+use symbol::SymbolId;
+
+#[derive(Debug)]
+pub struct Module {
+    bindings: HashMap<SymbolId, Binding>,
+}

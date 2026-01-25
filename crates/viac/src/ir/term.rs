@@ -7,12 +7,25 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-pub mod ast;
-pub mod diags;
-pub mod ir;
-pub mod ir_builder;
-pub mod lexer;
-pub mod module;
-pub mod parser;
-pub mod sema;
-pub mod source;
+use super::block::BlockId;
+use super::instr::ValueId;
+
+#[derive(Debug)]
+pub enum Term {
+    Break,
+    Continue,
+    Return {
+        value: Option<ValueId>,
+    },
+    Raise {
+        value: ValueId,
+    },
+    Branch {
+        block: BlockId,
+    },
+    CondBranch {
+        cond: ValueId,
+        iftrue: BlockId,
+        iffalse: BlockId,
+    },
+}

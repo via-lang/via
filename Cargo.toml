@@ -5,16 +5,10 @@ members = [
     "crates/via_macros",
     "crates/via_proc_macros",
     "crates/viac",
-    "crates/viac_diags",
-    "crates/viac_source",
-    "crates/viac_lexer",
-    "crates/viac_ast",
-    "crates/viac_parser",
-    "crates/viac_ir",
-    "crates/viac_ir_builder",
 ]
 
 [workspace.dependencies]
-bitflags = "2.10.0"
-assert_matches = "1.5.0"
+bitflags = "2.10"
+itertools = "0.14"
+assert_matches = "1.5"
 phf = { version = "0.13.1", features = ["macros"] }

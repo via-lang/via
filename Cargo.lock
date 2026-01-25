@@ -138,6 +138,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b05b61dc5112cbb17e4b6cd61790d9845d13888356391624cbe7e41efeac1e75"
 
 [[package]]
+name = "either"
+version = "1.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
+
+[[package]]
 name = "errno"
 version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -199,6 +205,15 @@ name = "is_terminal_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
+
+[[package]]
+name = "itertools"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
+dependencies = [
+ "either",
+]
 
 [[package]]
 name = "libc"
@@ -447,74 +462,17 @@ dependencies = [
 name = "viac"
 version = "0.1.0"
 dependencies = [
- "viac_ast",
- "viac_diags",
- "viac_ir",
- "viac_ir_builder",
- "viac_lexer",
- "viac_parser",
- "viac_source",
-]
-
-[[package]]
-name = "viac_ast"
-version = "0.1.0"
-dependencies = [
- "viac_lexer",
- "viac_source",
-]
-
-[[package]]
-name = "viac_diags"
-version = "0.1.0"
-dependencies = [
- "termcolor",
- "viac_source",
-]
-
-[[package]]
-name = "viac_ir"
-version = "0.1.0"
-dependencies = [
+ "assert_matches",
  "bitflags",
-]
-
-[[package]]
-name = "viac_ir_builder"
-version = "0.1.0"
-dependencies = [
- "viac_ir",
-]
-
-[[package]]
-name = "viac_lexer"
-version = "0.1.0"
-dependencies = [
+ "escape_string",
+ "itertools",
  "phf",
  "strum",
- "strum_macros",
+ "termcolor",
  "unicode-ident",
- "via_proc_macros",
- "viac_source",
-]
-
-[[package]]
-name = "viac_parser"
-version = "0.1.0"
-dependencies = [
- "assert_matches",
- "escape_string",
  "via_macros",
  "via_proc_macros",
- "viac_ast",
- "viac_diags",
- "viac_lexer",
- "viac_source",
 ]
-
-[[package]]
-name = "viac_source"
-version = "0.1.0"
 
 [[package]]
 name = "walkdir"

@@ -7,12 +7,20 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-pub mod ast;
-pub mod diags;
-pub mod ir;
-pub mod ir_builder;
-pub mod lexer;
-pub mod module;
-pub mod parser;
-pub mod sema;
-pub mod source;
+use super::instr::Instr;
+use super::term::Term;
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct BlockId(u32);
+
+#[derive(Debug)]
+pub struct Block {
+    pub items: Vec<BlockItem>,
+    pub term: Term,
+}
+
+#[derive(Debug)]
+pub enum BlockItem {
+    Instr(Instr),
+    Block(Block),
+}

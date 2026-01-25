@@ -7,12 +7,16 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-pub mod ast;
-pub mod diags;
-pub mod ir;
-pub mod ir_builder;
-pub mod lexer;
-pub mod module;
-pub mod parser;
-pub mod sema;
-pub mod source;
+use super::super::error::Result;
+use crate::ast::attr::Attr;
+use assert_matches::assert_matches;
+
+pub fn parse_attr(src: &str) -> Result<Attr> {
+    super::parse(src, |p| p.parse_attr().map(|a| a.node))
+}
+
+#[test]
+fn attr_primitive() {
+    assert_matches!(parse_attr("#inline"), Ok(Attr::Inline(_)));
+    assert_matches!(parse_attr("#native"), Ok(Attr::Native(_)));
+}

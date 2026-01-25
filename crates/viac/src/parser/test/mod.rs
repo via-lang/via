@@ -7,12 +7,18 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-pub mod ast;
-pub mod diags;
-pub mod ir;
-pub mod ir_builder;
-pub mod lexer;
-pub mod module;
-pub mod parser;
-pub mod sema;
-pub mod source;
+use super::Parser;
+use super::error::Result;
+use crate::ast::node::Ast;
+use crate::source::Source;
+
+pub mod attr;
+pub mod expr;
+pub mod ty;
+
+pub fn parse<T: Ast>(src: &str, f: impl FnOnce(&mut Parser) -> Result<T>) -> Result<T> {
+    let source = Source::new(src.to_string());
+    let tokens = crate::lexer::tokenize(&source);
+    let mut parser = Parser::new(&source, &tokens);
+    f(&mut parser)
+}

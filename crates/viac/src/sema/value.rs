@@ -7,12 +7,16 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-pub mod ast;
-pub mod diags;
-pub mod ir;
-pub mod ir_builder;
-pub mod lexer;
-pub mod module;
-pub mod parser;
-pub mod sema;
-pub mod source;
+#[derive(Debug)]
+pub enum ConstValue {
+    None,
+    Bool(bool),
+    Int(i64),
+    Float(f64),
+    String(String),
+}
+
+#[derive(Debug)]
+pub enum Value {
+    Const(ConstValue),
+}

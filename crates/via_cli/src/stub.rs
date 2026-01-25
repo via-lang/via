@@ -11,7 +11,7 @@ use crate::TreeType;
 use anyhow::Result;
 use std::io::Write;
 use std::rc::Rc;
-use viac::prelude::{
+use viac::{
     ast::{node::Node, stmt::Stmt},
     diags::{context::Context as DiagContext, renderer::TermRenderer},
     lexer::{self, token::Token},

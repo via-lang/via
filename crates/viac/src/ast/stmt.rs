@@ -7,12 +7,15 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-pub mod ast;
-pub mod diags;
-pub mod ir;
-pub mod ir_builder;
-pub mod lexer;
-pub mod module;
-pub mod parser;
-pub mod sema;
-pub mod source;
+use super::control::Control;
+use super::decl::Decl;
+use super::expr::Expr;
+use super::macros::ast;
+
+ast! {
+    pub enum Stmt {
+        Decl(Decl),
+        Control(Control),
+        Expr(Expr),
+    }
+}
