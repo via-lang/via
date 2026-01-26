@@ -20,6 +20,8 @@ mod ty;
 #[cfg(test)]
 mod test;
 
+use crate::ast::control::Control;
+use crate::ast::decl::Decl;
 use crate::ast::node::Node;
 use crate::ast::stmt::Stmt;
 use crate::lexer::token::Token;
@@ -99,6 +101,49 @@ pub(super) mod prelude {
 
 use prelude::*;
 
+trait Unreachable {
+    fn check_unreachable(&self, _p: &Parser, _last: Option<&Self>) -> Result<()>;
+}
+
+impl Unreachable for Node<Decl> {
+    fn check_unreachable(&self, _p: &Parser, _last: Option<&Self>) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl Unreachable for Node<Stmt> {
+    fn check_unreachable(&self, p: &Parser, last: Option<&Self>) -> Result<()> {
+        if let Some(last) = last
+            && matches!(
+                last.node,
+                Stmt::Control(
+                    Control::Return(_)
+                        | Control::Raise(_)
+                        | Control::Break(_)
+                        | Control::Continue(_)
+                )
+            )
+        {
+            return p.error(ErrorKind::SyntacticallyUnreachable { span: self.span });
+        }
+        Ok(())
+    }
+}
+
+impl Unreachable for Node<Control> {
+    fn check_unreachable(&self, p: &Parser, last: Option<&Self>) -> Result<()> {
+        if let Some(last) = last
+            && matches!(
+                last.node,
+                Control::Return(_) | Control::Raise(_) | Control::Break(_) | Control::Continue(_)
+            )
+        {
+            return p.error(ErrorKind::SyntacticallyUnreachable { span: self.span });
+        }
+        Ok(())
+    }
+}
+
 pub struct Parser {
     src: Rc<Source>,
     toks: Rc<[Token]>,
@@ -158,26 +203,27 @@ impl Parser {
     }
 
     fn consume(&mut self) -> Result<Token> {
-        self.peek().map(|token| {
-            self.pos += 1;
-            token
-        })
+        self.peek().inspect(|_| self.pos += 1)
     }
 
+    #[allow(private_bounds)]
     pub(super) fn parse_body<F, T>(&mut self, mut parse: F) -> Result<NodeList<T>>
     where
         F: FnMut(&mut Self) -> Result<Node<T>>,
         T: Ast,
+        Node<T>: Unreachable,
     {
-        let first = expect_token!(self, BraceOpen)?;
-        let mut body = vec![];
+        let first = expect_token!(self, LBrace)?;
+        let mut body = Vec::<Node<T>>::new();
 
-        while !check_token!(self, BraceClose) {
+        while !check_token!(self, RBrace) {
             let node = parse(self)?;
+            let last = body.last();
+            node.check_unreachable(self, last)?;
             body.push(node);
         }
 
-        let last = expect_token!(self, BraceClose)?;
+        let last = expect_token!(self, RBrace)?;
         Ok(NodeList {
             list: body,
             span: span![first.span.begin, last.span.end],
@@ -213,10 +259,10 @@ impl Parser {
 
     pub(super) fn parse_param(&mut self) -> Result<Node<Param>> {
         self.with_context(Context::Param, |p| {
-            let name = expect_token!(p, Identifier)?;
+            let name = expect_token!(p, Ident)?;
             let first = name.span;
 
-            expect_token!(p, Colon)?;
+            expect_token!(p, Col)?;
 
             let ty = p.parse_param_ty()?;
             let last = ty.span;
@@ -245,5 +291,5 @@ impl Parser {
 }
 
 pub fn parse(src: &Rc<Source>, toks: &Rc<[Token]>) -> Result<Rc<[Node<Stmt>]>> {
-    Parser::new(&src, &toks).parse()
+    Parser::new(src, toks).parse()
 }

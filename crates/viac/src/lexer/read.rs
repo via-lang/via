@@ -26,7 +26,7 @@ impl Lexer {
 
         let span = span![start, self.pos];
         let text = self.src.slice(span);
-        let kind = KEYWORD_LIST.get(&text).cloned().unwrap_or(Identifier);
+        let kind = KEYWORD_LIST.get(text).cloned().unwrap_or(Ident);
         Token { kind, span }
     }
 
@@ -36,7 +36,7 @@ impl Lexer {
         if self.eat_str("0x") {
             self.eat_while(|c| c.is_ascii_hexdigit());
             return Token {
-                kind: LitInt { base: Base::Hex },
+                kind: Int { base: Base::Hex },
                 span: span![start, self.pos],
             };
         }
@@ -44,7 +44,7 @@ impl Lexer {
         if self.eat_str("0b") {
             self.eat_while(|c| c == '0' || c == '1');
             return Token {
-                kind: LitInt { base: Base::Binary },
+                kind: Int { base: Base::Binary },
                 span: span![start, self.pos],
             };
         }
@@ -62,9 +62,9 @@ impl Lexer {
 
         Token {
             kind: if is_float {
-                LitFloat
+                Float
             } else {
-                LitInt {
+                Int {
                     base: Base::Decimal,
                 }
             },
@@ -81,7 +81,7 @@ impl Lexer {
         let terminated = self.eat('"');
 
         Token {
-            kind: LitString { terminated },
+            kind: String { terminated },
             span: span![start, self.pos],
         }
     }
@@ -93,10 +93,9 @@ impl Lexer {
         let mut best: Option<(&str, TokenKind)> = None;
 
         for (lexeme, kind) in OPERATOR_LIST.entries() {
-            if rest.starts_with(lexeme) {
-                if best.as_ref().map_or(true, |(b, _)| lexeme.len() > b.len()) {
-                    best = Some((lexeme, kind.clone()));
-                }
+            if rest.starts_with(lexeme) && best.as_ref().is_none_or(|(b, _)| lexeme.len() > b.len())
+            {
+                best = Some((lexeme, kind.clone()));
             }
         }
 

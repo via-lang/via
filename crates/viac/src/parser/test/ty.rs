@@ -13,7 +13,7 @@ use crate::ast::ty::Ty;
 use assert_matches::assert_matches;
 
 pub fn parse_ty(src: &str) -> Result<Ty> {
-    super::parse(&src, |p| p.parse_type(AllowEffect::Yes).map(|t| t.node))
+    super::parse(src, |p| p.parse_type(AllowEffect::Yes).map(|t| t.node))
 }
 
 #[test]

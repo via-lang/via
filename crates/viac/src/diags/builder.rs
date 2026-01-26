@@ -9,21 +9,21 @@
 
 use std::rc::Rc;
 
-use super::{Diag, DiagKind, Note};
+use super::{Diagnostic, Note, Severity};
 use crate::source::Source;
 use crate::source::span::Span;
 
 #[derive(Debug)]
 pub struct Builder {
-    diag: Diag,
+    diag: Diagnostic,
     pub src: Rc<Source>,
 }
 
 impl Builder {
-    pub fn new(src: &Rc<Source>, kind: DiagKind) -> Self {
+    pub fn new(src: &Rc<Source>, severity: Severity) -> Self {
         Self {
-            diag: Diag {
-                kind,
+            diag: Diagnostic {
+                severity,
                 code: None,
                 message: "<no message>".to_string(),
                 location: None,
@@ -59,7 +59,7 @@ impl Builder {
         self
     }
 
-    pub fn build(&self) -> Diag {
+    pub fn build(&self) -> Diagnostic {
         self.diag.clone()
     }
 }

@@ -21,24 +21,24 @@ impl Parser {
     pub(crate) fn parse_decl_variable(&mut self) -> Result<Node<decl::Variable>> {
         self.with_context(Context::DeclVariable, |p| {
             let first = expect_token!(p, KwVar)?.span;
-            let symbol = expect_token!(p, Identifier)?;
-            let ty = check_token!(p, Colon)
+            let symbol = expect_token!(p, Ident)?;
+            let ty = check_token!(p, Col)
                 .then(|| {
                     p.consume()?;
-                    Ok(p.parse_type(AllowEffect::No)?)
+                    p.parse_type(AllowEffect::No)
                 })
                 .transpose()?;
 
-            expect_token!(p, OpEq)?;
+            expect_token!(p, Eq)?;
 
             let expr = p.parse_expr()?;
             let last = expr.span;
 
-            optional_token!(p, Semicolon);
+            optional_token!(p, Semi);
 
             Ok(Node {
                 node: decl::Variable {
-                    symbol: symbol,
+                    symbol,
                     ty: ty.map(Into::into),
                     expr: expr.into(),
                 },
@@ -52,9 +52,9 @@ impl Parser {
         self.push_context(Context::DeclFunction);
 
         let first = expect_token!(self, KwFn)?.span;
-        let symbol = expect_token!(self, Identifier)?;
+        let symbol = expect_token!(self, Ident)?;
         let params = self.with_context(Context::ParamList, |p| {
-            p.parse_list((ParenOpen, ParenClose), Self::parse_param)
+            p.parse_list((LParen, RParen), Self::parse_param)
         })?;
 
         let result = optional_token!(self, Arrow)
@@ -69,7 +69,7 @@ impl Parser {
 
         Ok(Node {
             node: decl::Function {
-                symbol: symbol,
+                symbol,
                 params,
                 result,
                 body,
@@ -86,13 +86,13 @@ impl Parser {
     fn parse_decl_type(&mut self) -> Result<Node<decl::Type>> {
         self.with_context(Context::DeclType, |p| {
             let begin = expect_token!(p, KwType)?;
-            let symbol = expect_token!(p, Identifier)?;
-            expect_token!(p, OpEq)?;
+            let symbol = expect_token!(p, Ident)?;
+            expect_token!(p, Eq)?;
 
             let ty = p.parse_type(AllowEffect::No)?;
             let last = ty.span;
 
-            optional_token!(p, Semicolon);
+            optional_token!(p, Semi);
 
             Ok(Node {
                 node: decl::Type {
@@ -108,17 +108,17 @@ impl Parser {
     fn parse_decl_const(&mut self) -> Result<Node<decl::Const>> {
         self.with_context(Context::DeclConst, |p| {
             let begin = expect_token!(p, KwConst)?;
-            let symbol = expect_token!(p, Identifier)?;
-            expect_token!(p, OpEq)?;
+            let symbol = expect_token!(p, Ident)?;
+            expect_token!(p, Eq)?;
 
             let expr = p.parse_expr()?;
             let last = expr.span;
 
-            optional_token!(p, Semicolon);
+            optional_token!(p, Semi);
 
             Ok(Node {
                 node: decl::Const {
-                    symbol: symbol,
+                    symbol,
                     expr: expr.into(),
                 },
                 span: span![begin.span.begin, last.end],
@@ -131,7 +131,7 @@ impl Parser {
         self.push_context(Context::DeclStruct);
 
         let first = expect_token!(self, KwStruct)?;
-        let symbol = expect_token!(self, Identifier)?;
+        let symbol = expect_token!(self, Ident)?;
 
         self.pop_context();
 
@@ -148,17 +148,17 @@ impl Parser {
     fn parse_decl_import(&mut self) -> Result<Node<decl::Import>> {
         self.with_context(Context::DeclImport, |p| {
             let first = expect_token!(p, KwImport)?;
-            let mut path = vec![expect_token!(p, Identifier)?];
-            while check_token!(p, Period) {
+            let mut path = vec![expect_token!(p, Ident)?];
+            while check_token!(p, Dot) {
                 p.consume()?;
-                let token = expect_token!(p, Identifier)?;
+                let token = expect_token!(p, Ident)?;
                 path.push(token);
             }
 
             let alias = check_token!(p, KwAs)
                 .then(|| {
                     p.consume()?;
-                    Ok(expect_token!(p, Identifier)?)
+                    Ok(expect_token!(p, Ident)?)
                 })
                 .transpose()?;
 

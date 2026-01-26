@@ -125,7 +125,7 @@ fn value_tuple() {
 #[test]
 fn value_array() {
     assert_matches!(parse_expr("[]"), Ok(Expr::Value(Value::Array(a))) => {
-        assert!(a.exprs.list.len() == 0);
+        assert!(a.exprs.list.is_empty());
     });
 
     assert_matches!(parse_expr("[1]"), Ok(Expr::Value(Value::Array(a))) => {
@@ -140,7 +140,7 @@ fn value_array() {
 #[test]
 fn value_map() {
     assert_matches!(parse_expr("{}"), Ok(Expr::Value(Value::Map(m))) => {
-        assert!(m.pairs.len() == 0);
+        assert!(m.pairs.is_empty());
     });
 
     assert_matches!(parse_expr("{\"a\": 1}"), Ok(Expr::Value(Value::Map(m))) => {
@@ -154,21 +154,21 @@ fn value_map() {
 #[test]
 fn value_lambda() {
     assert_matches!(parse_expr("fn {}"), Ok(Expr::Value(Value::Lambda(l))) => {
-        assert!(l.params.list.len() == 0);
-        assert!(l.body.list.len() == 0);
+        assert!(l.params.list.is_empty());
+        assert!(l.body.list.is_empty());
         assert_matches!(l.result, None);
     });
 
     assert_matches!(parse_expr("fn -> int {}"), Ok(Expr::Value(Value::Lambda(l))) => {
-        assert!(l.params.list.len() == 0);
-        assert!(l.body.list.len() == 0);
+        assert!(l.params.list.is_empty());
+        assert!(l.body.list.is_empty());
         assert_matches!(l.result, Some(r) => {
             assert_matches!(*r.node, Ty::Builtin(_));
         });
     });
 
     assert_matches!(parse_expr("fn (_: int) {}"), Ok(Expr::Value(Value::Lambda(l))) => {
-        assert!(l.body.list.len() == 0);
+        assert!(l.body.list.is_empty());
         assert_matches!(l.result, None);
         assert_matches!(&l.params.list[..], [a] => {
             assert_matches!(*a.node.ty.node, Ty::Builtin(_));
@@ -176,7 +176,7 @@ fn value_lambda() {
     });
 
     assert_matches!(parse_expr("fn (_: int) -> int {}"), Ok(Expr::Value(Value::Lambda(l))) => {
-        assert!(l.body.list.len() == 0);
+        assert!(l.body.list.is_empty());
         assert_matches!(l.result, Some(r) => {
             assert_matches!(*r.node, Ty::Builtin(_));
         });

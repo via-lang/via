@@ -66,5 +66,5 @@ impl Lexer {
 }
 
 pub fn tokenize(src: &Rc<Source>) -> Rc<[Token]> {
-    Lexer::new(&src).tokenize()
+    Lexer::new(src).tokenize()
 }

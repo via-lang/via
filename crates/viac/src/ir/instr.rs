@@ -26,6 +26,10 @@ bitflags! {
 
 #[derive(Debug)]
 pub enum Instr {
+    Copy {
+        value: ValueId,
+        out: ValueId,
+    },
     Const {
         value: ConstValue,
         out: ValueId,

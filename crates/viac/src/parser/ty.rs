@@ -26,20 +26,20 @@ impl Parser {
                 span: token.span,
                 attrs: vec![],
             },
-            ParenOpen => {
+            LParen => {
                 let first = self.consume()?.span;
                 let ty = self.parse_type(allow_effect)?;
-                let last = expect_token!(self, ParenClose)?.span;
+                let last = expect_token!(self, RParen)?.span;
                 Node {
                     node: ty.node,
                     span: span![first.begin, last.end],
                     attrs: vec![],
                 }
             }
-            BracketOpen => {
+            LBracket => {
                 self.consume()?;
                 let ty = self.parse_type(AllowEffect::No)?;
-                let last = expect_token!(self, BracketClose)?;
+                let last = expect_token!(self, RBracket)?;
 
                 Node {
                     node: ty::Array { ty: ty.into() }.into(),
@@ -47,14 +47,14 @@ impl Parser {
                     attrs: vec![],
                 }
             }
-            BraceOpen => self.with_context(Context::TypeMap, |p| {
+            LBrace => self.with_context(Context::TypeMap, |p| {
                 p.consume()?;
                 let key = p.parse_type(AllowEffect::No)?;
 
-                expect_token!(p, Colon)?;
+                expect_token!(p, Col)?;
 
                 let value = p.parse_type(AllowEffect::No)?;
-                let last = expect_token!(p, BraceClose)?;
+                let last = expect_token!(p, RBrace)?;
 
                 Ok(Node {
                     node: ty::Map {
@@ -68,8 +68,7 @@ impl Parser {
             })?,
             KwFn => self.with_context(Context::TypeFn, |p| {
                 p.consume()?;
-                let params =
-                    p.parse_list((ParenOpen, ParenClose), |p| p.parse_type(AllowEffect::No))?;
+                let params = p.parse_list((LParen, RParen), |p| p.parse_type(AllowEffect::No))?;
 
                 expect_token!(p, Arrow)?;
 
@@ -88,10 +87,10 @@ impl Parser {
             })?,
             KwType => self.with_context(Context::TypeId, |p| {
                 p.consume()?;
-                expect_token!(p, ParenOpen)?;
+                expect_token!(p, LParen)?;
 
                 let expr = p.parse_expr()?;
-                let last = expect_token!(p, ParenClose)?;
+                let last = expect_token!(p, RParen)?;
 
                 Ok(Node {
                     node: ty::TypeOf { expr: expr.into() }.into(),
@@ -110,7 +109,7 @@ impl Parser {
         loop {
             let first = lhs.span;
             lhs = match self.peek().map(|t| t.kind) {
-                Ok(Question) => {
+                Ok(Quest) => {
                     let tok = self.consume()?;
                     if matches!(lhs.node, Ty::Optional(_)) {
                         return self.error(ErrorKind::MultiplePostfixOptional { tok });
@@ -122,7 +121,7 @@ impl Parser {
                         attrs: vec![],
                     }
                 }
-                Ok(OpPipe) => {
+                Ok(Pipe) => {
                     self.consume()?;
                     let rhs = self.parse_type(AllowEffect::No)?;
                     let last = rhs.span;

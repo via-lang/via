@@ -23,7 +23,7 @@ impl Parser {
                 _ => first.span,
             };
 
-            optional_token!(p, Semicolon);
+            optional_token!(p, Semi);
 
             Ok(Node {
                 node: control::Return {
@@ -41,7 +41,7 @@ impl Parser {
             let expr = p.parse_expr()?;
             let last = expr.span;
 
-            optional_token!(p, Semicolon);
+            optional_token!(p, Semi);
 
             Ok(Node {
                 node: control::Raise { expr: expr.into() },
@@ -90,7 +90,7 @@ impl Parser {
                 cond: cond.into(),
                 body,
                 elseif,
-                else_body: else_body.map(Into::into),
+                else_body,
             },
             span: span![first.begin, last.end],
             attrs: vec![],
@@ -120,11 +120,11 @@ impl Parser {
         self.push_context(Context::ControlFor);
 
         let first = expect_token!(self, KwFor)?.span;
-        let param = expect_token!(self, Identifier)?;
-        let ty = check_token!(self, Colon)
+        let param = expect_token!(self, Ident)?;
+        let ty = check_token!(self, Col)
             .then(|| {
                 self.consume()?;
-                Ok(self.parse_type(AllowEffect::No)?)
+                self.parse_type(AllowEffect::No)
             })
             .transpose()?;
 
@@ -165,13 +165,10 @@ impl Parser {
                 KwWhile => self.parse_control_while().map(IntoNode::into_node),
                 KwFor => self.parse_control_for().map(IntoNode::into_node),
                 KwIf => self.parse_control_if().map(IntoNode::into_node),
-                _ => self.error(
-                    ErrorKind::UnexpectedToken {
-                        exp: vec![].into(),
-                        got: token,
-                    }
-                    .into(),
-                ),
+                _ => self.error(ErrorKind::UnexpectedToken {
+                    exp: vec![].into(),
+                    got: token,
+                }),
             }
         } else {
             self.error(ErrorKind::UnexpectedEndOfFile)

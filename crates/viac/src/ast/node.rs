@@ -57,12 +57,12 @@ impl<T: Ast> PartialEq for Node<T> {
     }
 }
 
-impl<T: Ast> Into<NodeRef<T>> for Node<T> {
-    fn into(self) -> NodeRef<T> {
+impl<T: Ast> From<Node<T>> for NodeRef<T> {
+    fn from(value: Node<T>) -> Self {
         NodeRef {
-            node: Box::new(self.node),
-            span: self.span,
-            attrs: self.attrs,
+            node: Box::new(value.node),
+            span: value.span,
+            attrs: value.attrs,
         }
     }
 }

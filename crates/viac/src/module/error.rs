@@ -9,7 +9,7 @@
 
 use super::tree::ModulePath;
 use crate::diags::builder::Builder;
-use crate::diags::{Diag, DiagKind, IntoDiag};
+use crate::diags::{Diagnostic, IntoDiagnostic, Note, Severity};
 use crate::source::Source;
 use std::path::Path;
 use std::rc::Rc;
@@ -27,23 +27,29 @@ pub enum Error {
     },
 }
 
-impl IntoDiag for Error {
-    fn into_diag(self, src: &Rc<Source>) -> Diag {
-        let mut builder = Builder::new(&src, DiagKind::Error);
-        builder.context("while importing module".to_string());
+impl IntoDiagnostic for Error {
+    fn into_diagnostic(self, src: &Rc<Source>) -> Diagnostic {
+        let mut b = Builder::new(src, Severity::Error);
+        b.context("while importing module".to_string());
 
         match self {
-            Self::ModuleNotFound { path } => builder
+            Self::ModuleNotFound { path } => b
                 .message(format!("module not found '{}'", path))
                 .location(path.span)
+                .note(Note::Note("module path does not correspond to any module that is discoverable by the compiler".to_string()))
+                .note(Note::Help("try adding its parent directory to the import search path using `--import=<path>`".to_string()))
+                .note(Note::Help("or import it using a path relative to the importee module".to_string()))
                 .build(),
-            Self::AmbigiousModulePath {
-                path,
-                candidates: _,
-            } => builder
-                .message(format!("ambigious module path '{}'", path))
-                .location(path.span)
-                .build(),
+            Self::AmbigiousModulePath { path, candidates } => {
+                b.message(format!("ambigious module path '{}'", path))
+                    .location(path.span)
+                    .note(Note::Note(format!("found {} equally qualified candidates", candidates.len())));
+                for (i, cand) in candidates.iter().enumerate() {
+                    let msg = format!("#{i} => {}", cand.to_str().unwrap_or("<error>"));
+                    b.note(Note::Note(msg));
+                }
+                b.note(Note::Help("try disambiguating between candidate modules".to_string())).build()
+            }
         }
     }
 }

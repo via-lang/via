@@ -7,7 +7,7 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::IntoDiag;
+use super::IntoDiagnostic;
 use super::renderer::Renderer;
 use crate::source::Source;
 use std::rc::Rc;
@@ -28,8 +28,11 @@ impl<R: Renderer> Context<R> {
         }
     }
 
-    pub fn emit<D: IntoDiag>(&mut self, diag: D) -> Result<(), R::E> {
-        let diag = diag.into_diag(&self.src);
+    pub fn emit<E>(&mut self, e: E) -> Result<(), R::E>
+    where
+        E: IntoDiagnostic,
+    {
+        let diag = e.into_diagnostic(&self.src);
         self.count += 1;
         self.renderer.render(&diag)
     }

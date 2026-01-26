@@ -13,15 +13,14 @@ pub mod renderer;
 
 use crate::source::{Source, span::Span};
 use std::rc::Rc;
-use termcolor::Color;
 
-pub trait IntoDiag {
-    fn into_diag(self, src: &Rc<Source>) -> Diag;
+pub trait IntoDiagnostic {
+    fn into_diagnostic(self, src: &Rc<Source>) -> Diagnostic;
 }
 
 #[derive(Debug, Clone)]
-pub struct Diag {
-    pub kind: DiagKind,
+pub struct Diagnostic {
+    pub severity: Severity,
     pub code: Option<&'static str>,
     pub message: String,
     pub location: Option<Span>,
@@ -30,7 +29,7 @@ pub struct Diag {
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum DiagKind {
+pub enum Severity {
     Info,
     Warn,
     Error,
@@ -40,17 +39,4 @@ pub enum DiagKind {
 pub enum Note {
     Note(String),
     Help(String),
-}
-
-#[derive(Debug)]
-pub(crate) struct HeaderInfo(pub Color, pub &'static str);
-
-impl From<DiagKind> for HeaderInfo {
-    fn from(value: DiagKind) -> Self {
-        match value {
-            DiagKind::Info => Self(Color::Cyan, "info"),
-            DiagKind::Warn => Self(Color::Yellow, "warning"),
-            DiagKind::Error => Self(Color::Red, "error"),
-        }
-    }
 }

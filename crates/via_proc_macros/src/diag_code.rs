@@ -28,10 +28,10 @@ fn parse_enum_config(input: &DeriveInput) -> Result<(String, u32), syn::Error> {
                     if let syn::Lit::Str(s) = meta.value()?.parse()? {
                         prefix = s.value();
                     }
-                } else if meta.path.is_ident("start") {
-                    if let syn::Lit::Int(i) = meta.value()?.parse()? {
-                        start = i.base10_parse()?;
-                    }
+                } else if meta.path.is_ident("start")
+                    && let syn::Lit::Int(i) = meta.value()?.parse()?
+                {
+                    start = i.base10_parse()?;
                 }
                 Ok(())
             })?;

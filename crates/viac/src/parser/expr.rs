@@ -21,23 +21,23 @@ impl Parser {
         matches!(
             self.peek().map(|t| t.kind),
             Ok(
-                Identifier
+                Ident
                 | KwTrue
                 | KwFalse
                 | KwNone
                 | KwFn
                 | KwSelf
-                | LitInt { base: _ }
-                | LitFloat
-                | LitString { terminated: _ }
-                | OpMinus
-                | OpAmp // unary
-                | OpTilde // unary
-                | OpBang // unary
-                | OpHash // attribute
-                | ParenOpen // group or tuple
-                | BraceOpen // map
-                | BracketOpen // array
+                | Int { base: _ }
+                | Float
+                | String { terminated: _ }
+                | Minus
+                | Amp // unary
+                | Tilde // unary
+                | Bang // unary
+                | Hash // attribute
+                | LParen // group or tuple
+                | LBrace // map
+                | LBracket // array
             )
         )
     }
@@ -46,7 +46,7 @@ impl Parser {
         self.with_context(Context::ExprPrimary, |p| {
             let token = p.peek()?;
             match token.kind {
-                Identifier => {
+                Ident => {
                     p.consume()?;
                     let span = token.span;
                     Ok(Node {
@@ -87,7 +87,7 @@ impl Parser {
                         attrs: vec![],
                     })
                 }
-                LitInt { base: _ } => {
+                Int { base: _ } => {
                     p.consume()?;
                     let span = token.span;
                     Ok(Node {
@@ -96,7 +96,7 @@ impl Parser {
                         attrs: vec![],
                     })
                 }
-                LitFloat => {
+                Float => {
                     p.consume()?;
                     let span = token.span;
                     Ok(Node {
@@ -105,7 +105,7 @@ impl Parser {
                         attrs: vec![],
                     })
                 }
-                LitString { terminated } => {
+                String { terminated } => {
                     if !terminated {
                         return p.error(ErrorKind::UnterminatedStringLiteral { tok: token });
                     }
@@ -117,7 +117,7 @@ impl Parser {
                         attrs: vec![],
                     })
                 }
-                ParenOpen => {
+                LParen => {
                     let first = p.consume()?;
                     let inner = p.parse_expr()?;
                     let first_elem = inner.span;
@@ -127,14 +127,14 @@ impl Parser {
                         let mut exprs = vec![inner];
 
                         while optional_token!(p, Comma) {
-                            if check_token!(p, ParenClose) {
+                            if check_token!(p, RParen) {
                                 break;
                             }
                             let next = p.parse_expr()?;
                             exprs.push(next);
                         }
 
-                        let last = expect_token!(p, ParenClose)?;
+                        let last = expect_token!(p, RParen)?;
                         let last_elem = exprs.last().expect("parsed empty tuple").span;
 
                         Node {
@@ -152,7 +152,7 @@ impl Parser {
                         }
                     } else {
                         p.push_context(Context::ExprGroup);
-                        let last = expect_token!(p, ParenClose)?;
+                        let last = expect_token!(p, RParen)?;
                         Node {
                             node: inner.node,
                             span: span![first.span.begin, last.span.end],
@@ -163,8 +163,8 @@ impl Parser {
                     p.pop_context();
                     Ok(expr)
                 }
-                BracketOpen => p.with_context(Context::ExprArray, |p| {
-                    let exprs = p.parse_list((BracketOpen, BracketClose), Self::parse_expr)?;
+                LBracket => p.with_context(Context::ExprArray, |p| {
+                    let exprs = p.parse_list((LBracket, RBracket), Self::parse_expr)?;
                     let span = exprs.span;
 
                     Ok(Node {
@@ -173,13 +173,13 @@ impl Parser {
                         attrs: vec![],
                     })
                 }),
-                BraceOpen => p.with_context(Context::ExprMap, |p| {
+                LBrace => p.with_context(Context::ExprMap, |p| {
                     let first = p.consume()?;
                     let mut pairs = vec![];
 
-                    while !check_token!(p, BraceClose) {
+                    while !check_token!(p, RBrace) {
                         let key = p.parse_expr()?;
-                        expect_token!(p, Colon)?;
+                        expect_token!(p, Col)?;
                         let value = p.parse_expr()?;
                         pairs.push((key, value));
 
@@ -188,14 +188,14 @@ impl Parser {
                         }
                     }
 
-                    let last = expect_token!(p, BraceClose)?;
+                    let last = expect_token!(p, RBrace)?;
                     Ok(Node {
                         node: Expr::Value(value::Map { pairs }.into()),
                         span: span![first.span.begin, last.span.end],
                         attrs: vec![],
                     })
                 }),
-                OpAmp if allow_prefix.into() => {
+                Amp if allow_prefix.into() => {
                     p.consume()?;
                     let expr = p.parse_expr()?;
                     let last = expr.span;
@@ -206,7 +206,7 @@ impl Parser {
                         attrs: vec![],
                     })
                 }
-                OpMinus | OpBang | OpTilde if allow_prefix.into() => {
+                Minus | Bang | Tilde if allow_prefix.into() => {
                     p.consume()?;
 
                     let inner = p.parse_expr_primary(AllowPrefix::No)?;
@@ -229,8 +229,8 @@ impl Parser {
                     p.consume()?;
                     p.push_context(Context::ExprLambda);
 
-                    let params = check_token!(p, ParenOpen)
-                        .then(|| Ok(p.parse_list((ParenOpen, ParenClose), Self::parse_param)?))
+                    let params = check_token!(p, LParen)
+                        .then(|| p.parse_list((LParen, RParen), Self::parse_param))
                         .transpose()?
                         .unwrap_or(NodeList {
                             list: vec![],
@@ -260,7 +260,7 @@ impl Parser {
                         attrs: vec![],
                     })
                 }
-                OpHash => {
+                Hash => {
                     let attr = p.parse_attr()?;
                     let span = attr.span;
                     Ok(Node {
@@ -281,7 +281,7 @@ impl Parser {
         let mut expr = self.parse_expr_primary(AllowPrefix::Yes)?;
         loop {
             expr = match self.peek().map(|t| t.kind) {
-                Ok(Period) if matches!(self.peek_ahead(1).map(|t| t.kind), Ok(KwAwait)) => {
+                Ok(Dot) if matches!(self.peek_ahead(1).map(|t| t.kind), Ok(KwAwait)) => {
                     self.consume()?;
                     let tok = self.consume()?;
                     if matches!(expr.node, Expr::Value(Value::Await(_))) {
@@ -295,9 +295,9 @@ impl Parser {
                         attrs: vec![],
                     }
                 }
-                Ok(Period) => {
+                Ok(Dot) => {
                     self.consume()?;
-                    let field = expect_token!(self, Identifier)?;
+                    let field = expect_token!(self, Ident)?;
                     let first = expr.span;
                     let last = field.span;
 
@@ -313,9 +313,9 @@ impl Parser {
                         attrs: vec![],
                     }
                 }
-                Ok(ColonColon) => {
+                Ok(ColCol) => {
                     self.consume()?;
-                    let field = expect_token!(self, Identifier)?;
+                    let field = expect_token!(self, Ident)?;
                     let first = expr.span;
                     let last = field.span;
 
@@ -331,11 +331,11 @@ impl Parser {
                         attrs: vec![],
                     }
                 }
-                Ok(BracketOpen) => {
+                Ok(LBracket) => {
                     self.consume()?;
                     let index = self.parse_expr()?;
                     let first = expr.span;
-                    let last = expect_token!(self, BracketClose)?;
+                    let last = expect_token!(self, RBracket)?;
 
                     Node {
                         node: Expr::Place(
@@ -349,8 +349,8 @@ impl Parser {
                         attrs: vec![],
                     }
                 }
-                Ok(ParenOpen) => {
-                    let args = self.parse_list((ParenOpen, ParenClose), Self::parse_expr)?;
+                Ok(LParen) => {
+                    let args = self.parse_list((LParen, RParen), Self::parse_expr)?;
                     let first = expr.span;
                     let last = args.span;
 
@@ -366,9 +366,9 @@ impl Parser {
                         attrs: vec![],
                     }
                 }
-                Ok(OpDotDot) => {
+                Ok(DotDot) => {
                     self.consume()?;
-                    let inclusive = optional_token!(self, OpEq);
+                    let inclusive = optional_token!(self, Eq);
                     let end = self.parse_expr()?;
                     let first = expr.span;
                     let last = end.span;
@@ -428,7 +428,7 @@ impl Parser {
                         attrs: vec![],
                     }
                 }
-                Ok(Question) => {
+                Ok(Quest) => {
                     let tok = self.consume()?;
                     if matches!(expr.node, Expr::Value(Value::Try(_))) {
                         return self.error(ErrorKind::MultiplePostfixTry { tok });
@@ -448,12 +448,7 @@ impl Parser {
 
     fn parse_expr_binary(&mut self, min_prec: u8) -> Result<Node<Expr>> {
         let mut lhs = self.parse_expr_postfix()?;
-        loop {
-            let op = match self.peek() {
-                Ok(token) => token,
-                _ => break,
-            };
-
+        while let Ok(op) = self.peek() {
             let prec = match op.kind.prec() {
                 Some(prec) if prec >= min_prec => prec,
                 _ => break,

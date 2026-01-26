@@ -6,6 +6,9 @@
     "lsp": {
         "rust-analyzer": {
             "initialization_options": {
+                "check": {
+                    "command": "clippy",
+                },
                 "diagnostics": {
                     "disabled": ["proc-macro"],
                 },

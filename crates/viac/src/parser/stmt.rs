@@ -26,8 +26,8 @@ impl Parser {
                 _ if self.is_expr_start() => {
                     let expr = self.parse_expr()?;
                     match self.peek().map(|t| t.kind) {
-                        Ok(OpEq) | Ok(OpPlusEq) | Ok(OpMinusEq) | Ok(OpStarEq) | Ok(OpSlashEq)
-                        | Ok(OpStarStarEq) | Ok(OpPercentEq) | Ok(OpAmpEq) | Ok(OpPipeEq) => {
+                        Ok(Eq) | Ok(PlusEq) | Ok(MinusEq) | Ok(StarEq) | Ok(SlashEq)
+                        | Ok(StarStarEq) | Ok(PercentEq) | Ok(AmpEq) | Ok(PipeEq) => {
                             let op = self.consume()?;
                             let rhs = self.parse_expr()?;
                             let first = expr.span;
@@ -35,7 +35,7 @@ impl Parser {
                             Ok(Node {
                                 node: Stmt::Control(
                                     control::Assign {
-                                        op: op,
+                                        op,
                                         lhs: expr.into(),
                                         rhs: rhs.into(),
                                     }

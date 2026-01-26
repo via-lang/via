@@ -9,9 +9,9 @@
 
 use super::context::Context;
 use crate::diags::builder::Builder;
-use crate::diags::{Diag, DiagKind, IntoDiag, Note};
+use crate::diags::{Diagnostic, IntoDiagnostic, Note, Severity};
 use crate::lexer::token::Token;
-use crate::source::Source;
+use crate::source::{Source, span::Span};
 use escape_string::escape;
 use std::fmt;
 use std::rc::Rc;
@@ -42,6 +42,7 @@ pub enum ErrorKind {
     MultiplePostfixTry { tok: Token },
     MultiplePostfixAwait { tok: Token },
     MultiplePostfixOptional { tok: Token },
+    SyntacticallyUnreachable { span: Span },
 }
 
 #[derive(Debug)]
@@ -50,9 +51,9 @@ pub struct Error {
     pub kind: ErrorKind,
 }
 
-impl IntoDiag for Error {
-    fn into_diag(self, src: &Rc<Source>) -> Diag {
-        let mut b = Builder::new(&src, DiagKind::Error);
+impl IntoDiagnostic for Error {
+    fn into_diagnostic(self, src: &Rc<Source>) -> Diagnostic {
+        let mut b = Builder::new(src, Severity::Error);
         b.code(self.kind.code());
 
         for ctxt in &self.ctxts {
@@ -83,19 +84,34 @@ impl IntoDiag for Error {
             }
             ErrorKind::UnterminatedStringLiteral { tok } => b
                 .message("unterminated string literal".to_string())
+                .note(Note::Help(
+                    "terminate string by inserting `\"` where it is supposed to end".to_string(),
+                ))
                 .location(tok.span),
             ErrorKind::DisallowedEffect { tok } => b
                 .message("`raise` clause may only appear in function return types".to_string())
+                .note(Note::Help("remove the `raise` clause".to_string()))
                 .location(tok.span),
             ErrorKind::MultiplePostfixTry { tok } => b
-                .message("multiple postfix `?` operators are not allowed".to_string())
-                .location(tok.span),
+                .message("multiple postfix `?` (try) operators are not allowed".to_string())
+                .location(tok.span)
+                .note(Note::Help("remove the latter `?`".to_string())),
             ErrorKind::MultiplePostfixAwait { tok } => b
                 .message("multiple postfix `await` operators are not allowed".to_string())
-                .location(tok.span),
+                .location(tok.span)
+                .note(Note::Help("remove the latter `.await`".to_string())),
             ErrorKind::MultiplePostfixOptional { tok } => b
                 .message("multiple postfix `?` qualifiers are not allowed".to_string())
+                .note(Note::Help("remove the latter `?`".to_string()))
                 .location(tok.span),
+            ErrorKind::SyntacticallyUnreachable { span } => b
+                .message("syntactically unreachable statement".to_string())
+                .note(Note::Note(
+                    "statement is located below unconditionally branching control statement"
+                        .to_string(),
+                ))
+                .note(Note::Help("remove statement".to_string()))
+                .location(span),
         };
         b.build()
     }

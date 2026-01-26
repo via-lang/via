@@ -14,8 +14,8 @@ use crate::ast::attr::{self, Attr};
 impl Parser {
     pub(crate) fn parse_attr(&mut self) -> Result<Node<Attr>> {
         self.with_context(Context::Attr, |p| {
-            let first = expect_token!(p, OpHash)?;
-            let name = expect_token!(p, Identifier)?;
+            let first = expect_token!(p, Hash)?;
+            let name = expect_token!(p, Ident)?;
             let span = span![first.span.begin, name.span.end];
 
             match p.src.slice(name.span) {
@@ -32,7 +32,7 @@ impl Parser {
 
     #[allow(dead_code)]
     pub(crate) fn parse_attrs(&mut self) -> Result<Vec<Node<Attr>>> {
-        check_token!(self, OpHash)
+        check_token!(self, Hash)
             .then(|| self.parse_attr().map(|a| vec![a]))
             .unwrap_or(Ok(Vec::new()))
     }

@@ -7,7 +7,11 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::{Diag, HeaderInfo};
+use super::{
+    Diagnostic,
+    Note::{self, *},
+    Severity::{self, *},
+};
 use crate::source::Source;
 use crate::source::span::{Span, span};
 use std::error::Error;
@@ -15,9 +19,31 @@ use std::io::{self, Write};
 use std::rc::Rc;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
+#[derive(Debug)]
+pub struct Header(pub Color, pub &'static str);
+
+impl From<Severity> for Header {
+    fn from(value: Severity) -> Self {
+        match value {
+            Info => Self(Color::Cyan, "info"),
+            Warn => Self(Color::Yellow, "warning"),
+            Error => Self(Color::Red, "error"),
+        }
+    }
+}
+
+impl From<Note> for Header {
+    fn from(value: Note) -> Self {
+        match value {
+            Note(_) => Self(Color::Cyan, "note"),
+            Help(_) => Self(Color::Green, "help"),
+        }
+    }
+}
+
 pub trait Renderer {
     type E: Error;
-    fn render(&mut self, diag: &Diag) -> Result<(), <Self as Renderer>::E>;
+    fn render(&mut self, diag: &Diagnostic) -> Result<(), <Self as Renderer>::E>;
 }
 
 #[derive(Debug)]
@@ -34,7 +60,7 @@ impl TermRenderer {
         }
     }
 
-    fn render_context(&mut self, diag: &Diag) -> io::Result<()> {
+    fn render_context(&mut self, diag: &Diagnostic) -> io::Result<()> {
         for ctxt in &diag.context {
             self.out.set_color(ColorSpec::new().set_dimmed(true))?;
             writeln!(self.out, "{ctxt}:")?;
@@ -43,8 +69,8 @@ impl TermRenderer {
         Ok(())
     }
 
-    fn render_header(&mut self, diag: &Diag) -> io::Result<Color> {
-        let HeaderInfo(color, text) = Into::<HeaderInfo>::into(diag.kind);
+    fn render_header(&mut self, diag: &Diagnostic) -> io::Result<Color> {
+        let Header(color, text) = diag.severity.into();
 
         self.out.set_color(
             ColorSpec::new()
@@ -86,7 +112,7 @@ impl TermRenderer {
             )?;
             self.out.reset()?;
         } else {
-            writeln!(self.out, "")?;
+            writeln!(self.out)?;
         }
         Ok(color)
     }
@@ -159,7 +185,34 @@ impl TermRenderer {
         Ok(())
     }
 
-    fn render_span(&mut self, span: Span, color: Color) -> io::Result<()> {
+    fn render_note(&mut self, note: &Note, width: Option<usize>) -> io::Result<()> {
+        self.out.set_color(ColorSpec::new().set_dimmed(true))?;
+        write!(self.out, " {:width$} = ", "", width = width.unwrap_or(0))?;
+
+        let Header(color, text) = note.clone().into();
+
+        self.out.set_color(
+            ColorSpec::new()
+                .set_fg(Some(color))
+                .set_bold(true)
+                .set_intense(true),
+        )?;
+
+        write!(self.out, "{text}: ")?;
+        self.out.reset()?;
+
+        writeln!(
+            self.out,
+            "{}",
+            match note {
+                Note(s) | Help(s) => s,
+            }
+        )?;
+
+        Ok(())
+    }
+
+    fn render_span(&mut self, span: Span, color: Color) -> io::Result<usize> {
         let (begin, end) = self.src.span_line_col(span);
         let max_line = self.src.line_count();
 
@@ -175,8 +228,8 @@ impl TermRenderer {
         let width = (end_line + 1).ilog10() as usize + 1;
 
         let context_before = (start_line > 1).then(|| start_line - 1);
-        let context_after = (context_before.is_none() && end_line + 1 <= self.src.line_count())
-            .then(|| end_line + 1);
+        let context_after =
+            (context_before.is_none() && end_line <= self.src.line_count()).then(|| end_line + 1);
 
         if let Some(line_no) = context_before {
             self.write_source_line(width, line_no, None, color)?;
@@ -212,18 +265,26 @@ impl TermRenderer {
         if let Some(line_no) = context_after {
             self.write_source_line(width, line_no, None, color)?;
         }
-        Ok(())
+        Ok(width)
     }
 }
 
 impl Renderer for TermRenderer {
     type E = io::Error;
-    fn render(&mut self, diag: &Diag) -> io::Result<()> {
+
+    fn render(&mut self, diag: &Diagnostic) -> io::Result<()> {
         self.render_context(diag)?;
 
         let color = self.render_header(diag)?;
-        if let Some(span) = diag.location {
-            self.render_span(span, color)?;
+        let width = diag
+            .location
+            .map(|span| self.render_span(span, color))
+            .transpose()?;
+
+        writeln!(self.out, " {:width$} |", "", width = width.unwrap_or(0))?;
+
+        for note in &diag.notes {
+            self.render_note(note, width)?;
         }
 
         self.out.reset()?;

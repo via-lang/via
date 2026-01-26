@@ -24,14 +24,14 @@ pub enum Base {
 pub enum TokenKind {
     EndOfFile,
     Illegal,
-    LitInt {
+    Int {
         base: Base,
     },
-    LitFloat,
-    LitString {
+    Float,
+    String {
         terminated: bool,
     },
-    Identifier,
+    Ident,
     KwVar,
     KwMut,
     KwConst,
@@ -66,93 +66,93 @@ pub enum TokenKind {
     KwInt,
     KwFloat,
     KwString,
-    Period,
+    Dot,
     Comma,
-    Semicolon,
-    Colon,
-    ColonColon,
+    Semi,
+    Col,
+    ColCol,
     Arrow,
-    Question,
-    ParenOpen,
-    ParenClose,
-    BracketOpen,
-    BracketClose,
-    BraceOpen,
-    BraceClose,
+    Quest,
+    LParen,
+    RParen,
+    LBracket,
+    RBracket,
+    LBrace,
+    RBrace,
 
     #[prec(7)]
-    OpPlus,
+    Plus,
 
     #[prec(7)]
-    OpMinus,
+    Minus,
 
     #[prec(8)]
-    OpStar,
+    Star,
 
     #[prec(8)]
-    OpSlash,
+    Slash,
 
     #[prec(9)]
-    OpStarStar,
+    StarStar,
 
     #[prec(8)]
-    OpPercent,
+    Percent,
 
     #[prec(3)]
-    OpAmp,
-    OpTilde,
+    Amp,
+    Tilde,
 
     #[prec(4)]
-    OpCaret,
+    Caret,
 
     #[prec(5)]
-    OpPipe,
+    Pipe,
 
     #[prec(6)]
-    OpShl,
+    LtLt,
 
     #[prec(6)]
-    OpShr,
-    OpHash,
-    OpBang,
-    OpQuote,
+    GtGt,
+    Hash,
+    Bang,
+    Quote,
 
     #[prec(2)]
-    OpLt,
+    Lt,
 
     #[prec(2)]
-    OpGt,
-    OpDotDot,
+    Gt,
+    DotDot,
 
     #[prec(1)]
-    OpAmpAmp,
+    AmpAmp,
 
     #[prec(0)]
-    OpPipePipe,
-    OpEq,
+    PipePipe,
+    Eq,
 
     #[prec(2)]
-    OpEqEq,
-    OpPlusEq,
-    OpMinusEq,
-    OpStarEq,
-    OpSlashEq,
-    OpStarStarEq,
-    OpPercentEq,
-    OpAmpEq,
-    OpCaretEq,
-    OpPipeEq,
-    OpShlEq,
-    OpShrEq,
+    EqEq,
+    PlusEq,
+    MinusEq,
+    StarEq,
+    SlashEq,
+    StarStarEq,
+    PercentEq,
+    AmpEq,
+    CaretEq,
+    PipeEq,
+    LtLtEq,
+    GtGtEq,
 
     #[prec(2)]
-    OpBangEq,
+    BangEq,
 
     #[prec(2)]
-    OpLtEq,
+    LtEq,
 
     #[prec(2)]
-    OpGtEq,
+    GtEq,
 }
 
 #[derive(Debug, Clone, PartialEq)]
