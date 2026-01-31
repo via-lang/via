@@ -7,12 +7,10 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::macros::ast;
-use super::place::Place;
-use super::value::Value;
+use super::{macros::ast, place::Place, value::Value};
 
 ast! {
-    pub enum Expr {
+    Expr {
         Place(Place),
         Value(Value),
     }

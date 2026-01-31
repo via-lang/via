@@ -7,8 +7,10 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
+//! Compiler super-module.
+
 pub mod ast;
-pub mod diags;
+pub mod clinic;
 pub mod ir;
 pub mod ir_builder;
 pub mod lexer;

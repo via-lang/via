@@ -7,17 +7,19 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::attr;
-use super::expr::Expr;
-use super::extra::{Body, NodeList, Param};
-use super::macros::ast;
-use super::node::{Node, NodeRef};
-use super::place::Place;
-use super::ty::Ty;
+use super::{
+    attr,
+    aux::{Body, Param},
+    expr::Expr,
+    macros::ast,
+    node::{Node, NodeRef, Nodes},
+    place::Place,
+    ty::Ty,
+};
 use crate::lexer::token::Token;
 
 ast! {
-    pub enum Value {
+    Value {
         None {  },
         True {  },
         False {  },
@@ -29,11 +31,11 @@ ast! {
             rhs: NodeRef<Expr>,
             inclusive: bool,
         },
-        Tuple { exprs: NodeList<Expr> },
-        Array { exprs: NodeList<Expr> },
+        Tuple { exprs: Nodes<Expr> },
+        Array { exprs: Nodes<Expr> },
         Map { pairs: Vec<(Node<Expr>, Node<Expr>)> },
         Lambda {
-            params: NodeList<Param>,
+            params: Nodes<Param>,
             result: Option<NodeRef<Ty>>,
             body: Body,
         },
@@ -54,7 +56,7 @@ ast! {
         },
         Call {
             callee: NodeRef<Expr>,
-            args: NodeList<Expr>
+            args: Nodes<Expr>
         },
         Cast {
             expr: NodeRef<Expr>,

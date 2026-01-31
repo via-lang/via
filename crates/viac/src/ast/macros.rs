@@ -9,7 +9,7 @@
 
 macro_rules! ast {
     (
-        $vis:vis enum $enum:ident {
+        $enum:ident {
             $(
                 $name:ident {
                     $($field:ident : $ty:ty),* $(,)?
@@ -19,40 +19,33 @@ macro_rules! ast {
     ) => {
         $(
             #[derive(Debug, PartialEq)]
-            $vis struct $name {
+            pub struct $name {
                 $(pub $field : $ty),*
             }
-            impl super::node::Ast for $name {}
+            impl super::node::Marker for $name {}
         )*
-        #[derive(Debug, PartialEq)]
-        $vis enum $enum {
+        #[derive(derive_more::From, Debug, PartialEq)]
+        pub enum $enum {
             $(
                 $name($name),
             )*
         }
-        impl super::node::Ast for $enum {}
-        $(
-            impl From<$name> for $enum {
-                fn from(v: $name) -> Self {
-                    $enum::$name(v)
-                }
-            }
-        )*
+        impl super::node::Marker for $enum<> {}
     };
     (
-        $vis:vis enum $enum:ident {
+        $enum:ident {
             $(
                 $name:ident($field:ident)
             ),* $(,)?
         }
     ) => {
-        #[derive(Debug, PartialEq)]
-        $vis enum $enum {
+        #[derive(derive_more::From, Debug, PartialEq)]
+        pub enum $enum {
             $(
                 $name($name),
             )*
         }
-        impl super::node::Ast for $enum {}
+        impl super::node::Marker for $enum {}
     };
 }
 

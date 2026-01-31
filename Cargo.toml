@@ -1,14 +1,11 @@
 [workspace]
 resolver = "3"
-members = [
-    "crates/via_cli",
-    "crates/via_macros",
-    "crates/via_proc_macros",
-    "crates/viac",
-]
+members = ["crates/*"]
 
 [workspace.dependencies]
 bitflags = "2.10"
 itertools = "0.14"
 assert_matches = "1.5"
+derive_more = "2.1"
+anyhow = "1"
 phf = { version = "0.13.1", features = ["macros"] }

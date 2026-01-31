@@ -7,46 +7,49 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::Parser;
-use super::prelude::*;
-use super::ty::AllowEffect;
-use crate::ast::control::{self, Control};
-use crate::ast::node::IntoNode;
+use super::{prelude::*, ty::AllowRaiseClause};
+use crate::ast::{
+    control::{self, Control},
+    stmt::Stmt,
+};
 
 impl Parser {
     fn parse_control_return(&mut self) -> Result<Node<control::Return>> {
-        self.with_context(Context::ControlReturn, |p| {
-            let first = expect_token!(p, KwReturn)?;
-            let expr = p.is_expr_start().then(|| p.parse_expr()).transpose()?;
+        self.with_context(Context::ControlReturn, |parser| {
+            let first = expect_one!(parser, KwReturn)?;
+            let expr = parser
+                .is_expr_start()
+                .then(|| parser.parse_expr())
+                .transpose()?;
+
             let last = match &expr {
-                Some(e) => e.span,
-                _ => first.span,
+                Some(e) => e.span.clone(),
+                _ => first.span.clone(),
             };
 
-            optional_token!(p, Semi);
+            optional!(parser, Semi);
 
             Ok(Node {
                 node: control::Return {
                     expr: expr.map(Into::into),
                 },
-                span: span![first.span.begin, last.end],
-                attrs: vec![],
+                span: SourceSpan::new(first.span.begin, last.end),
+                attrs: None,
             })
         })
     }
 
     fn parse_control_raise(&mut self) -> Result<Node<control::Raise>> {
-        self.with_context(Context::ControlRaise, |p| {
-            let first = expect_token!(p, KwRaise)?.span;
-            let expr = p.parse_expr()?;
-            let last = expr.span;
+        self.with_context(Context::ControlRaise, |parser| {
+            let first = expect_one!(parser, KwRaise)?.span;
+            let expr = parser.parse_expr()?;
+            let last = expr.span.clone();
 
-            optional_token!(p, Semi);
-
+            optional!(parser, Semi);
             Ok(Node {
                 node: control::Raise { expr: expr.into() },
-                span: span![first.begin, last.end],
-                attrs: vec![],
+                span: SourceSpan::new(first.begin, last.end),
+                attrs: None,
             })
         })
     }
@@ -54,16 +57,16 @@ impl Parser {
     fn parse_control_if(&mut self) -> Result<Node<control::If>> {
         self.push_context(Context::ControlIf);
 
-        let first = expect_token!(self, KwIf)?.span;
+        let first = expect_one!(self, KwIf)?.span;
         let cond = self.parse_expr()?;
 
         self.pop_context();
 
         let body = self.parse_body(Self::parse_stmt)?;
-        let mut last = body.span;
+        let mut last = body.span.clone();
         let mut elseif = vec![];
 
-        while check_token!(self, KwElse) && check_token!(self, KwIf, 1) {
+        while check!(self, KwElse) && check!(self, KwIf, 1) {
             self.push_context(Context::ControlElseIf);
             self.consume()?;
             self.consume()?;
@@ -72,15 +75,15 @@ impl Parser {
             self.pop_context();
 
             let body = self.parse_body(Self::parse_stmt)?;
-            last = body.span;
+            last = body.span.clone();
             elseif.push((cond, body));
         }
 
-        let else_body = check_token!(self, KwElse)
-            .then(|| {
+        let else_body = check!(self, KwElse)
+            .then(|| -> Result<Nodes<Stmt>> {
                 self.consume()?;
                 let body = self.parse_body(Self::parse_stmt)?;
-                last = body.span;
+                last = body.span.clone();
                 Ok(body)
             })
             .transpose()?;
@@ -92,49 +95,49 @@ impl Parser {
                 elseif,
                 else_body,
             },
-            span: span![first.begin, last.end],
-            attrs: vec![],
+            span: SourceSpan::new(first.begin, last.end),
+            attrs: None,
         })
     }
 
     fn parse_control_while(&mut self) -> Result<Node<control::While>> {
         self.push_context(Context::ControlWhile);
-        let first = expect_token!(self, KwWhile)?.span;
+        let first = expect_one!(self, KwWhile)?.span;
         let cond = self.parse_expr()?;
         self.pop_context();
 
         let body = self.parse_body(Self::parse_stmt)?;
-        let last = body.span;
+        let last = body.span.clone();
 
         Ok(Node {
             node: control::While {
                 cond: cond.into(),
                 body,
             },
-            span: span![first.begin, last.end],
-            attrs: vec![],
+            span: SourceSpan::new(first.begin, last.end),
+            attrs: None,
         })
     }
 
     fn parse_control_for(&mut self) -> Result<Node<control::For>> {
         self.push_context(Context::ControlFor);
 
-        let first = expect_token!(self, KwFor)?.span;
-        let param = expect_token!(self, Ident)?;
-        let ty = check_token!(self, Col)
+        let first = expect_one!(self, KwFor)?.span;
+        let param = expect_one!(self, Ident)?;
+        let ty = check!(self, Col)
             .then(|| {
                 self.consume()?;
-                self.parse_type(AllowEffect::No)
+                self.parse_type(AllowRaiseClause::No)
             })
             .transpose()?;
 
-        expect_token!(self, KwIn)?;
+        expect_one!(self, KwIn)?;
 
         let expr = self.parse_expr()?;
         self.pop_context();
 
         let body = self.parse_body(Self::parse_stmt)?;
-        let last = body.span;
+        let last = body.span.clone();
 
         Ok(Node {
             node: control::For {
@@ -142,8 +145,8 @@ impl Parser {
                 expr: expr.into(),
                 body,
             },
-            span: span![first.begin, last.end],
-            attrs: vec![],
+            span: SourceSpan::new(first.begin, last.end),
+            attrs: None,
         })
     }
 
@@ -153,25 +156,29 @@ impl Parser {
                 KwBreak => self.consume().map(|token| Node {
                     node: control::Break {}.into(),
                     span: token.span,
-                    attrs: vec![],
+                    attrs: None,
                 }),
                 KwContinue => self.consume().map(|token| Node {
                     node: control::Continue {}.into(),
                     span: token.span,
-                    attrs: vec![],
+                    attrs: None,
                 }),
-                KwReturn => self.parse_control_return().map(IntoNode::into_node),
-                KwRaise => self.parse_control_raise().map(IntoNode::into_node),
-                KwWhile => self.parse_control_while().map(IntoNode::into_node),
-                KwFor => self.parse_control_for().map(IntoNode::into_node),
-                KwIf => self.parse_control_if().map(IntoNode::into_node),
-                _ => self.error(ErrorKind::UnexpectedToken {
-                    exp: vec![].into(),
-                    got: token,
+                KwReturn => self.parse_control_return().map(Node::recast),
+                KwRaise => self.parse_control_raise().map(Node::recast),
+                KwWhile => self.parse_control_while().map(Node::recast),
+                KwFor => self.parse_control_for().map(Node::recast),
+                KwIf => self.parse_control_if().map(Node::recast),
+                _ => Err(Error::UnexpectedToken {
+                    src: self.src.clone(),
+                    span: token.span.to_miette_span(),
+                    expected: vec![].into(),
+                    got: self.src.get_span(token.span).to_owned(),
                 }),
             }
         } else {
-            self.error(ErrorKind::UnexpectedEndOfFile)
+            Err(Error::UnexpectedEndOfFile {
+                src: self.src.clone(),
+            })
         }
     }
 }

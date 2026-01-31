@@ -15,144 +15,47 @@ pub mod error;
 mod expr;
 mod macros;
 mod stmt;
-mod ty;
-
 #[cfg(test)]
 mod test;
-
-use crate::ast::control::Control;
-use crate::ast::decl::Decl;
-use crate::ast::node::Node;
-use crate::ast::stmt::Stmt;
-use crate::lexer::token::Token;
-use crate::source::Source;
-use context::Context;
-use error::Result;
-use std::rc::Rc;
+mod ty;
 
 pub(super) mod prelude {
-    pub use super::context::Context;
-    pub use super::error::{Error, ErrorKind, Result};
-    pub use crate::ast::extra::{NodeList, Param};
-    pub use crate::ast::node::{Ast, Node};
-    pub use crate::lexer::token::{
-        Token,
-        TokenKind::{self, *},
+    pub(super) use super::{
+        Parser,
+        context::Context,
+        error::{Error, Result},
+        macros::*,
     };
-    pub(super) use crate::source::span::span;
-
-    macro_rules! check_token {
-        ($this:expr, $kind:pat_param) => {
-            $this.peek().is_ok_and(|token| matches!(token.kind, $kind))
-        };
-        ($this:expr, $kind:expr) => {
-            $this.peek().is_ok_and(|token| token.kind == $kind)
-        };
-        ($this:expr, $kind:pat_param, $ahead:expr) => {
-            $this
-                .peek_ahead($ahead)
-                .is_ok_and(|token| matches!(token.kind, $kind))
-        };
-        ($this:expr, $kind:expr, $ahead:expr) => {
-            $this
-                .peek_ahead($ahead)
-                .is_ok_and(|token| token.kind == $kind)
-        };
-    }
-
-    macro_rules! optional_token {
-        ($this:expr, $kind:pat_param) => {
-            check_token!($this, $kind)
-                .then(|| $this.consume().is_ok())
-                .unwrap_or(false)
-        };
-        ($this:expr, $kind:expr) => {
-            check_token!($this, $kind)
-                .then(|| $this.consume().is_ok())
-                .unwrap_or(false)
-        };
-    }
-
-    macro_rules! expect_token(
-        ($this:expr, $kind:pat_param) => {
-            match $this.consume()? {
-                token if matches!(&token.kind, $kind) => Ok(token),
-                token => $this.error::<Token>(ErrorKind::UnexpectedToken {
-                    exp: vec![].into(),
-                    got: token,
-                }),
-            }
-        };
-        ($this:expr, $kind:expr) => {
-            match $this.consume()? {
-                token if $kind == token.kind => Ok(token),
-                token => $this.error::<Token>(ErrorKind::UnexpectedToken {
-                    exp: vec![].into(),
-                    got: token,
-                }),
-            }
-        }
-    );
-
-    pub(super) use check_token;
-    pub(super) use expect_token;
-    pub(super) use optional_token;
+    pub(super) use crate::{
+        ast::node::{Node, Nodes},
+        lexer::token::TokenKind::{self, *},
+        source::{SourceBuf, SourceSpan},
+    };
 }
 
+use std::rc::Rc;
+
+use context::Context;
 use prelude::*;
 
-trait Unreachable {
-    fn check_unreachable(&self, _p: &Parser, _last: Option<&Self>) -> Result<()>;
-}
-
-impl Unreachable for Node<Decl> {
-    fn check_unreachable(&self, _p: &Parser, _last: Option<&Self>) -> Result<()> {
-        Ok(())
-    }
-}
-
-impl Unreachable for Node<Stmt> {
-    fn check_unreachable(&self, p: &Parser, last: Option<&Self>) -> Result<()> {
-        if let Some(last) = last
-            && matches!(
-                last.node,
-                Stmt::Control(
-                    Control::Return(_)
-                        | Control::Raise(_)
-                        | Control::Break(_)
-                        | Control::Continue(_)
-                )
-            )
-        {
-            return p.error(ErrorKind::SyntacticallyUnreachable { span: self.span });
-        }
-        Ok(())
-    }
-}
-
-impl Unreachable for Node<Control> {
-    fn check_unreachable(&self, p: &Parser, last: Option<&Self>) -> Result<()> {
-        if let Some(last) = last
-            && matches!(
-                last.node,
-                Control::Return(_) | Control::Raise(_) | Control::Break(_) | Control::Continue(_)
-            )
-        {
-            return p.error(ErrorKind::SyntacticallyUnreachable { span: self.span });
-        }
-        Ok(())
-    }
-}
+use crate::{
+    ast::{
+        aux::Param,
+        node::{Marker, Node},
+        stmt::Stmt,
+    },
+    lexer::token::Token,
+};
 
 pub struct Parser {
-    src: Rc<Source>,
+    src: SourceBuf,
     toks: Rc<[Token]>,
     pos: usize,
     ctxts: Vec<Context>,
 }
 
 impl Parser {
-    pub fn new(src: &Rc<Source>, toks: &Rc<[Token]>) -> Self {
+    pub fn new(src: &SourceBuf, toks: &Rc<[Token]>) -> Self {
         Self {
             src: src.clone(),
             toks: toks.clone(),
@@ -176,29 +79,21 @@ impl Parser {
         result
     }
 
-    fn error<T>(&self, kind: ErrorKind) -> Result<T> {
-        Err(Error {
-            kind,
-            ctxts: self.ctxts.clone(),
-        })
-    }
-
     fn peek(&self) -> Result<Token> {
-        self.toks.get(self.pos).cloned().ok_or_else(|| {
-            self.error::<Token>(ErrorKind::UnexpectedEndOfFile)
-                .err()
-                .unwrap()
-        })
+        self.toks
+            .get(self.pos)
+            .cloned()
+            .ok_or_else(|| Error::UnexpectedEndOfFile {
+                src: self.src.clone(),
+            })
     }
 
     fn peek_ahead(&self, ahead: u32) -> Result<Token> {
         self.toks
             .get(self.pos + ahead as usize)
             .cloned()
-            .ok_or_else(|| {
-                self.error::<Token>(ErrorKind::UnexpectedEndOfFile)
-                    .err()
-                    .unwrap()
+            .ok_or_else(|| Error::UnexpectedEndOfFile {
+                src: self.src.clone(),
             })
     }
 
@@ -207,26 +102,23 @@ impl Parser {
     }
 
     #[allow(private_bounds)]
-    pub(super) fn parse_body<F, T>(&mut self, mut parse: F) -> Result<NodeList<T>>
+    pub(super) fn parse_body<F, T>(&mut self, mut parse: F) -> Result<Nodes<T>>
     where
         F: FnMut(&mut Self) -> Result<Node<T>>,
-        T: Ast,
-        Node<T>: Unreachable,
+        T: Marker,
     {
-        let first = expect_token!(self, LBrace)?;
+        let first = expect_one!(self, LBrace)?;
         let mut body = Vec::<Node<T>>::new();
 
-        while !check_token!(self, RBrace) {
+        while !check!(self, RBrace) {
             let node = parse(self)?;
-            let last = body.last();
-            node.check_unreachable(self, last)?;
             body.push(node);
         }
 
-        let last = expect_token!(self, RBrace)?;
-        Ok(NodeList {
-            list: body,
-            span: span![first.span.begin, last.span.end],
+        let last = expect_one!(self, RBrace)?;
+        Ok(Nodes {
+            nodes: body,
+            span: SourceSpan::merge(first.span, last.span),
         })
     }
 
@@ -234,46 +126,46 @@ impl Parser {
         &mut self,
         brackets: (TokenKind, TokenKind),
         mut parse: F,
-    ) -> Result<NodeList<T>>
+    ) -> Result<Nodes<T>>
     where
         F: FnMut(&mut Self) -> Result<Node<T>>,
-        T: Ast,
+        T: Marker,
     {
-        let first = expect_token!(self, brackets.0)?;
+        let first = expect_one!(self, brackets.0)?;
         let mut body = vec![];
 
-        while !check_token!(self, brackets.1) {
+        while !check!(self, brackets.1) {
             let node = parse(self)?;
             body.push(node);
-            if !optional_token!(self, Comma) {
+            if !optional!(self, Comma) {
                 break;
             }
         }
 
-        let last = expect_token!(self, brackets.1)?;
-        Ok(NodeList {
-            list: body,
-            span: span![first.span.begin, last.span.end],
+        let last = expect_one!(self, brackets.1)?;
+        Ok(Nodes {
+            nodes: body,
+            span: SourceSpan::merge(first.span, last.span),
         })
     }
 
     pub(super) fn parse_param(&mut self) -> Result<Node<Param>> {
-        self.with_context(Context::Param, |p| {
-            let name = expect_token!(p, Ident)?;
-            let first = name.span;
+        self.with_context(Context::Param, |parser| {
+            let name = expect_one!(parser, Ident)?;
+            let first = name.span.clone();
 
-            expect_token!(p, Col)?;
+            expect_one!(parser, Col)?;
 
-            let ty = p.parse_param_ty()?;
-            let last = ty.span;
+            let ty = parser.parse_param_ty()?;
+            let last = ty.span.clone();
 
             Ok(Node {
                 node: Param {
                     name,
                     ty: ty.into(),
                 },
-                span: span![first.begin, last.end],
-                attrs: vec![],
+                span: SourceSpan::merge(first, last),
+                attrs: None,
             })
         })
     }
@@ -281,7 +173,7 @@ impl Parser {
     pub(crate) fn parse(&mut self) -> Result<Rc<[Node<Stmt>]>> {
         let mut ast = vec![];
         loop {
-            if check_token!(self, EndOfFile) {
+            if check!(self, EndOfFile) {
                 break Ok(Rc::from(ast));
             }
             let stmt = self.parse_stmt()?;
@@ -290,6 +182,6 @@ impl Parser {
     }
 }
 
-pub fn parse(src: &Rc<Source>, toks: &Rc<[Token]>) -> Result<Rc<[Node<Stmt>]>> {
+pub fn parse(src: &SourceBuf, toks: &Rc<[Token]>) -> Result<Rc<[Node<Stmt>]>> {
     Parser::new(src, toks).parse()
 }

@@ -10,7 +10,7 @@
 use super::macros::ast;
 
 ast! {
-    pub enum Attr {
+    Attr {
         Native {},
         Inline {},
         Distinct {},

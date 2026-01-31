@@ -7,62 +7,98 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::error::{Error, Result};
-use super::tree::{ModuleId, ModulePath, ModuleTree};
-use std::collections::HashMap;
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::rc::Rc;
+use std::{
+    collections::{HashMap, hash_map::Entry},
+    fs,
+    path::{Path, PathBuf},
+};
 
-pub struct LookupContext {
-    pub file: PathBuf,
-    pub lib: PathBuf,
+use bitflags::bitflags;
+
+use super::{
+    Module,
+    error::{Error, Result},
+    tree::{ModuleId, ModulePath, ModuleTree},
+};
+use crate::{clinic::PrettyVec, source::SourceBuf};
+
+bitflags! {
+    #[derive(Debug)]
+    pub struct ModulePerms: u8 {
+        const None = 0;
+    }
 }
 
+#[derive(Debug, Default)]
 pub struct ModuleContext {
-    tree: ModuleTree,
-    index: HashMap<ModuleId, PathBuf>,
+    pub(super) tree: ModuleTree,
+    pub(super) modules: HashMap<ModuleId, Module>,
+    pub(super) paths: Vec<PathBuf>,
 }
 
 impl ModuleContext {
-    pub fn resolve(&mut self, path: ModulePath, ctxt: LookupContext) -> Result<ModuleId> {
+    pub fn new(root: &Path) -> Self {
+        Self {
+            tree: ModuleTree::new(),
+            modules: HashMap::new(),
+            paths: vec![root.to_path_buf()],
+        }
+    }
+
+    pub fn get(&self, id: ModuleId) -> Option<&Module> {
+        self.modules.get(&id)
+    }
+
+    pub fn load(&mut self, fs_path: &Path, path: impl Into<ModulePath>) -> Result<ModuleId> {
+        let path = path.into();
+        let id = self.tree.insert(&path);
+
+        match self.modules.entry(id) {
+            Entry::Occupied(_) => {}
+            Entry::Vacant(e) => {
+                let code = fs::read_to_string(fs_path).map_err(Error::OsError)?;
+                let source = SourceBuf::new(
+                    format!("<module:{path} @ {}>", fs_path.to_string_lossy()),
+                    code,
+                );
+
+                let module = Module::new(&source)?;
+                e.insert(module);
+            }
+        }
+
+        Ok(id)
+    }
+
+    pub fn resolve(&mut self, path: ModulePath) -> Result<ModuleId> {
         if let Some(id) = self.tree.get(&path) {
             return Ok(id);
         }
 
-        let mut candidates = Vec::<Rc<Path>>::new();
-        let dirs = [
-            ctxt.lib.to_path_buf(),
-            ctxt.file
-                .parent()
-                .expect("working file context must have parent node during module resolution")
-                .to_path_buf(),
-            std::env::current_dir()
-                .expect("compiler working directory must be present during module resolution"),
-        ];
+        let mut candidates = vec![];
+        for mut dir in self.paths.clone() {
+            path.0.iter().for_each(|node| dir.push(node));
 
-        for mut dir in dirs {
-            dir.push(PathBuf::from(&path));
-            let Ok(path) = fs::canonicalize(dir) else {
-                continue;
-            };
-            let Ok(meta) = fs::metadata(&path) else {
-                continue;
-            };
-
-            if meta.is_file() && !meta.is_symlink() {
-                candidates.push(Rc::from(path.into_boxed_path()));
+            if let Ok(path) = fs::canonicalize(dir)
+                && let Ok(meta) = fs::metadata(&path)
+                && meta.is_file()
+            {
+                candidates.push(path);
             }
         }
 
         match &candidates.as_slice() {
-            [c] => {
-                let id = self.tree.insert(&path);
-                self.index.insert(id, c.to_path_buf());
-                Ok(id)
-            }
-            [_, _, ..] => Err(Error::AmbigiousModulePath { path, candidates }),
-            _ => Err(Error::ModuleNotFound { path }),
+            [] => Err(Error::ModuleNotFound { path }),
+            [c] => self.load(c.as_path(), path),
+            [_, _, ..] => Err(Error::AmbigiousModulePath {
+                path,
+                candidates: PrettyVec::from(
+                    candidates
+                        .iter()
+                        .map(|c| c.to_string_lossy().to_string())
+                        .collect::<Vec<String>>(),
+                ),
+            }),
         }
     }
 }

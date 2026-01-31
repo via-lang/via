@@ -8,10 +8,10 @@
 ** ================================================ */
 
 pub mod attr;
+pub mod aux;
 pub mod control;
 pub mod decl;
 pub mod expr;
-pub mod extra;
 pub mod macros;
 pub mod node;
 pub mod place;

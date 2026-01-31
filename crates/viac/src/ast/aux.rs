@@ -7,21 +7,14 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::node::{Ast, Node, NodeRef};
-use super::stmt::Stmt;
-use super::ty::Ty;
+use super::{
+    node::{Marker, NodeRef, Nodes},
+    stmt::Stmt,
+    ty::Ty,
+};
 use crate::lexer::token::Token;
-use crate::source::span::Span;
 
-#[derive(Debug, PartialEq)]
-pub struct NodeList<T: Ast = Stmt> {
-    pub list: Vec<Node<T>>,
-    pub span: Span,
-}
-
-pub type Body = NodeList<Stmt>;
-
-impl<T: Ast> Ast for NodeList<T> {}
+pub type Body = Nodes<Stmt>;
 
 #[derive(Debug)]
 pub struct Param {
@@ -29,8 +22,7 @@ pub struct Param {
     pub ty: NodeRef<Ty>,
 }
 
-impl Ast for Param {}
-
+impl Marker for Param {}
 impl PartialEq for Param {
     fn eq(&self, other: &Self) -> bool {
         self.ty == other.ty

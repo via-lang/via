@@ -8,84 +8,81 @@
 ** ================================================ */
 
 use super::attr::Attr;
-use crate::source::span::Span;
+use crate::source::SourceSpan;
 
-pub trait Ast: PartialEq {}
-
-pub trait IntoNode<T: Ast> {
-    fn into_node(self) -> Node<T>;
-}
+pub trait Marker: PartialEq {}
 
 #[derive(Debug)]
-pub struct Node<T: Ast> {
+pub struct Node<T: Marker> {
     pub node: T,
-    pub span: Span,
-    pub attrs: Vec<Node<Attr>>,
+    pub span: SourceSpan,
+    pub attrs: Option<Nodes<Attr>>,
 }
 
-impl<T: Ast> Node<T> {
-    pub fn new(node: T, span: Span) -> Self {
+impl<T: Marker> Node<T> {
+    pub fn new(node: impl Into<T>, span: SourceSpan, attrs: Option<Nodes<Attr>>) -> Self {
         Self {
-            node,
+            node: node.into(),
             span,
-            attrs: vec![],
+            attrs,
         }
     }
 
-    pub fn map<U: Ast>(self, f: impl FnOnce(T) -> U) -> Node<U> {
-        Node {
-            node: f(self.node),
-            span: self.span,
-            attrs: vec![],
-        }
+    pub fn map<U: Marker>(self, f: impl FnOnce(T) -> U) -> Node<U> {
+        Node::<U>::new(f(self.node), self.span, self.attrs)
     }
-}
 
-impl<T: Ast, U: Ast + From<T>> IntoNode<U> for Node<T> {
-    fn into_node(self) -> Node<U> {
-        Node {
-            node: self.node.into(),
-            span: self.span,
-            attrs: self.attrs,
-        }
+    pub fn recast<U>(self) -> Node<U>
+    where
+        U: Marker + From<T>,
+    {
+        Node::<U>::new(self.node, self.span, self.attrs)
     }
 }
 
-impl<T: Ast> PartialEq for Node<T> {
+impl<T: Marker> PartialEq for Node<T> {
     fn eq(&self, other: &Self) -> bool {
         self.node == other.node
-    }
-}
-
-impl<T: Ast> From<Node<T>> for NodeRef<T> {
-    fn from(value: Node<T>) -> Self {
-        NodeRef {
-            node: Box::new(value.node),
-            span: value.span,
-            attrs: value.attrs,
-        }
     }
 }
 
 #[derive(Debug)]
-pub struct NodeRef<T: Ast> {
+pub struct NodeRef<T: Marker> {
     pub node: Box<T>,
-    pub span: Span,
-    pub attrs: Vec<Node<Attr>>,
+    pub span: SourceSpan,
+    pub attrs: Option<Nodes<Attr>>,
 }
 
-impl<T: Ast> NodeRef<T> {
-    pub fn new(node: T, span: Span) -> Self {
+impl<T: Marker> NodeRef<T> {
+    pub fn new(node: impl Into<T>, span: SourceSpan, attrs: Option<Nodes<Attr>>) -> Self {
         Self {
-            node: Box::new(node),
+            node: Box::new(node.into()),
             span,
-            attrs: vec![],
+            attrs,
         }
     }
 }
 
-impl<T: Ast> PartialEq for NodeRef<T> {
+impl<T: Marker> PartialEq for NodeRef<T> {
     fn eq(&self, other: &Self) -> bool {
         self.node == other.node
     }
 }
+
+impl<T, U> From<Node<U>> for NodeRef<T>
+where
+    T: Marker + From<U>,
+    U: Marker,
+{
+    fn from(value: Node<U>) -> Self {
+        Self::new(value.node, value.span, value.attrs)
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Nodes<T: Marker> {
+    pub nodes: Vec<Node<T>>,
+    pub span: SourceSpan,
+}
+
+impl<T: Marker> Marker for Nodes<T> {}

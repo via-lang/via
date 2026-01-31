@@ -7,13 +7,10 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::control::Control;
-use super::decl::Decl;
-use super::expr::Expr;
-use super::macros::ast;
+use super::{control::Control, decl::Decl, expr::Expr, macros::ast};
 
 ast! {
-    pub enum Stmt {
+    Stmt {
         Decl(Decl),
         Control(Control),
         Expr(Expr),

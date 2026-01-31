@@ -7,15 +7,13 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::super::error::Result;
-use crate::ast::expr::Expr;
-use crate::ast::place::Place;
-use crate::ast::ty::Ty;
-use crate::ast::value::Value;
 use assert_matches::assert_matches;
 
+use super::super::prelude::*;
+use crate::ast::{expr::Expr, place::Place, ty::Ty, value::Value};
+
 pub fn parse_expr(src: &str) -> Result<Expr> {
-    super::parse(src, |p| p.parse_expr().map(|e| e.node))
+    super::parse(src, |parser| parser.parse_expr().map(|e| e.node))
 }
 
 #[test]
@@ -94,46 +92,46 @@ fn value_range() {
 #[test]
 fn value_tuple() {
     assert_matches!(parse_expr("(1,)"), Ok(Expr::Value(Value::Tuple(t))) => {
-        assert!(t.exprs.list.len() == 1);
+        assert!(t.exprs.nodes.len() == 1);
     });
 
     assert_matches!(parse_expr("(1, 2)"), Ok(Expr::Value(Value::Tuple(t))) => {
-        assert!(t.exprs.list.len() == 2);
+        assert!(t.exprs.nodes.len() == 2);
     });
 
     assert_matches!(parse_expr("((1,), 2)"), Ok(Expr::Value(Value::Tuple(t))) => {
-        assert_matches!(&t.exprs.list[..], [a, b] => {
-            assert_matches!(&a.node, Expr::Value(Value::Tuple(ti)) if ti.exprs.list.len() == 1);
+        assert_matches!(&t.exprs.nodes[..], [a, b] => {
+            assert_matches!(&a.node, Expr::Value(Value::Tuple(ti)) if ti.exprs.nodes.len() == 1);
             assert_matches!(&b.node, Expr::Value(Value::Integer(_)));
         });
-        assert!(t.exprs.list.len() == 2);
+        assert!(t.exprs.nodes.len() == 2);
     });
 
     assert_matches!(parse_expr("((1,2,3), ((2,),))"), Ok(Expr::Value(Value::Tuple(t))) => {
-        assert_matches!(&t.exprs.list[..], [a, b] => {
-            assert_matches!(&a.node, Expr::Value(Value::Tuple(ti)) if ti.exprs.list.len() == 3);
+        assert_matches!(&t.exprs.nodes[..], [a, b] => {
+            assert_matches!(&a.node, Expr::Value(Value::Tuple(ti)) if ti.exprs.nodes.len() == 3);
             assert_matches!(&b.node, Expr::Value(Value::Tuple(ti)) => {
-                assert_matches!(&ti.exprs.list[..], [a] => {
-                    assert_matches!(&a.node, Expr::Value(Value::Tuple(ti)) if ti.exprs.list.len() == 1);
+                assert_matches!(&ti.exprs.nodes[..], [a] => {
+                    assert_matches!(&a.node, Expr::Value(Value::Tuple(ti)) if ti.exprs.nodes.len() == 1);
                 });
             });
         });
-        assert!(t.exprs.list.len() == 2);
+        assert!(t.exprs.nodes.len() == 2);
     });
 }
 
 #[test]
 fn value_array() {
     assert_matches!(parse_expr("[]"), Ok(Expr::Value(Value::Array(a))) => {
-        assert!(a.exprs.list.is_empty());
+        assert!(a.exprs.nodes.is_empty());
     });
 
     assert_matches!(parse_expr("[1]"), Ok(Expr::Value(Value::Array(a))) => {
-        assert!(a.exprs.list.len() == 1);
+        assert!(a.exprs.nodes.len() == 1);
     });
 
     assert_matches!(parse_expr("[1,]"), Ok(Expr::Value(Value::Array(a))) => {
-        assert!(a.exprs.list.len() == 1);
+        assert!(a.exprs.nodes.len() == 1);
     });
 }
 
@@ -154,33 +152,33 @@ fn value_map() {
 #[test]
 fn value_lambda() {
     assert_matches!(parse_expr("fn {}"), Ok(Expr::Value(Value::Lambda(l))) => {
-        assert!(l.params.list.is_empty());
-        assert!(l.body.list.is_empty());
+        assert!(l.params.nodes.is_empty());
+        assert!(l.body.nodes.is_empty());
         assert_matches!(l.result, None);
     });
 
     assert_matches!(parse_expr("fn -> int {}"), Ok(Expr::Value(Value::Lambda(l))) => {
-        assert!(l.params.list.is_empty());
-        assert!(l.body.list.is_empty());
+        assert!(l.params.nodes.is_empty());
+        assert!(l.body.nodes.is_empty());
         assert_matches!(l.result, Some(r) => {
             assert_matches!(*r.node, Ty::Builtin(_));
         });
     });
 
     assert_matches!(parse_expr("fn (_: int) {}"), Ok(Expr::Value(Value::Lambda(l))) => {
-        assert!(l.body.list.is_empty());
+        assert!(l.body.nodes.is_empty());
         assert_matches!(l.result, None);
-        assert_matches!(&l.params.list[..], [a] => {
+        assert_matches!(&l.params.nodes[..], [a] => {
             assert_matches!(*a.node.ty.node, Ty::Builtin(_));
         });
     });
 
     assert_matches!(parse_expr("fn (_: int) -> int {}"), Ok(Expr::Value(Value::Lambda(l))) => {
-        assert!(l.body.list.is_empty());
+        assert!(l.body.nodes.is_empty());
         assert_matches!(l.result, Some(r) => {
             assert_matches!(*r.node, Ty::Builtin(_));
         });
-        assert_matches!(&l.params.list[..], [a] => {
+        assert_matches!(&l.params.nodes[..], [a] => {
             assert_matches!(*a.node.ty.node, Ty::Builtin(_));
         });
     });

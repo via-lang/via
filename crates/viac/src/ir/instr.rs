@@ -7,10 +7,12 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use crate::module::symbol::SymbolId;
-use crate::sema::ty::TyId;
-use crate::sema::value::ConstValue;
 use bitflags::bitflags;
+
+use crate::{
+    module::symbol::SymbolId,
+    sema::{ty::TyId, value::ConstValue},
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ValueId(u32);

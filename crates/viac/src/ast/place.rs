@@ -7,13 +7,11 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::expr::Expr;
-use super::macros::ast;
-use super::node::NodeRef;
+use super::{expr::Expr, macros::ast, node::NodeRef};
 use crate::lexer::token::Token;
 
 ast! {
-    pub enum Place {
+    Place {
         This { },
         Symbol { token: Token },
         Dynamic {

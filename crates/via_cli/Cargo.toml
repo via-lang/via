@@ -2,9 +2,10 @@
 name = "via_cli"
 version = "0.1.0"
 edition = "2024"
+publish = true
 
 [dependencies]
-anyhow = "1.0.100"
+viac = { path = "../viac" }
+anyhow.workspace = true
 clap = { version = "4.5.54", features = ["derive"] }
 clio = { version = "0.3.5" , features = ["clap-parse"] }
-viac = { path = "../viac" }

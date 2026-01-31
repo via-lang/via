@@ -15,9 +15,7 @@ impl Lexer {
     }
 
     pub(crate) fn eat_str(&mut self, s: &str) -> bool {
-        self.starts_with(s)
-            .then(|| self.advance(s.len() as u32))
-            .is_some()
+        self.starts_with(s).then(|| self.advance(s.len())).is_some()
     }
 
     pub(crate) fn eat_while(&mut self, mut f: impl FnMut(char) -> bool) {

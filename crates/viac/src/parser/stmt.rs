@@ -7,11 +7,8 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::Parser;
-use super::decl::AllowImport;
-use super::prelude::*;
-use crate::ast::control;
-use crate::ast::stmt::Stmt;
+use super::{decl::AllowImport, prelude::*};
+use crate::ast::{control, stmt::Stmt};
 
 impl Parser {
     pub(super) fn parse_stmt(&mut self) -> Result<Node<Stmt>> {
@@ -30,8 +27,8 @@ impl Parser {
                         | Ok(StarStarEq) | Ok(PercentEq) | Ok(AmpEq) | Ok(PipeEq) => {
                             let op = self.consume()?;
                             let rhs = self.parse_expr()?;
-                            let first = expr.span;
-                            let last = rhs.span;
+                            let first = expr.span.clone();
+                            let last = rhs.span.clone();
                             Ok(Node {
                                 node: Stmt::Control(
                                     control::Assign {
@@ -41,24 +38,28 @@ impl Parser {
                                     }
                                     .into(),
                                 ),
-                                span: span![first.begin, last.end],
-                                attrs: vec![],
+                                span: SourceSpan::new(first.begin, last.end),
+                                attrs: None,
                             })
                         }
                         _ => Ok(Node {
                             node: Stmt::Expr(expr.node),
                             span: expr.span,
-                            attrs: vec![],
+                            attrs: None,
                         }),
                     }
                 }
-                _ => self.error(ErrorKind::UnexpectedToken {
-                    exp: vec![].into(),
-                    got: token,
+                _ => Err(Error::UnexpectedToken {
+                    src: self.src.clone(),
+                    span: token.span.to_miette_span(),
+                    expected: vec![].into(),
+                    got: self.src.get_span(token.span).to_owned(),
                 }),
             }
         } else {
-            self.error(ErrorKind::UnexpectedEndOfFile)
+            Err(Error::UnexpectedEndOfFile {
+                src: self.src.clone(),
+            })
         }
     }
 }

@@ -7,17 +7,17 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::expr::Expr;
-use super::extra::Body;
-use super::extra::NodeList;
-use super::extra::Param;
-use super::macros::ast;
-use super::node::NodeRef;
-use super::ty::Ty;
+use super::{
+    aux::{Body, Param},
+    expr::Expr,
+    macros::ast,
+    node::{NodeRef, Nodes},
+    ty::Ty,
+};
 use crate::lexer::token::Token;
 
 ast! {
-    pub enum Decl {
+    Decl {
         Variable {
             symbol: Token,
             ty: Option<NodeRef<Ty>>,
@@ -25,7 +25,7 @@ ast! {
         },
         Function {
             symbol: Token,
-            params: NodeList<Param>,
+            params: Nodes<Param>,
             result: Option<NodeRef<Ty>>,
             body: Body,
         },
@@ -40,7 +40,7 @@ ast! {
         },
         Struct {
             symbol: Token,
-            body: NodeList<Decl>,
+            body: Nodes<Decl>,
         },
         Import {
             path: Vec<Token>,

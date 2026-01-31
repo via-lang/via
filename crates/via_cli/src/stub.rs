@@ -7,75 +7,24 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use crate::TreeType;
+use std::path::Path;
+
 use anyhow::Result;
-use std::io::Write;
-use std::rc::Rc;
-use viac::{
-    ast::{node::Node, stmt::Stmt},
-    diags::{context::Context as DiagContext, renderer::TermRenderer},
-    lexer::{self, token::Token},
-    parser,
-    source::Source,
-};
 
-pub struct Fixture {
-    pub tokens: Rc<[Token]>,
-    pub ast: Rc<[Node<Stmt>]>,
-}
+use viac::module::{Fixture, ModuleKind, context::ModuleContext};
 
-impl Fixture {
-    pub fn dump(&self, tree: TreeType) {
-        match tree {
-            TreeType::Token => println!("Tokens: {:#?}", self.tokens),
-            TreeType::Syntax => println!("AST: {:#?}", self.ast),
-            _ => {}
-        }
-    }
-}
+pub fn run(path: &Path) -> Result<Fixture> {
+    let mut ctxt = ModuleContext::new(path);
+    let id = ctxt.load(path, "main")?;
+    let module = ctxt.get(id).expect(
+        "this module is invalid even though it was just loaded; id assignment is probably cooked",
+    );
 
-pub fn run(src: &str) -> Result<Fixture> {
-    let source = Source::new(src.to_string());
-    let renderer = TermRenderer::new(&source, None);
-    let mut diag_ctxt = DiagContext::new(&source, renderer);
-
-    let tokens = lexer::tokenize(&source);
-    let ast = match parser::parse(&source, &tokens) {
-        Ok(toks) => toks,
-        Err(e) => {
-            diag_ctxt.emit(e)?;
-            return Err(anyhow::Error::msg("compilation failure"));
-        }
+    // This attribute is needed as
+    #[allow(irrefutable_let_patterns)]
+    let ModuleKind::Source { fixture, .. } = module.kind() else {
+        unreachable!("module kind must be Source here");
     };
 
-    Ok(Fixture { tokens, ast })
-}
-
-pub fn check(_: &str) -> Result<()> {
-    println!("Checking program...");
-    // parse → check
-    Ok(())
-}
-
-pub fn format(src: &str) -> Result<String> {
-    Ok(src.to_string()) // placeholder
-}
-
-pub fn repl() -> Result<()> {
-    let stdin = std::io::stdin();
-    let mut stdout = std::io::stdout();
-
-    loop {
-        write!(stdout, "> ")?;
-        stdout.flush()?;
-
-        let mut line = String::new();
-        if stdin.read_line(&mut line)? == 0 {
-            break;
-        }
-
-        // evaluate line
-        println!("=> {}", line.trim());
-    }
-    Ok(())
+    Ok(fixture.clone())
 }

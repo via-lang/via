@@ -7,8 +7,7 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::block::BlockId;
-use super::instr::ValueId;
+use super::{block::BlockId, instr::ValueId};
 
 #[derive(Debug)]
 pub enum Term {

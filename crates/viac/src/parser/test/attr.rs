@@ -7,12 +7,13 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::super::error::Result;
-use crate::ast::attr::Attr;
 use assert_matches::assert_matches;
 
+use super::super::prelude::*;
+use crate::ast::attr::Attr;
+
 pub fn parse_attr(src: &str) -> Result<Attr> {
-    super::parse(src, |p| p.parse_attr().map(|a| a.node))
+    super::parse(src, |parser| parser.parse_attr().map(|a| a.node))
 }
 
 #[test]

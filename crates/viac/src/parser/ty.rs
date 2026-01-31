@@ -7,15 +7,13 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::Parser;
-use super::macros::yes_or_no;
 use super::prelude::*;
 use crate::ast::ty::{self, Ty};
 
-yes_or_no!(pub AllowEffect);
+yes_or_no!(pub AllowRaiseClause);
 
 impl Parser {
-    pub(crate) fn parse_type(&mut self, allow_effect: AllowEffect) -> Result<Node<Ty>> {
+    pub(crate) fn parse_type(&mut self, allow_raise: AllowRaiseClause) -> Result<Node<Ty>> {
         let token = self.peek()?;
         let mut lhs = match token.kind {
             KwNone | KwBool | KwInt | KwFloat | KwString => Node {
@@ -24,37 +22,37 @@ impl Parser {
                 }
                 .into(),
                 span: token.span,
-                attrs: vec![],
+                attrs: None,
             },
             LParen => {
                 let first = self.consume()?.span;
-                let ty = self.parse_type(allow_effect)?;
-                let last = expect_token!(self, RParen)?.span;
+                let ty = self.parse_type(allow_raise)?;
+                let last = expect_one!(self, RParen)?.span;
                 Node {
                     node: ty.node,
-                    span: span![first.begin, last.end],
-                    attrs: vec![],
+                    span: SourceSpan::new(first.begin, last.end),
+                    attrs: None,
                 }
             }
             LBracket => {
                 self.consume()?;
-                let ty = self.parse_type(AllowEffect::No)?;
-                let last = expect_token!(self, RBracket)?;
+                let ty = self.parse_type(AllowRaiseClause::No)?;
+                let last = expect_one!(self, RBracket)?;
 
                 Node {
                     node: ty::Array { ty: ty.into() }.into(),
-                    span: span![token.span.begin, last.span.end],
-                    attrs: vec![],
+                    span: SourceSpan::new(token.span.begin, last.span.end),
+                    attrs: None,
                 }
             }
-            LBrace => self.with_context(Context::TypeMap, |p| {
-                p.consume()?;
-                let key = p.parse_type(AllowEffect::No)?;
+            LBrace => self.with_context(Context::TypeMap, |parser| -> Result<Node<Ty>> {
+                parser.consume()?;
+                let key = parser.parse_type(AllowRaiseClause::No)?;
 
-                expect_token!(p, Col)?;
+                expect_one!(parser, Col)?;
 
-                let value = p.parse_type(AllowEffect::No)?;
-                let last = expect_token!(p, RBrace)?;
+                let value = parser.parse_type(AllowRaiseClause::No)?;
+                let last = expect_one!(parser, RBrace)?;
 
                 Ok(Node {
                     node: ty::Map {
@@ -62,18 +60,20 @@ impl Parser {
                         value: value.into(),
                     }
                     .into(),
-                    span: span![token.span.begin, last.span.end],
-                    attrs: vec![],
+                    span: SourceSpan::new(token.span.begin, last.span.end),
+                    attrs: None,
                 })
             })?,
-            KwFn => self.with_context(Context::TypeFn, |p| {
-                p.consume()?;
-                let params = p.parse_list((LParen, RParen), |p| p.parse_type(AllowEffect::No))?;
+            KwFn => self.with_context(Context::TypeFn, |parser| -> Result<Node<Ty>> {
+                parser.consume()?;
+                let params = parser.parse_list((LParen, RParen), |parser| {
+                    parser.parse_type(AllowRaiseClause::No)
+                })?;
 
-                expect_token!(p, Arrow)?;
+                expect_one!(parser, Arrow)?;
 
-                let result = p.parse_return_ty()?;
-                let last = result.span;
+                let result = parser.parse_return_ty()?;
+                let last = result.span.clone();
 
                 Ok(Node {
                     node: ty::Function {
@@ -81,76 +81,79 @@ impl Parser {
                         result: result.into(),
                     }
                     .into(),
-                    span: span![token.span.begin, last.end],
-                    attrs: vec![],
+                    span: SourceSpan::new(token.span.begin, last.end),
+                    attrs: None,
                 })
             })?,
-            KwType => self.with_context(Context::TypeId, |p| {
-                p.consume()?;
-                expect_token!(p, LParen)?;
+            KwType => self.with_context(Context::TypeId, |parser| -> Result<Node<Ty>> {
+                parser.consume()?;
+                expect_one!(parser, LParen)?;
 
-                let expr = p.parse_expr()?;
-                let last = expect_token!(p, RParen)?;
+                let expr = parser.parse_expr()?;
+                let last = expect_one!(parser, RParen)?;
 
                 Ok(Node {
                     node: ty::TypeOf { expr: expr.into() }.into(),
-                    span: span![token.span.begin, last.span.end],
-                    attrs: vec![],
+                    span: SourceSpan::new(token.span.begin, last.span.end),
+                    attrs: None,
                 })
             })?,
             _ => {
-                return self.error(ErrorKind::UnexpectedToken {
-                    exp: vec![].into(),
-                    got: token,
+                return Err(Error::UnexpectedToken {
+                    src: self.src.clone(),
+                    span: token.span.to_miette_span(),
+                    expected: vec![].into(),
+                    got: self.src.get_span(token.span).to_owned(),
                 });
             }
         };
 
         loop {
-            let first = lhs.span;
+            let first = lhs.span.clone();
             lhs = match self.peek().map(|t| t.kind) {
                 Ok(Quest) => {
-                    let tok = self.consume()?;
-                    if matches!(lhs.node, Ty::Optional(_)) {
-                        return self.error(ErrorKind::MultiplePostfixOptional { tok });
-                    }
-
+                    self.consume()?;
                     Node {
                         node: ty::Optional { ty: lhs.into() }.into(),
-                        span: span![first.begin, token.span.end],
-                        attrs: vec![],
+                        span: first,
+                        attrs: None,
                     }
                 }
                 Ok(Pipe) => {
-                    self.consume()?;
-                    let rhs = self.parse_type(AllowEffect::No)?;
-                    let last = rhs.span;
-                    Node {
-                        node: ty::Union {
-                            lhs: lhs.into(),
-                            rhs: rhs.into(),
-                        }
-                        .into(),
-                        span: span![first.begin, last.end],
-                        attrs: vec![],
-                    }
+                    self.with_context(Context::TypeUnion, |parser| -> Result<Node<Ty>> {
+                        parser.consume()?;
+                        let rhs = parser.parse_type(AllowRaiseClause::No)?;
+                        let last = rhs.span.clone();
+                        Ok(Node {
+                            node: ty::Union {
+                                lhs: lhs.into(),
+                                rhs: rhs.into(),
+                            }
+                            .into(),
+                            span: SourceSpan::new(first.begin, last.end),
+                            attrs: None,
+                        })
+                    })?
                 }
                 Ok(KwRaise) => {
-                    let tok = self.consume()?;
-                    if !bool::from(allow_effect) {
-                        return self.error(ErrorKind::DisallowedEffect { tok });
+                    let token = self.consume()?;
+                    if !bool::from(allow_raise) {
+                        return Err(Error::UnexpectedRaiseClause {
+                            src: self.src.clone(),
+                            span: token.span.to_miette_span(),
+                        });
                     }
 
-                    let rhs = self.parse_type(AllowEffect::No)?;
-                    let last = rhs.span;
+                    let rhs = self.parse_type(AllowRaiseClause::No)?;
+                    let last = rhs.span.clone();
                     Node {
                         node: ty::Effect {
                             lhs: lhs.into(),
                             rhs: rhs.into(),
                         }
                         .into(),
-                        span: span![first.begin, last.end],
-                        attrs: vec![],
+                        span: SourceSpan::new(first.begin, last.end),
+                        attrs: None,
                     }
                 }
                 _ => break Ok(lhs),
@@ -159,14 +162,14 @@ impl Parser {
     }
 
     pub(crate) fn parse_return_ty(&mut self) -> Result<Node<Ty>> {
-        self.parse_type(AllowEffect::Yes)
+        self.parse_type(AllowRaiseClause::Yes)
     }
 
     pub(crate) fn parse_param_ty(&mut self) -> Result<Node<Ty>> {
-        self.parse_type(AllowEffect::No)
+        self.parse_type(AllowRaiseClause::No)
     }
 
     pub(crate) fn parse_cast_ty(&mut self) -> Result<Node<Ty>> {
-        self.parse_type(AllowEffect::No)
+        self.parse_type(AllowRaiseClause::No)
     }
 }

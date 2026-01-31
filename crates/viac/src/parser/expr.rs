@@ -7,12 +7,8 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::Parser;
-use super::macros::yes_or_no;
 use super::prelude::*;
-use crate::ast::expr::Expr;
-use crate::ast::place;
-use crate::ast::value::{self, Value};
+use crate::ast::{expr::Expr, node::Nodes, place, value};
 
 yes_or_no!(AllowPrefix);
 
@@ -43,175 +39,182 @@ impl Parser {
     }
 
     fn parse_expr_primary(&mut self, allow_prefix: AllowPrefix) -> Result<Node<Expr>> {
-        self.with_context(Context::ExprPrimary, |p| {
-            let token = p.peek()?;
+        self.with_context(Context::ExprPrimary, |parser| {
+            let token = parser.peek()?;
             match token.kind {
                 Ident => {
-                    p.consume()?;
-                    let span = token.span;
+                    parser.consume()?;
+                    let span = token.span.clone();
                     Ok(Node {
                         node: Expr::Place(place::Symbol { token }.into()),
                         span,
-                        attrs: vec![],
+                        attrs: None,
                     })
                 }
                 KwSelf => {
-                    p.consume()?;
+                    parser.consume()?;
                     Ok(Node {
                         node: Expr::Place(place::This {}.into()),
                         span: token.span,
-                        attrs: vec![],
+                        attrs: None,
                     })
                 }
                 KwNone => {
-                    p.consume()?;
+                    parser.consume()?;
                     Ok(Node {
                         node: Expr::Value(value::None {}.into()),
                         span: token.span,
-                        attrs: vec![],
+                        attrs: None,
                     })
                 }
                 KwTrue => {
-                    p.consume()?;
+                    parser.consume()?;
                     Ok(Node {
                         node: Expr::Value(value::True {}.into()),
                         span: token.span,
-                        attrs: vec![],
+                        attrs: None,
                     })
                 }
                 KwFalse => {
-                    p.consume()?;
+                    parser.consume()?;
                     Ok(Node {
                         node: Expr::Value(value::False {}.into()),
                         span: token.span,
-                        attrs: vec![],
+                        attrs: None,
                     })
                 }
                 Int { base: _ } => {
-                    p.consume()?;
-                    let span = token.span;
+                    parser.consume()?;
+                    let span = token.span.clone();
                     Ok(Node {
                         node: Expr::Value(value::Integer { token }.into()),
                         span,
-                        attrs: vec![],
+                        attrs: None,
                     })
                 }
                 Float => {
-                    p.consume()?;
-                    let span = token.span;
+                    parser.consume()?;
+                    let span = token.span.clone();
                     Ok(Node {
                         node: Expr::Value(value::Float { token }.into()),
                         span,
-                        attrs: vec![],
+                        attrs: None,
                     })
                 }
                 String { terminated } => {
                     if !terminated {
-                        return p.error(ErrorKind::UnterminatedStringLiteral { tok: token });
+                        return Err(Error::UnterminatedStringLiteral {
+                            src: parser.src.clone(),
+                            string: token.span.to_miette_span(),
+                            quote: miette::SourceSpan::new((token.span.end - 1).into(), 1),
+                        });
                     }
-                    p.consume()?;
-                    let span = token.span;
+                    parser.consume()?;
+                    let span = token.span.clone();
                     Ok(Node {
                         node: Expr::Value(value::String { token }.into()),
                         span,
-                        attrs: vec![],
+                        attrs: None,
                     })
                 }
                 LParen => {
-                    let first = p.consume()?;
-                    let inner = p.parse_expr()?;
-                    let first_elem = inner.span;
+                    let first = parser.consume()?;
+                    let inner = parser.parse_expr()?;
+                    let first_elem = inner.span.clone();
 
-                    let expr = if check_token!(p, Comma) {
-                        p.push_context(Context::ExprTuple);
+                    let expr = if check!(parser, Comma) {
+                        parser.push_context(Context::ExprTuple);
                         let mut exprs = vec![inner];
 
-                        while optional_token!(p, Comma) {
-                            if check_token!(p, RParen) {
+                        while optional!(parser, Comma) {
+                            if check!(parser, RParen) {
                                 break;
                             }
-                            let next = p.parse_expr()?;
+                            let next = parser.parse_expr()?;
                             exprs.push(next);
                         }
 
-                        let last = expect_token!(p, RParen)?;
-                        let last_elem = exprs.last().expect("parsed empty tuple").span;
+                        let last = expect_one!(parser, RParen)?;
+                        let last_elem = exprs
+                            .last()
+                            .expect("somehow parsed empty tuple?")
+                            .span
+                            .clone();
 
                         Node {
                             node: Expr::Value(
                                 value::Tuple {
-                                    exprs: NodeList {
-                                        list: exprs,
-                                        span: span![first_elem.begin, last_elem.end],
+                                    exprs: Nodes {
+                                        nodes: exprs,
+                                        span: SourceSpan::new(first_elem.begin, last_elem.end),
                                     },
                                 }
                                 .into(),
                             ),
-                            span: span![first.span.begin, last.span.end],
-                            attrs: vec![],
+                            span: SourceSpan::new(first.span.begin, last.span.end),
+                            attrs: None,
                         }
                     } else {
-                        p.push_context(Context::ExprGroup);
-                        let last = expect_token!(p, RParen)?;
+                        parser.push_context(Context::ExprGroup);
+                        let last = expect_one!(parser, RParen)?;
                         Node {
                             node: inner.node,
-                            span: span![first.span.begin, last.span.end],
-                            attrs: vec![],
+                            span: SourceSpan::new(first.span.begin, last.span.end),
+                            attrs: None,
                         }
                     };
 
-                    p.pop_context();
+                    parser.pop_context();
                     Ok(expr)
                 }
-                LBracket => p.with_context(Context::ExprArray, |p| {
-                    let exprs = p.parse_list((LBracket, RBracket), Self::parse_expr)?;
-                    let span = exprs.span;
+                LBracket => parser.with_context(Context::ExprArray, |parser| {
+                    let exprs = parser.parse_list((LBracket, RBracket), Self::parse_expr)?;
+                    let span = exprs.span.clone();
 
                     Ok(Node {
                         node: Expr::Value(value::Array { exprs }.into()),
                         span,
-                        attrs: vec![],
+                        attrs: None,
                     })
                 }),
-                LBrace => p.with_context(Context::ExprMap, |p| {
-                    let first = p.consume()?;
+                LBrace => parser.with_context(Context::ExprMap, |parser| {
+                    let first = parser.consume()?;
                     let mut pairs = vec![];
 
-                    while !check_token!(p, RBrace) {
-                        let key = p.parse_expr()?;
-                        expect_token!(p, Col)?;
-                        let value = p.parse_expr()?;
+                    while !check!(parser, RBrace) {
+                        let key = parser.parse_expr()?;
+                        expect_one!(parser, Col)?;
+                        let value = parser.parse_expr()?;
                         pairs.push((key, value));
 
-                        if !optional_token!(p, Comma) {
+                        if !optional!(parser, Comma) {
                             break;
                         }
                     }
 
-                    let last = expect_token!(p, RBrace)?;
+                    let last = expect_one!(parser, RBrace)?;
                     Ok(Node {
                         node: Expr::Value(value::Map { pairs }.into()),
-                        span: span![first.span.begin, last.span.end],
-                        attrs: vec![],
+                        span: SourceSpan::new(first.span.begin, last.span.end),
+                        attrs: None,
                     })
                 }),
                 Amp if allow_prefix.into() => {
-                    p.consume()?;
-                    let expr = p.parse_expr()?;
-                    let last = expr.span;
-
+                    parser.consume()?;
+                    let expr = parser.parse_expr()?;
+                    let last = expr.span.clone();
                     Ok(Node {
                         node: Expr::Value(value::Reference { expr: expr.into() }.into()),
-                        span: span![token.span.begin, last.end],
-                        attrs: vec![],
+                        span: SourceSpan::new(token.span.begin, last.end),
+                        attrs: None,
                     })
                 }
                 Minus | Bang | Tilde if allow_prefix.into() => {
-                    p.consume()?;
+                    parser.consume()?;
 
-                    let inner = p.parse_expr_primary(AllowPrefix::No)?;
-                    let first = token.span;
-                    let last = inner.span;
+                    let inner = parser.parse_expr_primary(AllowPrefix::No)?;
+                    let first = token.span.clone();
+                    let last = inner.span.clone();
 
                     Ok(Node {
                         node: Expr::Value(
@@ -221,31 +224,31 @@ impl Parser {
                             }
                             .into(),
                         ),
-                        span: span![first.begin, last.end],
-                        attrs: vec![],
+                        span: SourceSpan::new(first.begin, last.end),
+                        attrs: None,
                     })
                 }
                 KwFn => {
-                    p.consume()?;
-                    p.push_context(Context::ExprLambda);
+                    parser.consume()?;
+                    parser.push_context(Context::ExprLambda);
 
-                    let params = check_token!(p, LParen)
-                        .then(|| p.parse_list((LParen, RParen), Self::parse_param))
+                    let params = check!(parser, LParen)
+                        .then(|| parser.parse_list((LParen, RParen), Self::parse_param))
                         .transpose()?
-                        .unwrap_or(NodeList {
-                            list: vec![],
-                            span: token.span,
+                        .unwrap_or(Nodes {
+                            nodes: vec![],
+                            span: token.span.clone(),
                         });
 
-                    let result = optional_token!(p, Arrow)
-                        .then(|| p.parse_return_ty())
+                    let result = optional!(parser, Arrow)
+                        .then(|| parser.parse_return_ty())
                         .transpose()?
                         .map(Into::into);
 
-                    p.pop_context();
+                    parser.pop_context();
 
-                    let body = p.parse_body(Self::parse_stmt)?;
-                    let last = body.span;
+                    let body = parser.parse_body(Self::parse_stmt)?;
+                    let last = body.span.clone();
 
                     Ok(Node {
                         node: Expr::Value(
@@ -256,22 +259,24 @@ impl Parser {
                             }
                             .into(),
                         ),
-                        span: span![token.span.begin, last.end],
-                        attrs: vec![],
+                        span: SourceSpan::new(token.span.begin, last.end),
+                        attrs: None,
                     })
                 }
                 Hash => {
-                    let attr = p.parse_attr()?;
-                    let span = attr.span;
+                    let attr = parser.parse_attr()?;
+                    let span = attr.span.clone();
                     Ok(Node {
                         node: Expr::Value(value::Attr { attr: attr.into() }.into()),
                         span,
-                        attrs: vec![],
+                        attrs: None,
                     })
                 }
-                _ => p.error(ErrorKind::UnexpectedToken {
-                    exp: vec![].into(),
-                    got: token,
+                _ => Err(Error::UnexpectedToken {
+                    src: parser.src.clone(),
+                    span: token.span.to_miette_span(),
+                    expected: vec![].into(),
+                    got: parser.src.get_span(token.span).to_owned(),
                 }),
             }
         })
@@ -284,22 +289,18 @@ impl Parser {
                 Ok(Dot) if matches!(self.peek_ahead(1).map(|t| t.kind), Ok(KwAwait)) => {
                     self.consume()?;
                     let tok = self.consume()?;
-                    if matches!(expr.node, Expr::Value(Value::Await(_))) {
-                        return self.error(ErrorKind::MultiplePostfixAwait { tok });
-                    }
-
-                    let first = expr.span;
+                    let first = expr.span.clone();
                     Node {
                         node: Expr::Value(value::Await { expr: expr.into() }.into()),
-                        span: span![first.begin, tok.span.end],
-                        attrs: vec![],
+                        span: SourceSpan::new(first.begin, tok.span.end),
+                        attrs: None,
                     }
                 }
                 Ok(Dot) => {
                     self.consume()?;
-                    let field = expect_token!(self, Ident)?;
-                    let first = expr.span;
-                    let last = field.span;
+                    let field = expect_one!(self, Ident)?;
+                    let first = expr.span.clone();
+                    let last = field.span.clone();
 
                     Node {
                         node: Expr::Place(
@@ -309,15 +310,15 @@ impl Parser {
                             }
                             .into(),
                         ),
-                        span: span![first.begin, last.end],
-                        attrs: vec![],
+                        span: SourceSpan::new(first.begin, last.end),
+                        attrs: None,
                     }
                 }
                 Ok(ColCol) => {
                     self.consume()?;
-                    let field = expect_token!(self, Ident)?;
-                    let first = expr.span;
-                    let last = field.span;
+                    let field = expect_one!(self, Ident)?;
+                    let first = expr.span.clone();
+                    let last = field.span.clone();
 
                     Node {
                         node: Expr::Place(
@@ -327,15 +328,15 @@ impl Parser {
                             }
                             .into(),
                         ),
-                        span: span![first.begin, last.end],
-                        attrs: vec![],
+                        span: SourceSpan::new(first.begin, last.end),
+                        attrs: None,
                     }
                 }
                 Ok(LBracket) => {
                     self.consume()?;
                     let index = self.parse_expr()?;
-                    let first = expr.span;
-                    let last = expect_token!(self, RBracket)?;
+                    let first = expr.span.clone();
+                    let last = expect_one!(self, RBracket)?;
 
                     Node {
                         node: Expr::Place(
@@ -345,14 +346,14 @@ impl Parser {
                             }
                             .into(),
                         ),
-                        span: span![first.begin, last.span.end],
-                        attrs: vec![],
+                        span: SourceSpan::new(first.begin, last.span.end),
+                        attrs: None,
                     }
                 }
                 Ok(LParen) => {
                     let args = self.parse_list((LParen, RParen), Self::parse_expr)?;
-                    let first = expr.span;
-                    let last = args.span;
+                    let first = expr.span.clone();
+                    let last = args.span.clone();
 
                     Node {
                         node: Expr::Value(
@@ -362,16 +363,16 @@ impl Parser {
                             }
                             .into(),
                         ),
-                        span: span![first.begin, last.end],
-                        attrs: vec![],
+                        span: SourceSpan::new(first.begin, last.end),
+                        attrs: None,
                     }
                 }
                 Ok(DotDot) => {
                     self.consume()?;
-                    let inclusive = optional_token!(self, Eq);
+                    let inclusive = optional!(self, Eq);
                     let end = self.parse_expr()?;
-                    let first = expr.span;
-                    let last = end.span;
+                    let first = expr.span.clone();
+                    let last = end.span.clone();
 
                     Node {
                         node: Expr::Value(
@@ -382,19 +383,19 @@ impl Parser {
                             }
                             .into(),
                         ),
-                        span: span![first.begin, last.end],
-                        attrs: vec![],
+                        span: SourceSpan::new(first.begin, last.end),
+                        attrs: None,
                     }
                 }
                 Ok(KwIf) => {
                     self.consume()?;
 
-                    let first = expr.span;
+                    let first = expr.span.clone();
                     let cond = self.parse_expr()?;
-                    expect_token!(self, KwElse)?;
+                    expect_one!(self, KwElse)?;
 
                     let alt = self.parse_expr()?;
-                    let last = alt.span;
+                    let last = alt.span.clone();
 
                     Node {
                         node: Expr::Value(
@@ -405,16 +406,16 @@ impl Parser {
                             }
                             .into(),
                         ),
-                        span: span![first.begin, last.end],
-                        attrs: vec![],
+                        span: SourceSpan::new(first.begin, last.end),
+                        attrs: None,
                     }
                 }
                 Ok(KwAs) => {
                     self.consume()?;
 
                     let ty = self.parse_cast_ty()?;
-                    let first = expr.span;
-                    let last = ty.span;
+                    let first = expr.span.clone();
+                    let last = ty.span.clone();
 
                     Node {
                         node: Expr::Value(
@@ -424,21 +425,17 @@ impl Parser {
                             }
                             .into(),
                         ),
-                        span: span![first.begin, last.end],
-                        attrs: vec![],
+                        span: SourceSpan::new(first.begin, last.end),
+                        attrs: None,
                     }
                 }
                 Ok(Quest) => {
                     let tok = self.consume()?;
-                    if matches!(expr.node, Expr::Value(Value::Try(_))) {
-                        return self.error(ErrorKind::MultiplePostfixTry { tok });
-                    }
-
-                    let first = expr.span;
+                    let first = expr.span.clone();
                     Node {
                         node: Expr::Value(value::Try { expr: expr.into() }.into()),
-                        span: span![first.begin, tok.span.end],
-                        attrs: vec![],
+                        span: SourceSpan::new(first.begin, tok.span.end),
+                        attrs: None,
                     }
                 }
                 _ => break Ok(expr),
@@ -456,8 +453,8 @@ impl Parser {
 
             self.consume()?;
             let rhs = self.parse_expr_binary(prec + 1)?;
-            let first = lhs.span;
-            let last = rhs.span;
+            let first = lhs.span.clone();
+            let last = rhs.span.clone();
 
             lhs = Node {
                 node: Expr::Value(
@@ -468,8 +465,8 @@ impl Parser {
                     }
                     .into(),
                 ),
-                span: span![first.begin, last.end],
-                attrs: vec![],
+                span: SourceSpan::new(first.begin, last.end),
+                attrs: None,
             };
         }
         Ok(lhs)

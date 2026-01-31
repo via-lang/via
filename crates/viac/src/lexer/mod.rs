@@ -15,19 +15,20 @@ mod read;
 pub mod token;
 mod trivia;
 
-use crate::source::Source;
-use crate::source::span::span;
 use std::rc::Rc;
-use token::{Token, TokenKind};
+
 use unicode_ident::*;
 
+use crate::source::{SourceBuf, SourceSpan};
+use token::{Token, TokenKind};
+
 pub struct Lexer {
-    src: Rc<Source>,
-    pos: u32,
+    src: SourceBuf,
+    pos: usize,
 }
 
 impl Lexer {
-    pub fn new(src: &Rc<Source>) -> Self {
+    pub fn new(src: &SourceBuf) -> Self {
         Self {
             src: src.clone(),
             pos: 0,
@@ -38,7 +39,6 @@ impl Lexer {
         self.skip_trivia();
 
         let start = self.pos;
-
         match self.peek() {
             Some('"') => self.read_string(),
             Some(c) if c == '_' || is_xid_start(c) => self.read_ident(),
@@ -46,7 +46,7 @@ impl Lexer {
             Some(_) => self.read_operator(),
             None => Token {
                 kind: TokenKind::EndOfFile,
-                span: span![start, start],
+                span: SourceSpan::new(start, start),
             },
         }
     }
@@ -65,6 +65,6 @@ impl Lexer {
     }
 }
 
-pub fn tokenize(src: &Rc<Source>) -> Rc<[Token]> {
+pub fn tokenize(src: &SourceBuf) -> Rc<[Token]> {
     Lexer::new(src).tokenize()
 }

@@ -7,8 +7,7 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::instr::Instr;
-use super::term::Term;
+use super::{instr::Instr, term::Term};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct BlockId(u32);

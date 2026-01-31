@@ -7,24 +7,25 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::Parser;
 use super::prelude::*;
 use crate::ast::attr::{self, Attr};
 
 impl Parser {
     pub(crate) fn parse_attr(&mut self) -> Result<Node<Attr>> {
-        self.with_context(Context::Attr, |p| {
-            let first = expect_token!(p, Hash)?;
-            let name = expect_token!(p, Ident)?;
-            let span = span![first.span.begin, name.span.end];
-
-            match p.src.slice(name.span) {
-                "native" => Ok(Node::new(attr::Native {}.into(), span)),
-                "inline" => Ok(Node::new(attr::Inline {}.into(), span)),
-                "distinct" => Ok(Node::new(attr::Distinct {}.into(), span)),
-                _ => p.error(ErrorKind::UnexpectedToken {
-                    exp: vec!["native", "inline", "distinct"].into(),
-                    got: name,
+        self.with_context(Context::Attr, |parser| {
+            let first = expect_one!(parser, Hash)?;
+            let name = expect_one!(parser, Ident)?;
+            let span = SourceSpan::merge(first.span, name.span.clone());
+            let slice = parser.src.get_span(name.span);
+            match slice {
+                "native" => Ok(Node::new(attr::Native {}, span, None)),
+                "inline" => Ok(Node::new(attr::Inline {}, span, None)),
+                "distinct" => Ok(Node::new(attr::Distinct {}, span, None)),
+                _ => Err(Error::UnexpectedToken {
+                    src: parser.src.clone(),
+                    span: span.to_miette_span(),
+                    expected: vec!["native", "inline", "distinct"].into(),
+                    got: slice.to_string(),
                 }),
             }
         })
@@ -32,7 +33,7 @@ impl Parser {
 
     #[allow(dead_code)]
     pub(crate) fn parse_attrs(&mut self) -> Result<Vec<Node<Attr>>> {
-        check_token!(self, Hash)
+        check!(self, Hash)
             .then(|| self.parse_attr().map(|a| vec![a]))
             .unwrap_or(Ok(Vec::new()))
     }

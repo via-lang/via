@@ -7,13 +7,15 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::super::error::Result;
-use super::super::ty::AllowEffect;
-use crate::ast::ty::Ty;
 use assert_matches::assert_matches;
 
+use super::super::{prelude::*, ty::AllowRaiseClause};
+use crate::ast::ty::Ty;
+
 pub fn parse_ty(src: &str) -> Result<Ty> {
-    super::parse(src, |p| p.parse_type(AllowEffect::Yes).map(|t| t.node))
+    super::parse(src, |parser| {
+        parser.parse_type(AllowRaiseClause::Yes).map(|t| t.node)
+    })
 }
 
 #[test]

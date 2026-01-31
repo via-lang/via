@@ -7,114 +7,62 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::context::Context;
-use crate::diags::builder::Builder;
-use crate::diags::{Diagnostic, IntoDiagnostic, Note, Severity};
-use crate::lexer::token::Token;
-use crate::source::{Source, span::Span};
-use escape_string::escape;
-use std::fmt;
-use std::rc::Rc;
-use via_proc_macros::DiagCode;
+#![allow(unused_assignments)]
 
-#[derive(Debug)]
-pub struct ExpectedList(pub Vec<&'static str>);
+use std::string::String;
 
-impl From<Vec<&'static str>> for ExpectedList {
-    fn from(value: Vec<&'static str>) -> Self {
-        ExpectedList(value)
-    }
-}
+use miette::{Diagnostic, SourceSpan};
+use thiserror::Error;
 
-impl fmt::Display for ExpectedList {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self.0)
-    }
-}
-
-#[derive(DiagCode, Debug)]
-#[diag(prefix = "E", start = 0)]
-pub enum ErrorKind {
-    UnexpectedEndOfFile,
-    UnexpectedToken { exp: ExpectedList, got: Token },
-    UnterminatedStringLiteral { tok: Token },
-    DisallowedEffect { tok: Token },
-    MultiplePostfixTry { tok: Token },
-    MultiplePostfixAwait { tok: Token },
-    MultiplePostfixOptional { tok: Token },
-    SyntacticallyUnreachable { span: Span },
-}
-
-#[derive(Debug)]
-pub struct Error {
-    pub ctxts: Vec<Context>,
-    pub kind: ErrorKind,
-}
-
-impl IntoDiagnostic for Error {
-    fn into_diagnostic(self, src: &Rc<Source>) -> Diagnostic {
-        let mut b = Builder::new(src, Severity::Error);
-        b.code(self.kind.code());
-
-        for ctxt in &self.ctxts {
-            b.context(format!("while parsing {ctxt}"));
-        }
-
-        match self.kind {
-            ErrorKind::UnexpectedEndOfFile => {
-                let end_span = b.src.end_span();
-                b.message("unexpected end of file".to_string())
-                    .location(end_span)
-            }
-            ErrorKind::UnexpectedToken { exp, got } => {
-                // TODO: This shit does not actually need to allocate,
-                // but the borrow checker is being a bitch
-                let slice = b.src.slice(got.span).to_string();
-                let text = escape(slice.as_str());
-                b.message(format!(
-                    "unexpected token '{}'",
-                    if text.len() > 20 {
-                        "<truncated>"
-                    } else {
-                        text.as_ref()
-                    }
-                ))
-                .location(got.span)
-                .note(Note::Note(format!("expected {}", exp)))
-            }
-            ErrorKind::UnterminatedStringLiteral { tok } => b
-                .message("unterminated string literal".to_string())
-                .note(Note::Help(
-                    "terminate string by inserting `\"` where it is supposed to end".to_string(),
-                ))
-                .location(tok.span),
-            ErrorKind::DisallowedEffect { tok } => b
-                .message("`raise` clause may only appear in function return types".to_string())
-                .note(Note::Help("remove the `raise` clause".to_string()))
-                .location(tok.span),
-            ErrorKind::MultiplePostfixTry { tok } => b
-                .message("multiple postfix `?` (try) operators are not allowed".to_string())
-                .location(tok.span)
-                .note(Note::Help("remove the latter `?`".to_string())),
-            ErrorKind::MultiplePostfixAwait { tok } => b
-                .message("multiple postfix `await` operators are not allowed".to_string())
-                .location(tok.span)
-                .note(Note::Help("remove the latter `.await`".to_string())),
-            ErrorKind::MultiplePostfixOptional { tok } => b
-                .message("multiple postfix `?` qualifiers are not allowed".to_string())
-                .note(Note::Help("remove the latter `?`".to_string()))
-                .location(tok.span),
-            ErrorKind::SyntacticallyUnreachable { span } => b
-                .message("syntactically unreachable statement".to_string())
-                .note(Note::Note(
-                    "statement is located below unconditionally branching control statement"
-                        .to_string(),
-                ))
-                .note(Note::Help("remove statement".to_string()))
-                .location(span),
-        };
-        b.build()
-    }
-}
+use crate::{clinic::PrettyVec, source::SourceBuf};
 
 pub type Result<T> = std::result::Result<T, Error>;
+
+#[derive(Error, Diagnostic, Debug)]
+pub enum Error {
+    #[error("unexpected end of file")]
+    #[diagnostic(code(syn::unexp::eof))]
+    UnexpectedEndOfFile {
+        #[source_code]
+        src: SourceBuf,
+    },
+
+    #[error("unexpected token")]
+    #[diagnostic(code(syn::unexp::token))]
+    UnexpectedToken {
+        #[source_code]
+        src: SourceBuf,
+
+        #[label("expected one of {expected} => got {got}")]
+        span: SourceSpan,
+
+        expected: PrettyVec<&'static str>,
+        got: String,
+    },
+
+    #[error("unterminated string literal")]
+    #[diagnostic(code(syn::unterm::str_lit))]
+    UnterminatedStringLiteral {
+        #[source_code]
+        src: SourceBuf,
+
+        #[label("here")]
+        string: SourceSpan,
+
+        #[label("missing closing `\"` (quote) here")]
+        quote: SourceSpan,
+    },
+
+    #[error("`raise` clause may not appear in this context")]
+    #[diagnostic(
+        code(syn::unexp::raise),
+        help("express union types as `T | E` instead of `T raise E`")
+    )]
+    UnexpectedRaiseClause {
+        #[source_code]
+        src: SourceBuf,
+
+        #[label("here")]
+        span: SourceSpan,
+    },
+}

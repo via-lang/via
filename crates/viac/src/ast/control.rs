@@ -7,15 +7,17 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::expr::Expr;
-use super::extra::Body;
-use super::macros::ast;
-use super::node::{Node, NodeRef};
-use super::ty::Ty;
+use super::{
+    aux::Body,
+    expr::Expr,
+    macros::ast,
+    node::{Node, NodeRef},
+    ty::Ty,
+};
 use crate::lexer::token::Token;
 
 ast! {
-    pub enum Control {
+    Control {
         Break {},
         Continue {},
         Return {

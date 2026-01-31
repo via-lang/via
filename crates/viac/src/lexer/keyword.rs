@@ -6,9 +6,9 @@
 ** ------------------------------------------------ **
 **         https://github.com/via-lang/via          **
 ** ================================================ */
+use phf::phf_map;
 
 use super::token::TokenKind::{self, *};
-use phf::phf_map;
 
 pub const KEYWORD_LIST: phf::Map<&'static str, TokenKind> = phf_map! {
     "var" => KwVar,

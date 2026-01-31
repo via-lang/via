@@ -8,8 +8,7 @@
 ** ================================================ */
 
 use super::symbol::SymbolId;
-use crate::sema::ty::Ty;
-use crate::sema::value::Value;
+use crate::sema::{ty::Ty, value::Value};
 
 #[derive(Debug)]
 pub enum Binding {

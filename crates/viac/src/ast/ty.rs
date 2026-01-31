@@ -7,14 +7,15 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::expr::Expr;
-use super::extra::NodeList;
-use super::macros::ast;
-use super::node::NodeRef;
+use super::{
+    expr::Expr,
+    macros::ast,
+    node::{NodeRef, Nodes},
+};
 use crate::lexer::token::Token;
 
 ast! {
-    pub enum Ty {
+    Ty {
         Builtin { token: Token },
         Optional { ty: NodeRef<Ty> },
         Array { ty: NodeRef<Ty> },
@@ -23,7 +24,7 @@ ast! {
             value: NodeRef<Ty>,
         },
         Function {
-            params: NodeList<Ty>,
+            params: Nodes<Ty>,
             result: NodeRef<Ty>,
         },
         Union {

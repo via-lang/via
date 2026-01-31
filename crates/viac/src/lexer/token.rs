@@ -7,9 +7,10 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use crate::source::span::Span;
 use strum::IntoStaticStr;
 use via_proc_macros::PrecData;
+
+use crate::source::SourceSpan;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
@@ -155,14 +156,14 @@ pub enum TokenKind {
     GtEq,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct Token {
     pub kind: TokenKind,
-    pub span: Span,
+    pub span: SourceSpan,
 }
 
-impl Token {
-    pub fn length(&self) -> usize {
-        self.span.length()
+impl PartialEq for Token {
+    fn eq(&self, other: &Self) -> bool {
+        self.kind == other.kind
     }
 }

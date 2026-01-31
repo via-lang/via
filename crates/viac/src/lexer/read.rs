@@ -7,26 +7,31 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::Lexer;
-use super::keyword::KEYWORD_LIST;
-use super::operator::OPERATOR_LIST;
-use super::token::{
-    Base, Token,
-    TokenKind::{self, *},
-};
-use crate::source::span::span;
 use unicode_ident::*;
+
+use super::{
+    Lexer,
+    keyword::KEYWORD_LIST,
+    operator::OPERATOR_LIST,
+    token::{
+        Base, Token,
+        TokenKind::{self, *},
+    },
+};
+use crate::source::SourceSpan;
 
 impl Lexer {
     pub(crate) fn read_ident(&mut self) -> Token {
         let start = self.pos;
         self.bump(); // first char
-
         self.eat_while(|c| c == '_' || is_xid_continue(c));
 
-        let span = span![start, self.pos];
-        let text = self.src.slice(span);
-        let kind = KEYWORD_LIST.get(text).cloned().unwrap_or(Ident);
+        let span = SourceSpan::new(start, self.pos);
+        let kind = KEYWORD_LIST
+            .get(self.src.get_span(span.clone()))
+            .cloned()
+            .unwrap_or(Ident);
+
         Token { kind, span }
     }
 
@@ -37,7 +42,7 @@ impl Lexer {
             self.eat_while(|c| c.is_ascii_hexdigit());
             return Token {
                 kind: Int { base: Base::Hex },
-                span: span![start, self.pos],
+                span: SourceSpan::new(start, self.pos),
             };
         }
 
@@ -45,7 +50,7 @@ impl Lexer {
             self.eat_while(|c| c == '0' || c == '1');
             return Token {
                 kind: Int { base: Base::Binary },
-                span: span![start, self.pos],
+                span: SourceSpan::new(start, self.pos),
             };
         }
 
@@ -68,21 +73,20 @@ impl Lexer {
                     base: Base::Decimal,
                 }
             },
-            span: span![start, self.pos],
+            span: SourceSpan::new(start, self.pos),
         }
     }
 
     pub(crate) fn read_string(&mut self) -> Token {
         let start = self.pos;
         self.bump(); // opening "
-
         self.eat_while(|c| c != '"');
 
         let terminated = self.eat('"');
 
         Token {
             kind: String { terminated },
-            span: span![start, self.pos],
+            span: SourceSpan::new(start, self.pos),
         }
     }
 
@@ -100,17 +104,17 @@ impl Lexer {
         }
 
         if let Some((lexeme, kind)) = best {
-            self.advance(lexeme.len() as u32);
+            self.advance(lexeme.len());
             return Token {
                 kind,
-                span: span![start, self.pos],
+                span: SourceSpan::new(start, self.pos),
             };
         }
 
         self.bump();
         Token {
             kind: Illegal,
-            span: span![start, self.pos],
+            span: SourceSpan::new(start, self.pos),
         }
     }
 }

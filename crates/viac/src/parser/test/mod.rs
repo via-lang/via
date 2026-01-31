@@ -7,18 +7,16 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::Parser;
-use super::error::Result;
-use crate::ast::node::Ast;
-use crate::source::Source;
+use super::prelude::*;
+use crate::{ast::node::Marker, source::SourceBuf};
 
 pub mod attr;
 pub mod expr;
 pub mod ty;
 
-pub fn parse<T: Ast>(src: &str, f: impl FnOnce(&mut Parser) -> Result<T>) -> Result<T> {
-    let source = Source::new(src.to_string());
-    let tokens = crate::lexer::tokenize(&source);
-    let mut parser = Parser::new(&source, &tokens);
+pub fn parse<T: Marker>(src: &str, f: impl FnOnce(&mut Parser) -> Result<T>) -> Result<T> {
+    let src = SourceBuf::new("<test>", src);
+    let tt = crate::lexer::tokenize(&src);
+    let mut parser = Parser::new(&src, &tt);
     f(&mut parser)
 }

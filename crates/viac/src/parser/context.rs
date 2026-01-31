@@ -24,6 +24,7 @@ pub enum Context {
     TypeArray,
     TypeMap,
     TypeFn,
+    TypeUnion,
     TypeId,
 
     ControlReturn,
@@ -59,6 +60,7 @@ impl fmt::Display for Context {
                 Self::ExprMap => "map expression",
                 Self::ExprLambda => "lambda expression",
                 Self::TypeRet => "return type",
+                Self::TypeUnion => "union type",
                 Self::TypeArray => "array type",
                 Self::TypeMap => "map type",
                 Self::TypeFn => "function type",

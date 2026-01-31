@@ -7,8 +7,9 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::token::TokenKind::{self, *};
 use phf::phf_map;
+
+use super::token::TokenKind::{self, *};
 
 pub const OPERATOR_LIST: phf::Map<&'static str, TokenKind> = phf_map! {
     "(" => LParen,
