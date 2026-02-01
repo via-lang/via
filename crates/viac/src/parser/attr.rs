@@ -10,7 +10,7 @@
 use super::prelude::*;
 use crate::ast::attr::{self, Attr};
 
-impl Parser {
+impl Parser<'_> {
     pub(crate) fn parse_attr(&mut self) -> Result<Node<Attr>> {
         self.with_context(Context::Attr, |parser| {
             let first = expect_one!(parser, Hash)?;

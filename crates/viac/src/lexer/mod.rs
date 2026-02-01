@@ -15,8 +15,6 @@ mod read;
 pub mod token;
 mod trivia;
 
-use std::rc::Rc;
-
 use unicode_ident::*;
 
 use crate::source::{SourceBuf, SourceSpan};
@@ -51,7 +49,7 @@ impl Lexer {
         }
     }
 
-    fn tokenize(&mut self) -> Rc<[Token]> {
+    pub(crate) fn tokenize(&mut self) -> Box<[Token]> {
         let mut tokens = Vec::new();
         loop {
             let tok = self.next_token();
@@ -61,10 +59,6 @@ impl Lexer {
                 break;
             }
         }
-        Rc::from(tokens)
+        Box::from(tokens)
     }
-}
-
-pub fn tokenize(src: &SourceBuf) -> Rc<[Token]> {
-    Lexer::new(src).tokenize()
 }

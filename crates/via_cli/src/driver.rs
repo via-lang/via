@@ -7,35 +7,11 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use std::io::Read;
-
-use anyhow::{Context, Result};
+use anyhow::Result;
 use clap::{Parser, Subcommand};
 use clio::Input;
-use viac::module::Fixture;
 
 use crate::stub;
-
-#[derive(clap::ValueEnum, Clone, Debug)]
-enum TreeType {
-    None,
-    Token,
-    Syntax,
-}
-
-trait Dump<T> {
-    fn dump(&self, t: T);
-}
-
-impl Dump<TreeType> for Fixture {
-    fn dump(&self, tree: TreeType) {
-        match tree {
-            TreeType::Token => println!("Tokens: {:#?}", self.tt),
-            TreeType::Syntax => println!("AST: {:#?}", self.ast),
-            _ => {}
-        }
-    }
-}
 
 #[derive(Parser)]
 #[command(
@@ -54,10 +30,6 @@ enum Command {
     Run {
         #[arg(value_name = "FILE", default_value = "-")]
         input: Input,
-
-        #[clap(long)]
-        #[clap(value_enum, default_value_t=TreeType::None)]
-        tree: TreeType,
     },
     Check {
         #[arg(value_name = "FILE", default_value = "-")]
@@ -73,10 +45,7 @@ enum Command {
 pub fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Some(Command::Run { input, tree }) => {
-            let fixture = stub::run(input.path())?;
-            fixture.dump(tree);
-        }
+        Some(Command::Run { input }) => stub::run(input.path())?,
         Some(Command::Check { input: _ }) => todo!(),
         Some(Command::Format { input: _ }) => todo!(),
         Some(Command::Repl) | None => todo!(),

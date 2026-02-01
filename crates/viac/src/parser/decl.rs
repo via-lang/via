@@ -17,7 +17,7 @@ use crate::{
 
 yes_or_no!(pub AllowImport);
 
-impl Parser {
+impl Parser<'_> {
     pub(crate) fn parse_decl_variable(&mut self) -> Result<Node<decl::Variable>> {
         self.with_context(Context::DeclVariable, |parser| {
             let first = expect_one!(parser, KwVar)?.span;

@@ -10,7 +10,7 @@
 use super::{decl::AllowImport, prelude::*};
 use crate::ast::{control, stmt::Stmt};
 
-impl Parser {
+impl Parser<'_> {
     pub(super) fn parse_stmt(&mut self) -> Result<Node<Stmt>> {
         if let Ok(token) = self.peek() {
             match token.kind {

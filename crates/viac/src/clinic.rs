@@ -24,42 +24,26 @@ pub struct Diagnostic {
     pub control: StageControl,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Clinic {
     diags: Vec<Diagnostic>,
-    alive: bool,
 }
 
 impl Clinic {
-    pub fn finish(&self) -> bool {
-        self.alive
-    }
-
     pub fn report(&mut self, d: Diagnostic) {
         self.diags.push(d);
     }
 
-    pub fn run_stage<T, F>(&mut self, f: F) -> Option<T>
-    where
-        F: FnOnce(&mut Clinic) -> Option<T>,
-    {
-        if self.alive {
-            return None;
-        }
-
-        let result = f(self);
+    pub fn emit(&mut self) -> bool {
         for diag in self.diags.iter() {
             println!("{:?}", diag.report);
             match diag.control {
                 StageControl::Ok => {}
-                StageControl::Terminate => {
-                    self.alive = false;
-                    return None;
-                }
+                StageControl::Terminate => return true,
             }
         }
         self.diags.clear();
-        result
+        false
     }
 }
 

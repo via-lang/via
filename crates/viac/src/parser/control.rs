@@ -13,7 +13,7 @@ use crate::ast::{
     stmt::Stmt,
 };
 
-impl Parser {
+impl Parser<'_> {
     fn parse_control_return(&mut self) -> Result<Node<control::Return>> {
         self.with_context(Context::ControlReturn, |parser| {
             let first = expect_one!(parser, KwReturn)?;

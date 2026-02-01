@@ -7,10 +7,13 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
+// Stupid miette proc macro magic producing false warnings
+#![allow(unused_assignments)]
+
 use miette::Diagnostic;
 use thiserror::Error;
 
-use super::tree::ModulePath;
+use super::{compiler::Ice, tree::ModulePath};
 use crate::clinic::PrettyVec;
 
 #[derive(Debug)]
@@ -22,21 +25,24 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Error, Diagnostic, Debug)]
 pub enum Error {
-    #[error("compilation error")]
-    CompilationError,
+    #[error("internal compiler error during compilation step {err}")]
+    #[diagnostic(
+        code(module::ice),
+        help(
+            "!!! THIS ERROR IS NOT SUPPOSED TO HAPPEN !!! report at https://github.com/via-lang/via"
+        )
+    )]
+    IcError { err: Ice },
 
-    #[error("os error")]
-    #[label("os error: {err}")]
+    #[error("os error: {err}")]
     #[diagnostic(code(module::os_error))]
-    OsError(std::io::Error),
+    OsError { err: std::io::Error },
 
-    #[error("module not found")]
-    #[label("'{path}' does not correspond to any module within search parameters")]
+    #[error("'{path}' does not correspond to any module within search parameters")]
     #[diagnostic(code(module::not_found))]
     ModuleNotFound { path: ModulePath },
 
-    #[error("module path is ambigious")]
-    #[label("'{path}' is ambigious between {candidates}")]
+    #[error("'{path}' is ambigious between {candidates}")]
     #[diagnostic(code(module::ambig))]
     AmbigiousModulePath {
         path: ModulePath,

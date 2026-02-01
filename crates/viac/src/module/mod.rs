@@ -8,79 +8,53 @@
 ** ================================================ */
 
 pub mod binding;
+pub mod compiler;
 pub mod context;
 pub mod error;
 pub mod symbol;
 pub mod tree;
 
-use std::{collections::HashMap, rc::Rc};
+use std::fmt::Debug;
 
-use miette::Report;
-
-use crate::{
-    ast::{node::Node, stmt::Stmt},
-    clinic::{Clinic, Diagnostic, StageControl},
-    lexer::{self, token::Token},
-    parser,
-    source::SourceBuf,
-};
+use crate::{clinic::Clinic, source::SourceBuf};
 use binding::Binding;
+use compiler::CompilationUnit;
 use error::{Error, Result};
 use symbol::SymbolId;
+use symbol::SymbolTable;
 
-#[derive(Debug, Clone)]
-pub struct Fixture {
-    pub tt: Rc<[Token]>,
-    pub ast: Rc<[Node<Stmt>]>,
+pub trait Module: Debug {
+    fn get_symbol(&self, sym: SymbolId) -> Option<&Binding>;
 }
 
 #[derive(Debug)]
-pub enum ModuleKind {
-    Source { source: SourceBuf, fixture: Fixture },
+pub struct SourceModule {
+    source: SourceBuf,
+    symbols: SymbolTable,
+    unit: CompilationUnit,
 }
 
-#[derive(Debug)]
-pub struct Module {
-    kind: ModuleKind,
-    bindings: HashMap<SymbolId, Binding>,
+impl Module for SourceModule {
+    fn get_symbol(&self, symbol: SymbolId) -> Option<&Binding> {
+        self.unit.bindings.get(&symbol)
+    }
 }
 
-impl Module {
-    pub(crate) fn new(src: &SourceBuf) -> Result<Module> {
-        let mut clinic = Clinic::default();
+impl SourceModule {
+    pub(crate) fn new(src: &SourceBuf, clinic: &mut Clinic) -> Result<Self> {
+        let symbols = SymbolTable::new();
 
-        let tt = lexer::tokenize(src);
-        let ast = clinic.run_stage(|clinic| {
-            parser::parse(src, &tt)
-                .map_err(|e| {
-                    clinic.report(Diagnostic {
-                        report: Report::new(e),
-                        control: StageControl::Terminate,
-                    })
-                })
-                .ok()
-        });
-
-        clinic
-            .finish()
-            .then(|| Self {
-                kind: ModuleKind::Source {
-                    source: src.clone(),
-                    fixture: Fixture {
-                        tt,
-                        ast: ast.unwrap(),
-                    },
-                },
-                bindings: HashMap::new(),
-            })
-            .ok_or(Error::CompilationError)
+        match compiler::compile(src, clinic) {
+            Ok(unit) => Ok(Self {
+                source: src.clone(),
+                symbols,
+                unit,
+            }),
+            Err(ice) => Err(Error::IcError { err: ice }),
+        }
     }
 
-    pub fn kind(&self) -> &ModuleKind {
-        &self.kind
-    }
-
-    pub fn get_symbol(&self, symbol: SymbolId) -> Option<&Binding> {
-        self.bindings.get(&symbol)
+    pub fn source(&self) -> &SourceBuf {
+        &self.source
     }
 }

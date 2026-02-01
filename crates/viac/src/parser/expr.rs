@@ -12,7 +12,7 @@ use crate::ast::{expr::Expr, node::Nodes, place, value};
 
 yes_or_no!(AllowPrefix);
 
-impl Parser {
+impl Parser<'_> {
     pub(super) fn is_expr_start(&self) -> bool {
         matches!(
             self.peek().map(|t| t.kind),

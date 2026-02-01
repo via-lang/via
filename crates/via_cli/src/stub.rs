@@ -9,22 +9,16 @@
 
 use std::path::Path;
 
-use anyhow::Result;
+use anyhow::{Ok, Result, anyhow};
 
-use viac::module::{Fixture, ModuleKind, context::ModuleContext};
+use viac::module::context::ModuleContext;
 
-pub fn run(path: &Path) -> Result<Fixture> {
+pub fn run(path: &Path) -> Result<()> {
     let mut ctxt = ModuleContext::new(path);
-    let id = ctxt.load(path, "main")?;
-    let module = ctxt.get(id).expect(
-        "this module is invalid even though it was just loaded; id assignment is probably cooked",
-    );
+    ctxt.load(path, "main");
 
-    // This attribute is needed as
-    #[allow(irrefutable_let_patterns)]
-    let ModuleKind::Source { fixture, .. } = module.kind() else {
-        unreachable!("module kind must be Source here");
-    };
-
-    Ok(fixture.clone())
+    if !ctxt.is_healthy() {
+        return Err(anyhow!("dihh"));
+    }
+    Ok(())
 }

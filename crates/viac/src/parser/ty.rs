@@ -12,7 +12,7 @@ use crate::ast::ty::{self, Ty};
 
 yes_or_no!(pub AllowRaiseClause);
 
-impl Parser {
+impl Parser<'_> {
     pub(crate) fn parse_type(&mut self, allow_raise: AllowRaiseClause) -> Result<Node<Ty>> {
         let token = self.peek()?;
         let mut lhs = match token.kind {

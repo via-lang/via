@@ -33,8 +33,6 @@ pub(super) mod prelude {
     };
 }
 
-use std::rc::Rc;
-
 use context::Context;
 use prelude::*;
 
@@ -45,20 +43,21 @@ use crate::{
         stmt::Stmt,
     },
     lexer::token::Token,
+    module::compiler::{Compiler, state::Lexed},
 };
 
-pub struct Parser {
+pub struct Parser<'a> {
     src: SourceBuf,
-    toks: Rc<[Token]>,
+    toks: &'a [Token],
     pos: usize,
     ctxts: Vec<Context>,
 }
 
-impl Parser {
-    pub fn new(src: &SourceBuf, toks: &Rc<[Token]>) -> Self {
+impl<'a> Parser<'a> {
+    pub fn new(src: &SourceBuf, toks: &'a [Token]) -> Self {
         Self {
             src: src.clone(),
-            toks: toks.clone(),
+            toks,
             pos: 0,
             ctxts: vec![],
         }
@@ -170,11 +169,11 @@ impl Parser {
         })
     }
 
-    pub(crate) fn parse(&mut self) -> Result<Rc<[Node<Stmt>]>> {
+    pub(crate) fn parse(&mut self) -> Result<Box<[Node<Stmt>]>> {
         let mut ast = vec![];
         loop {
             if check!(self, EndOfFile) {
-                break Ok(Rc::from(ast));
+                break Ok(Box::from(ast));
             }
             let stmt = self.parse_stmt()?;
             ast.push(stmt);
@@ -182,6 +181,6 @@ impl Parser {
     }
 }
 
-pub fn parse(src: &SourceBuf, toks: &Rc<[Token]>) -> Result<Rc<[Node<Stmt>]>> {
-    Parser::new(src, toks).parse()
+pub fn parse(c: &Compiler<Lexed>) -> Result<Box<[Node<Stmt>]>> {
+    Parser::new(c.source(), &c.stage().tt).parse()
 }
