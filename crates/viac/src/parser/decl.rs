@@ -11,123 +11,114 @@ use via_macros::bug;
 
 use super::{prelude::*, ty::AllowRaiseClause};
 use crate::{
-    ast::decl::{self, Decl},
+    ast::{
+        Tree,
+        decl::{self, DeclId},
+    },
     lexer::token::Token,
 };
 
 yes_or_no!(pub AllowImport);
 
 impl Parser<'_> {
-    pub(crate) fn parse_decl_variable(&mut self) -> Result<Node<decl::Variable>> {
+    pub(crate) fn parse_decl_variable(&mut self, tree: &mut Tree) -> Result<decl::Variable> {
         self.with_context(Context::DeclVariable, |parser| {
             let first = expect_one!(parser, KwVar)?.span;
             let symbol = expect_one!(parser, Ident)?;
             let ty = check!(parser, Col)
                 .then(|| {
                     parser.consume()?;
-                    parser.parse_type(AllowRaiseClause::No)
+                    parser.parse_type(tree, AllowRaiseClause::No)
                 })
                 .transpose()?;
 
             expect_one!(parser, Eq)?;
 
-            let expr = parser.parse_expr()?;
-            let last = expr.span.clone();
+            let expr = parser.parse_expr(tree)?;
+            let last = tree.get(expr).span();
 
             optional!(parser, Semi);
 
-            Ok(Node {
-                node: decl::Variable {
-                    symbol,
-                    ty: ty.map(Into::into),
-                    expr: expr.into(),
-                },
+            Ok(decl::Variable {
                 span: SourceSpan::new(first.begin, last.end),
-                attrs: None,
+                symbol,
+                ty: ty.map(Into::into),
+                expr: expr.into(),
             })
         })
     }
 
-    fn parse_decl_function(&mut self) -> Result<Node<decl::Function>> {
+    fn parse_decl_function(&mut self, tree: &mut Tree) -> Result<decl::Function> {
         self.push_context(Context::DeclFunction);
 
         let first = expect_one!(self, KwFn)?.span;
         let symbol = expect_one!(self, Ident)?;
         let params = self.with_context(Context::ParamList, |parser| {
-            parser.parse_list((LParen, RParen), Self::parse_param)
+            parser.parse_list(tree, (LParen, RParen), Self::parse_param)
         })?;
 
         let result = optional!(self, Arrow)
-            .then(|| self.parse_return_ty())
+            .then(|| self.parse_return_ty(tree))
             .transpose()?
             .map(Into::into);
 
         self.pop_context();
 
-        let body = self.parse_body(Self::parse_stmt)?;
+        let body = self.parse_body(tree, Self::parse_stmt)?;
         let last = body.span.clone();
 
-        Ok(Node {
-            node: decl::Function {
-                symbol,
-                params,
-                result,
-                body,
-            },
+        Ok(decl::Function {
             span: SourceSpan::new(first.begin, last.end),
-            attrs: None,
+            symbol,
+            params: params.inner,
+            result,
+            body,
         })
     }
 
-    fn parse_decl_use(&mut self) -> Result<Node<decl::Use>> {
+    fn parse_decl_use(&mut self, _tree: &mut Tree) -> Result<decl::Use> {
         todo!()
     }
 
-    fn parse_decl_type(&mut self) -> Result<Node<decl::Type>> {
+    fn parse_decl_type(&mut self, tree: &mut Tree) -> Result<decl::Type> {
         self.with_context(Context::DeclType, |parser| {
             let begin = expect_one!(parser, KwType)?;
             let symbol = expect_one!(parser, Ident)?;
             expect_one!(parser, Eq)?;
 
-            let ty = parser.parse_type(AllowRaiseClause::No)?;
-            let last = ty.span.clone();
+            let ty = parser.parse_type(tree, AllowRaiseClause::No)?;
+            let last = tree.get(ty).span();
 
             optional!(parser, Semi);
 
-            Ok(Node {
-                node: decl::Type {
-                    symbol,
-                    ty: ty.into(),
-                },
+            Ok(decl::Type {
                 span: SourceSpan::new(begin.span.begin, last.end),
-                attrs: None,
+                symbol,
+                ty: ty.into(),
             })
         })
     }
 
-    fn parse_decl_const(&mut self) -> Result<Node<decl::Const>> {
+    fn parse_decl_const(&mut self, tree: &mut Tree) -> Result<decl::Const> {
         self.with_context(Context::DeclConst, |parser| {
             let begin = expect_one!(parser, KwConst)?;
             let symbol = expect_one!(parser, Ident)?;
             expect_one!(parser, Eq)?;
 
-            let expr = parser.parse_expr()?;
-            let last = expr.span.clone();
+            let expr = parser.parse_expr(tree)?;
+            let last = tree.get(expr).span();
 
             optional!(parser, Semi);
 
-            Ok(Node {
-                node: decl::Const {
-                    symbol,
-                    expr: expr.into(),
-                },
+            Ok(decl::Const {
                 span: SourceSpan::new(begin.span.begin, last.end),
-                attrs: None,
+                symbol,
+                expr: expr.into(),
             })
         })
     }
 
-    fn parse_decl_struct(&mut self) -> Result<Node<decl::Struct>> {
+    fn parse_decl_struct(&mut self, tree: &mut Tree) -> Result<decl::Struct> {
         self.push_context(Context::DeclStruct);
 
         let first = expect_one!(self, KwStruct)?;
@@ -135,17 +126,19 @@ impl Parser<'_> {
 
         self.pop_context();
 
-        let body = self.parse_body(|parser| parser.parse_decl(AllowImport::No))?;
+        let body = self.parse_body(tree, |parser, tree| {
+            parser.parse_decl(tree, AllowImport::No)
+        })?;
         let last = body.span.clone();
 
-        Ok(Node {
-            node: decl::Struct { symbol, body },
+        Ok(decl::Struct {
             span: SourceSpan::new(first.span.begin, last.end),
-            attrs: None,
+            symbol,
+            body,
         })
     }
 
-    fn parse_decl_import(&mut self) -> Result<Node<decl::Import>> {
+    fn parse_decl_import(&mut self) -> Result<decl::Import> {
         self.with_context(Context::DeclImport, |parser| {
             let first = expect_one!(parser, KwImport)?;
             let mut path = vec![expect_one!(parser, Ident)?];
@@ -169,30 +162,57 @@ impl Parser<'_> {
                     .clone()
             });
 
-            Ok(Node {
-                node: decl::Import { path, alias },
+            Ok(decl::Import {
                 span: SourceSpan::new(first.span.begin, last.end),
-                attrs: None,
+                path,
+                alias,
             })
         })
     }
 
-    pub(crate) fn parse_decl(&mut self, allow_import: AllowImport) -> Result<Node<Decl>> {
+    pub(crate) fn parse_decl(
+        &mut self,
+        tree: &mut Tree,
+        allow_import: AllowImport,
+    ) -> Result<DeclId> {
         if let Ok(token) = self.peek() {
             match token.kind {
-                KwVar => self.parse_decl_variable().map(Node::recast),
-                KwFn => self.parse_decl_function().map(Node::recast),
-                KwUse => self.parse_decl_use().map(Node::recast),
-                KwType => self.parse_decl_type().map(Node::recast),
-                KwConst => self.parse_decl_const().map(Node::recast),
-                KwStruct => self.parse_decl_struct().map(Node::recast),
-                KwImport if allow_import.into() => self.parse_decl_import().map(Node::recast),
-                _ => Err(Error::UnexpectedToken {
-                    src: self.src.clone(),
-                    span: token.span.to_miette_span(),
-                    expected: vec![].into(),
-                    got: self.src.get_span(token.span).to_owned(),
-                }),
+                KwVar => self
+                    .parse_decl_variable(tree)
+                    .map(Into::into)
+                    .map(|d| tree.insert(d)),
+                KwFn => self
+                    .parse_decl_function(tree)
+                    .map(Into::into)
+                    .map(|d| tree.insert(d)),
+                KwUse => self
+                    .parse_decl_use(tree)
+                    .map(Into::into)
+                    .map(|d| tree.insert(d)),
+                KwType => self
+                    .parse_decl_type(tree)
+                    .map(Into::into)
+                    .map(|d| tree.insert(d)),
+                KwConst => self
+                    .parse_decl_const(tree)
+                    .map(Into::into)
+                    .map(|d| tree.insert(d)),
+                KwStruct => self
+                    .parse_decl_struct(tree)
+                    .map(Into::into)
+                    .map(|d| tree.insert(d)),
+                KwImport if allow_import.into() => self
+                    .parse_decl_import()
+                    .map(Into::into)
+                    .map(|d| tree.insert(d)),
+                _ => {
+                    return Err(Error::UnexpectedToken {
+                        src: self.src.clone(),
+                        span: token.span.to_miette_span(),
+                        expected: vec![].into(),
+                        got: self.src.get_span(token.span).to_owned(),
+                    });
+                }
             }
         } else {
             Err(Error::UnexpectedEndOfFile {

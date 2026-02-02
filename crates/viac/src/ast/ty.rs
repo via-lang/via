@@ -7,34 +7,30 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::{
-    expr::Expr,
-    macros::ast,
-    node::{NodeRef, Nodes},
-};
+use super::{expr::ExprId, macros::ast};
 use crate::lexer::token::Token;
 
 ast! {
     Ty {
         Builtin { token: Token },
-        Optional { ty: NodeRef<Ty> },
-        Array { ty: NodeRef<Ty> },
+        Optional { ty: TyId },
+        Array { ty: TyId },
         Map {
-            key: NodeRef<Ty>,
-            value: NodeRef<Ty>,
+            key: TyId,
+            value: TyId,
         },
         Function {
-            params: Nodes<Ty>,
-            result: NodeRef<Ty>,
+            params: Vec<TyId>,
+            result: TyId,
         },
         Union {
-            lhs: NodeRef<Ty>,
-            rhs: NodeRef<Ty>
+            lhs: TyId,
+            rhs: TyId
         },
         Effect {
-            lhs: NodeRef<Ty>,
-            rhs: NodeRef<Ty>
+            lhs: TyId,
+            rhs: TyId
         },
-        TypeOf { expr: NodeRef<Expr> },
+        TypeOf { expr: ExprId },
     }
 }

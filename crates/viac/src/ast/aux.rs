@@ -7,22 +7,22 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::{
-    node::{Marker, NodeRef, Nodes},
-    stmt::Stmt,
-    ty::Ty,
-};
-use crate::lexer::token::Token;
+use super::{Id, ty::TyId};
+use crate::{ast::macros::ast, lexer::token::Token, source::SourceSpan};
 
-pub type Body = Nodes<Stmt>;
-
-#[derive(Debug)]
-pub struct Param {
-    pub name: Token,
-    pub ty: NodeRef<Ty>,
+#[derive(Debug, Clone)]
+pub struct Nodes<I: Id> {
+    pub inner: Vec<I>,
+    pub span: SourceSpan,
 }
 
-impl Marker for Param {}
+ast! {
+    Param {
+        name: Token,
+        ty: TyId,
+    }
+}
+
 impl PartialEq for Param {
     fn eq(&self, other: &Self) -> bool {
         self.ty == other.ty

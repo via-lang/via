@@ -11,8 +11,7 @@
 
 pub mod ast;
 pub mod clinic;
-pub mod ir;
-pub mod ir_builder;
+pub mod hir;
 pub mod lexer;
 pub mod module;
 pub mod parser;

@@ -8,11 +8,11 @@
 ** ================================================ */
 
 use super::{
-    aux::{Body, Param},
-    expr::Expr,
+    aux::{Nodes, ParamId},
+    expr::ExprId,
     macros::ast,
-    node::{NodeRef, Nodes},
-    ty::Ty,
+    stmt::StmtId,
+    ty::TyId,
 };
 use crate::lexer::token::Token;
 
@@ -20,27 +20,27 @@ ast! {
     Decl {
         Variable {
             symbol: Token,
-            ty: Option<NodeRef<Ty>>,
-            expr: NodeRef<Expr>,
+            ty: Option<TyId>,
+            expr: ExprId,
         },
         Function {
             symbol: Token,
-            params: Nodes<Param>,
-            result: Option<NodeRef<Ty>>,
-            body: Body,
+            params: Vec<ParamId>,
+            result: Option<TyId>,
+            body: Nodes<StmtId>,
         },
         Use { symbol: Token },
         Type {
             symbol: Token,
-            ty: NodeRef<Ty>,
+            ty: TyId,
         },
         Const {
             symbol: Token,
-            expr: NodeRef<Expr>,
+            expr: ExprId,
         },
         Struct {
             symbol: Token,
-            body: Nodes<Decl>,
+            body: Nodes<DeclId>,
         },
         Import {
             path: Vec<Token>,

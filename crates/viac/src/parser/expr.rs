@@ -8,7 +8,12 @@
 ** ================================================ */
 
 use super::prelude::*;
-use crate::ast::{expr::Expr, node::Nodes, place, value};
+use crate::ast::{
+    Tree,
+    aux::Nodes,
+    expr::{Expr, ExprId},
+    place, value,
+};
 
 yes_or_no!(AllowPrefix);
 
@@ -38,68 +43,67 @@ impl Parser<'_> {
         )
     }
 
-    fn parse_expr_primary(&mut self, allow_prefix: AllowPrefix) -> Result<Node<Expr>> {
+    fn parse_expr_primary(&mut self, tree: &mut Tree, allow_prefix: AllowPrefix) -> Result<ExprId> {
         self.with_context(Context::ExprPrimary, |parser| {
             let token = parser.peek()?;
+            let span = token.span.clone();
+
             match token.kind {
                 Ident => {
                     parser.consume()?;
-                    let span = token.span.clone();
-                    Ok(Node {
-                        node: Expr::Place(place::Symbol { token }.into()),
-                        span,
-                        attrs: None,
-                    })
+                    Ok(tree.insert(Expr::Place(
+                        place::Symbol {
+                            span: span.clone(),
+                            symbol: parser.src.get_span(span).to_owned(),
+                        }
+                        .into(),
+                    )))
                 }
                 KwSelf => {
                     parser.consume()?;
-                    Ok(Node {
-                        node: Expr::Place(place::This {}.into()),
-                        span: token.span,
-                        attrs: None,
-                    })
+                    Ok(tree.insert(Expr::Place(place::This { span }.into())))
                 }
                 KwNone => {
                     parser.consume()?;
-                    Ok(Node {
-                        node: Expr::Value(value::None {}.into()),
-                        span: token.span,
-                        attrs: None,
-                    })
+                    Ok(tree.insert(Expr::Value(value::None { span }.into())))
                 }
                 KwTrue => {
                     parser.consume()?;
-                    Ok(Node {
-                        node: Expr::Value(value::True {}.into()),
-                        span: token.span,
-                        attrs: None,
-                    })
+                    Ok(tree.insert(Expr::Value(value::True { span }.into())))
                 }
                 KwFalse => {
                     parser.consume()?;
-                    Ok(Node {
-                        node: Expr::Value(value::False {}.into()),
-                        span: token.span,
-                        attrs: None,
-                    })
+                    Ok(tree.insert(Expr::Value(value::False { span }.into())))
                 }
                 Int { base: _ } => {
                     parser.consume()?;
                     let span = token.span.clone();
-                    Ok(Node {
-                        node: Expr::Value(value::Integer { token }.into()),
-                        span,
-                        attrs: None,
-                    })
+                    Ok(tree.insert(Expr::Value(
+                        value::Integer {
+                            span: span.clone(),
+                            value: parser
+                                .src
+                                .get_span(span.clone())
+                                .parse::<i64>()
+                                .expect("lexically valid integer literal must be parsable"),
+                        }
+                        .into(),
+                    )))
                 }
                 Float => {
                     parser.consume()?;
                     let span = token.span.clone();
-                    Ok(Node {
-                        node: Expr::Value(value::Float { token }.into()),
-                        span,
-                        attrs: None,
-                    })
+                    Ok(tree.insert(Expr::Value(
+                        value::Float {
+                            span: span.clone(),
+                            value: parser
+                                .src
+                                .get_span(span.clone())
+                                .parse::<f64>()
+                                .expect("lexically valid float literal must be parsable"),
+                        }
+                        .into(),
+                    )))
                 }
                 String { terminated } => {
                     if !terminated {
@@ -111,16 +115,19 @@ impl Parser<'_> {
                     }
                     parser.consume()?;
                     let span = token.span.clone();
-                    Ok(Node {
-                        node: Expr::Value(value::String { token }.into()),
-                        span,
-                        attrs: None,
-                    })
+                    Ok(tree.insert(Expr::Value(
+                        value::String {
+                            span: span.clone(),
+                            string: parser.src.get_span(span).to_owned(),
+                        }
+                        .into(),
+                    )))
                 }
                 LParen => {
-                    let first = parser.consume()?;
-                    let inner = parser.parse_expr()?;
-                    let first_elem = inner.span.clone();
+                    parser.consume()?;
+
+                    let inner = parser.parse_expr(tree)?;
+                    let first_elem = tree.get(inner).span();
 
                     let expr = if check!(parser, Comma) {
                         parser.push_context(Context::ExprTuple);
@@ -130,61 +137,54 @@ impl Parser<'_> {
                             if check!(parser, RParen) {
                                 break;
                             }
-                            let next = parser.parse_expr()?;
+                            let next = parser.parse_expr(tree)?;
                             exprs.push(next);
                         }
 
-                        let last = expect_one!(parser, RParen)?;
-                        let last_elem = exprs
-                            .last()
-                            .expect("somehow parsed empty tuple?")
-                            .span
-                            .clone();
+                        expect_one!(parser, RParen)?;
 
-                        Node {
-                            node: Expr::Value(
-                                value::Tuple {
-                                    exprs: Nodes {
-                                        nodes: exprs,
-                                        span: SourceSpan::new(first_elem.begin, last_elem.end),
-                                    },
-                                }
-                                .into(),
-                            ),
-                            span: SourceSpan::new(first.span.begin, last.span.end),
-                            attrs: None,
-                        }
+                        let last_elem = tree
+                            .get(*exprs.last().expect("somehow parsed empty tuple?"))
+                            .span();
+
+                        tree.insert(Expr::Value(
+                            value::Tuple {
+                                span: SourceSpan::new(first_elem.begin, last_elem.end),
+                                exprs,
+                            }
+                            .into(),
+                        ))
                     } else {
                         parser.push_context(Context::ExprGroup);
-                        let last = expect_one!(parser, RParen)?;
-                        Node {
-                            node: inner.node,
-                            span: SourceSpan::new(first.span.begin, last.span.end),
-                            attrs: None,
-                        }
+                        expect_one!(parser, RParen)?;
+                        inner
                     };
 
                     parser.pop_context();
                     Ok(expr)
                 }
                 LBracket => parser.with_context(Context::ExprArray, |parser| {
-                    let exprs = parser.parse_list((LBracket, RBracket), Self::parse_expr)?;
+                    let exprs = parser.parse_list(tree, (LBracket, RBracket), Self::parse_expr)?;
                     let span = exprs.span.clone();
 
-                    Ok(Node {
-                        node: Expr::Value(value::Array { exprs }.into()),
-                        span,
-                        attrs: None,
-                    })
+                    Ok(tree.insert(Expr::Value(
+                        value::Array {
+                            span,
+                            exprs: exprs.inner,
+                        }
+                        .into(),
+                    )))
                 }),
                 LBrace => parser.with_context(Context::ExprMap, |parser| {
                     let first = parser.consume()?;
                     let mut pairs = vec![];
 
                     while !check!(parser, RBrace) {
-                        let key = parser.parse_expr()?;
+                        let key = parser.parse_expr(tree)?;
+
                         expect_one!(parser, Col)?;
-                        let value = parser.parse_expr()?;
+
+                        let value = parser.parse_expr(tree)?;
                         pairs.push((key, value));
 
                         if !optional!(parser, Comma) {
@@ -193,84 +193,84 @@ impl Parser<'_> {
                     }
 
                     let last = expect_one!(parser, RBrace)?;
-                    Ok(Node {
-                        node: Expr::Value(value::Map { pairs }.into()),
-                        span: SourceSpan::new(first.span.begin, last.span.end),
-                        attrs: None,
-                    })
+                    Ok(tree.insert(Expr::Value(
+                        value::Map {
+                            span: SourceSpan::new(first.span.begin, last.span.end),
+                            pairs,
+                        }
+                        .into(),
+                    )))
                 }),
                 Amp if allow_prefix.into() => {
                     parser.consume()?;
-                    let expr = parser.parse_expr()?;
-                    let last = expr.span.clone();
-                    Ok(Node {
-                        node: Expr::Value(value::Reference { expr: expr.into() }.into()),
-                        span: SourceSpan::new(token.span.begin, last.end),
-                        attrs: None,
-                    })
+                    let expr = parser.parse_expr(tree)?;
+                    let last = tree.get(expr).span();
+                    Ok(tree.insert(Expr::Value(
+                        value::Reference {
+                            span: SourceSpan::new(token.span.begin, last.end),
+                            expr: expr.into(),
+                        }
+                        .into(),
+                    )))
                 }
                 Minus | Bang | Tilde if allow_prefix.into() => {
                     parser.consume()?;
 
-                    let inner = parser.parse_expr_primary(AllowPrefix::No)?;
+                    let expr = parser.parse_expr_primary(tree, AllowPrefix::No)?;
                     let first = token.span.clone();
-                    let last = inner.span.clone();
+                    let last = tree.get(expr).span();
 
-                    Ok(Node {
-                        node: Expr::Value(
-                            value::Unary {
-                                op: token,
-                                expr: inner.into(),
-                            }
-                            .into(),
-                        ),
-                        span: SourceSpan::new(first.begin, last.end),
-                        attrs: None,
-                    })
+                    Ok(tree.insert(Expr::Value(
+                        value::Unary {
+                            span: SourceSpan::new(first.begin, last.end),
+                            op: token,
+                            expr,
+                        }
+                        .into(),
+                    )))
                 }
                 KwFn => {
                     parser.consume()?;
                     parser.push_context(Context::ExprLambda);
 
                     let params = check!(parser, LParen)
-                        .then(|| parser.parse_list((LParen, RParen), Self::parse_param))
+                        .then(|| parser.parse_list(tree, (LParen, RParen), Self::parse_param))
                         .transpose()?
                         .unwrap_or(Nodes {
-                            nodes: vec![],
+                            inner: vec![],
                             span: token.span.clone(),
                         });
 
                     let result = optional!(parser, Arrow)
-                        .then(|| parser.parse_return_ty())
+                        .then(|| parser.parse_return_ty(tree))
                         .transpose()?
                         .map(Into::into);
 
                     parser.pop_context();
 
-                    let body = parser.parse_body(Self::parse_stmt)?;
+                    let body = parser.parse_body(tree, Self::parse_stmt)?;
                     let last = body.span.clone();
 
-                    Ok(Node {
-                        node: Expr::Value(
-                            value::Lambda {
-                                params,
-                                result,
-                                body,
-                            }
-                            .into(),
-                        ),
-                        span: SourceSpan::new(token.span.begin, last.end),
-                        attrs: None,
-                    })
+                    Ok(tree.insert(Expr::Value(
+                        value::Lambda {
+                            span: SourceSpan::new(token.span.begin, last.end),
+                            params: params.inner,
+                            result,
+                            body,
+                        }
+                        .into(),
+                    )))
                 }
                 Hash => {
-                    let attr = parser.parse_attr()?;
-                    let span = attr.span.clone();
-                    Ok(Node {
-                        node: Expr::Value(value::Attr { attr: attr.into() }.into()),
-                        span,
-                        attrs: None,
-                    })
+                    let attr = parser.parse_attr(tree)?;
+                    let span = tree.get(attr).span();
+                    Ok(tree.insert(Expr::Value(
+                        value::Attr {
+                            span,
+                            attr: attr.into(),
+                        }
+                        .into(),
+                    )))
                 }
                 _ => Err(Error::UnexpectedToken {
                     src: parser.src.clone(),
@@ -282,169 +282,159 @@ impl Parser<'_> {
         })
     }
 
-    fn parse_expr_postfix(&mut self) -> Result<Node<Expr>> {
-        let mut expr = self.parse_expr_primary(AllowPrefix::Yes)?;
+    fn parse_expr_postfix(&mut self, tree: &mut Tree) -> Result<ExprId> {
+        let mut expr = self.parse_expr_primary(tree, AllowPrefix::Yes)?;
         loop {
             expr = match self.peek().map(|t| t.kind) {
                 Ok(Dot) if matches!(self.peek_ahead(1).map(|t| t.kind), Ok(KwAwait)) => {
                     self.consume()?;
+
                     let tok = self.consume()?;
-                    let first = expr.span.clone();
-                    Node {
-                        node: Expr::Value(value::Await { expr: expr.into() }.into()),
-                        span: SourceSpan::new(first.begin, tok.span.end),
-                        attrs: None,
-                    }
+                    let first = tree.get(expr).span();
+
+                    tree.insert(Expr::Value(
+                        value::Await {
+                            span: SourceSpan::new(first.begin, tok.span.end),
+                            expr: expr.into(),
+                        }
+                        .into(),
+                    ))
                 }
                 Ok(Dot) => {
                     self.consume()?;
+
                     let field = expect_one!(self, Ident)?;
-                    let first = expr.span.clone();
+                    let first = tree.get(expr).span();
                     let last = field.span.clone();
 
-                    Node {
-                        node: Expr::Place(
-                            place::Dynamic {
-                                expr: expr.into(),
-                                field,
-                            }
-                            .into(),
-                        ),
-                        span: SourceSpan::new(first.begin, last.end),
-                        attrs: None,
-                    }
+                    tree.insert(Expr::Place(
+                        place::Dynamic {
+                            span: SourceSpan::new(first.begin, last.end),
+                            expr: expr.into(),
+                            field,
+                        }
+                        .into(),
+                    ))
                 }
                 Ok(ColCol) => {
                     self.consume()?;
+
                     let field = expect_one!(self, Ident)?;
-                    let first = expr.span.clone();
+                    let first = tree.get(expr).span();
                     let last = field.span.clone();
 
-                    Node {
-                        node: Expr::Place(
-                            place::Static {
-                                expr: expr.into(),
-                                field,
-                            }
-                            .into(),
-                        ),
-                        span: SourceSpan::new(first.begin, last.end),
-                        attrs: None,
-                    }
+                    tree.insert(Expr::Place(
+                        place::Static {
+                            span: SourceSpan::new(first.begin, last.end),
+                            expr: expr.into(),
+                            field,
+                        }
+                        .into(),
+                    ))
                 }
                 Ok(LBracket) => {
                     self.consume()?;
-                    let index = self.parse_expr()?;
-                    let first = expr.span.clone();
+
+                    let index = self.parse_expr(tree)?;
+                    let first = tree.get(expr).span();
                     let last = expect_one!(self, RBracket)?;
 
-                    Node {
-                        node: Expr::Place(
-                            place::Subscript {
-                                expr: expr.into(),
-                                index: index.into(),
-                            }
-                            .into(),
-                        ),
-                        span: SourceSpan::new(first.begin, last.span.end),
-                        attrs: None,
-                    }
+                    tree.insert(Expr::Place(
+                        place::Subscript {
+                            span: SourceSpan::new(first.begin, last.span.end),
+                            expr: expr.into(),
+                            index: index.into(),
+                        }
+                        .into(),
+                    ))
                 }
                 Ok(LParen) => {
-                    let args = self.parse_list((LParen, RParen), Self::parse_expr)?;
-                    let first = expr.span.clone();
+                    let args = self.parse_list(tree, (LParen, RParen), Self::parse_expr)?;
+                    let first = tree.get(expr).span();
                     let last = args.span.clone();
 
-                    Node {
-                        node: Expr::Value(
-                            value::Call {
-                                callee: expr.into(),
-                                args,
-                            }
-                            .into(),
-                        ),
-                        span: SourceSpan::new(first.begin, last.end),
-                        attrs: None,
-                    }
+                    tree.insert(Expr::Value(
+                        value::Call {
+                            span: SourceSpan::new(first.begin, last.end),
+                            callee: expr.into(),
+                            args: args.inner,
+                        }
+                        .into(),
+                    ))
                 }
                 Ok(DotDot) => {
                     self.consume()?;
                     let inclusive = optional!(self, Eq);
-                    let end = self.parse_expr()?;
-                    let first = expr.span.clone();
-                    let last = end.span.clone();
+                    let end = self.parse_expr(tree)?;
+                    let first = tree.get(expr).span();
+                    let last = tree.get(end).span();
 
-                    Node {
-                        node: Expr::Value(
-                            value::Range {
-                                lhs: expr.into(),
-                                rhs: end.into(),
-                                inclusive,
-                            }
-                            .into(),
-                        ),
-                        span: SourceSpan::new(first.begin, last.end),
-                        attrs: None,
-                    }
+                    tree.insert(Expr::Value(
+                        value::Range {
+                            span: SourceSpan::new(first.begin, last.end),
+                            lhs: expr.into(),
+                            rhs: end.into(),
+                            inclusive,
+                        }
+                        .into(),
+                    ))
                 }
                 Ok(KwIf) => {
                     self.consume()?;
 
-                    let first = expr.span.clone();
-                    let cond = self.parse_expr()?;
+                    let first = tree.get(expr).span();
+                    let cond = self.parse_expr(tree)?;
+
                     expect_one!(self, KwElse)?;
 
-                    let alt = self.parse_expr()?;
-                    let last = alt.span.clone();
+                    let alt = self.parse_expr(tree)?;
+                    let last = tree.get(alt).span();
 
-                    Node {
-                        node: Expr::Value(
-                            value::Ternary {
-                                cond: cond.into(),
-                                iftrue: expr.into(),
-                                iffalse: alt.into(),
-                            }
-                            .into(),
-                        ),
-                        span: SourceSpan::new(first.begin, last.end),
-                        attrs: None,
-                    }
+                    tree.insert(Expr::Value(
+                        value::Ternary {
+                            span: SourceSpan::new(first.begin, last.end),
+                            cond: cond.into(),
+                            iftrue: expr.into(),
+                            iffalse: alt.into(),
+                        }
+                        .into(),
+                    ))
                 }
                 Ok(KwAs) => {
                     self.consume()?;
 
-                    let ty = self.parse_cast_ty()?;
-                    let first = expr.span.clone();
-                    let last = ty.span.clone();
+                    let ty = self.parse_cast_ty(tree)?;
+                    let first = tree.get(expr).span();
+                    let last = tree.get(ty).span();
 
-                    Node {
-                        node: Expr::Value(
-                            value::Cast {
-                                expr: expr.into(),
-                                ty: ty.into(),
-                            }
-                            .into(),
-                        ),
-                        span: SourceSpan::new(first.begin, last.end),
-                        attrs: None,
-                    }
+                    tree.insert(Expr::Value(
+                        value::Cast {
+                            span: SourceSpan::new(first.begin, last.end),
+                            expr: expr.into(),
+                            ty: ty.into(),
+                        }
+                        .into(),
+                    ))
                 }
                 Ok(Quest) => {
                     let tok = self.consume()?;
-                    let first = expr.span.clone();
-                    Node {
-                        node: Expr::Value(value::Try { expr: expr.into() }.into()),
-                        span: SourceSpan::new(first.begin, tok.span.end),
-                        attrs: None,
-                    }
+                    let first = tree.get(expr).span();
+
+                    tree.insert(Expr::Value(
+                        value::Try {
+                            span: SourceSpan::new(first.begin, tok.span.end),
+                            expr: expr.into(),
+                        }
+                        .into(),
+                    ))
                 }
                 _ => break Ok(expr),
             };
         }
     }
 
-    fn parse_expr_binary(&mut self, min_prec: u8) -> Result<Node<Expr>> {
-        let mut lhs = self.parse_expr_postfix()?;
+    fn parse_expr_binary(&mut self, tree: &mut Tree, min_prec: u8) -> Result<ExprId> {
+        let mut lhs = self.parse_expr_postfix(tree)?;
         while let Ok(op) = self.peek() {
             let prec = match op.kind.prec() {
                 Some(prec) if prec >= min_prec => prec,
@@ -452,27 +442,24 @@ impl Parser<'_> {
             };
 
             self.consume()?;
-            let rhs = self.parse_expr_binary(prec + 1)?;
-            let first = lhs.span.clone();
-            let last = rhs.span.clone();
+            let rhs = self.parse_expr_binary(tree, prec + 1)?;
+            let first = tree.get(lhs).span();
+            let last = tree.get(rhs).span();
 
-            lhs = Node {
-                node: Expr::Value(
-                    value::Binary {
-                        op,
-                        lhs: lhs.into(),
-                        rhs: rhs.into(),
-                    }
-                    .into(),
-                ),
-                span: SourceSpan::new(first.begin, last.end),
-                attrs: None,
-            };
+            lhs = tree.insert(Expr::Value(
+                value::Binary {
+                    span: SourceSpan::new(first.begin, last.end),
+                    op,
+                    lhs: lhs.into(),
+                    rhs: rhs.into(),
+                }
+                .into(),
+            ));
         }
         Ok(lhs)
     }
 
-    pub(crate) fn parse_expr(&mut self) -> Result<Node<Expr>> {
-        self.parse_expr_binary(0)
+    pub(crate) fn parse_expr(&mut self, tree: &mut Tree) -> Result<ExprId> {
+        self.parse_expr_binary(tree, 0)
     }
 }

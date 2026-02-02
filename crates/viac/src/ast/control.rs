@@ -7,13 +7,7 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::{
-    aux::Body,
-    expr::Expr,
-    macros::ast,
-    node::{Node, NodeRef},
-    ty::Ty,
-};
+use super::{aux::Nodes, expr::ExprId, macros::ast, stmt::StmtId, ty::TyId};
 use crate::lexer::token::Token;
 
 ast! {
@@ -21,30 +15,30 @@ ast! {
         Break {},
         Continue {},
         Return {
-            expr: Option<NodeRef<Expr>>,
+            expr: Option<ExprId>,
         },
         Raise {
-            expr: NodeRef<Expr>,
+            expr: ExprId,
         },
         If {
-            cond: NodeRef<Expr>,
-            body: Body,
-            elseif: Vec<(Node<Expr>, Body)>,
-            else_body: Option<Body>,
+            cond: ExprId,
+            body: Nodes<StmtId>,
+            elseif: Vec<(ExprId, Nodes<StmtId>)>,
+            else_body: Option<Nodes<StmtId>>,
         },
         While {
-            cond: NodeRef<Expr>,
-            body: Body,
+            cond: ExprId,
+            body: Nodes<StmtId>,
         },
         For {
-            param: (Token, Option<NodeRef<Ty>>),
-            expr: NodeRef<Expr>,
-            body: Body,
+            param: (Token, Option<TyId>),
+            expr: ExprId,
+            body: Nodes<StmtId>,
         },
         Assign {
             op: Token,
-            lhs: NodeRef<Expr>,
-            rhs: NodeRef<Expr>,
+            lhs: ExprId,
+            rhs: ExprId,
         },
     }
 }

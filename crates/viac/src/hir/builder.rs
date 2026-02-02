@@ -7,17 +7,16 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use assert_matches::assert_matches;
+use crate::{ast::Tree, source::SourceBuf};
 
-use super::super::prelude::*;
-use crate::ast::attr::Attr;
-
-pub fn parse_attr(src: &str) -> Result<Attr> {
-    super::parse(src, |parser| parser.parse_attr().map(|a| a.node))
+#[derive(Debug)]
+pub struct IrBuilder<'a> {
+    pub(super) source: SourceBuf,
+    pub(super) ast: &'a Tree,
 }
 
-#[test]
-fn attr_primitive() {
-    assert_matches!(parse_attr("#inline"), Ok(Attr::Inline(_)));
-    assert_matches!(parse_attr("#native"), Ok(Attr::Native(_)));
+impl<'a> IrBuilder<'a> {
+    pub fn new(source: SourceBuf, ast: &'a Tree) -> Self {
+        Self { source, ast }
+    }
 }

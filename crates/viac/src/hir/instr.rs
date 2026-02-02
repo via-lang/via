@@ -7,33 +7,52 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use bitflags::bitflags;
+use derive_more::{Add, AddAssign, From};
 
+use super::counter::Id;
 use crate::{
     module::symbol::SymbolId,
     sema::{ty::TyId, value::ConstValue},
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ValueId(u32);
+#[repr(transparent)]
+#[derive(From, Add, AddAssign, Clone, Copy, Debug)]
+pub struct ValueId(usize);
 
-bitflags! {
-    #[derive(Debug, PartialEq, Eq)]
-    pub struct RefQuals: u8 {
-        const None = 0;
-        const Mutable = 1 << 1;
-        const Strong = 1 << 2;
-    }
-}
+impl Id for ValueId {}
+
+#[repr(transparent)]
+#[derive(From, Add, AddAssign, Clone, Copy, Debug)]
+pub struct LocalId(usize);
+
+impl Id for LocalId {}
 
 #[derive(Debug)]
 pub enum Instr {
-    Copy {
-        value: ValueId,
-        out: ValueId,
-    },
     Const {
         value: ConstValue,
+        out: ValueId,
+    },
+    Range {
+        inclusive: bool,
+        lhs: ValueId,
+        rhs: ValueId,
+        out: ValueId,
+    },
+    Tuple {
+        values: Vec<ValueId>,
+        out: ValueId,
+    },
+    Array {
+        values: Vec<ValueId>,
+        out: ValueId,
+    },
+    Bind {
+        value: ValueId,
+        out: LocalId,
+    },
+    Copy {
+        value: ValueId,
         out: ValueId,
     },
     Closure {

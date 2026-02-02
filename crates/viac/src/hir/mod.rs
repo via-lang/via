@@ -8,5 +8,12 @@
 ** ================================================ */
 
 pub mod block;
+pub mod builder;
+pub mod counter;
+pub mod env;
+pub mod error;
+pub mod expr;
+pub mod function;
 pub mod instr;
+pub mod stmt;
 pub mod term;

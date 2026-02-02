@@ -7,19 +7,20 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::{instr::Instr, term::Term};
+use std::{
+    fmt::Debug,
+    ops::{Add, AddAssign},
+};
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct BlockId(u32);
-
-#[derive(Debug)]
-pub struct Block {
-    pub items: Vec<BlockItem>,
-    pub term: Term,
-}
+pub trait Id: Copy + Add<Output = Self> + AddAssign + From<usize> {}
 
 #[derive(Debug)]
-pub enum BlockItem {
-    Instr(Instr),
-    Block(Block),
+pub struct Counter<T: Id>(T);
+
+impl<T: Id> Counter<T> {
+    pub fn next<const N: usize>(&mut self) -> [T; N] {
+        let start = self.0;
+        self.0 += T::from(N);
+        std::array::from_fn(|i| start + T::from(i))
+    }
 }

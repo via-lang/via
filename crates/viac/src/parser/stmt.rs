@@ -8,45 +8,46 @@
 ** ================================================ */
 
 use super::{decl::AllowImport, prelude::*};
-use crate::ast::{control, stmt::Stmt};
+use crate::ast::{
+    Tree, control,
+    stmt::{Stmt, StmtId},
+};
 
 impl Parser<'_> {
-    pub(super) fn parse_stmt(&mut self) -> Result<Node<Stmt>> {
+    pub(super) fn parse_stmt(&mut self, tree: &mut Tree) -> Result<StmtId> {
         if let Ok(token) = self.peek() {
             match token.kind {
-                KwBreak | KwContinue | KwReturn | KwRaise | KwWhile | KwFor | KwIf => {
-                    self.parse_control().map(|node| node.map(Stmt::Control))
-                }
+                KwBreak | KwContinue | KwReturn | KwRaise | KwWhile | KwFor | KwIf => self
+                    .parse_control(tree)
+                    .map(|c| Stmt::Control(tree.get(c).clone()))
+                    .map(|node| tree.insert(node)),
                 KwVar | KwFn | KwUse | KwType | KwConst | KwStruct | KwImport => self
-                    .parse_decl(AllowImport::Yes)
-                    .map(|node| node.map(Stmt::Decl)),
+                    .parse_decl(tree, AllowImport::Yes)
+                    .map(|d| Stmt::Decl(tree.get(d).clone()))
+                    .map(|node| tree.insert(node)),
                 _ if self.is_expr_start() => {
-                    let expr = self.parse_expr()?;
+                    let expr = self.parse_expr(tree)?;
+
                     match self.peek().map(|t| t.kind) {
                         Ok(Eq) | Ok(PlusEq) | Ok(MinusEq) | Ok(StarEq) | Ok(SlashEq)
                         | Ok(StarStarEq) | Ok(PercentEq) | Ok(AmpEq) | Ok(PipeEq) => {
                             let op = self.consume()?;
-                            let rhs = self.parse_expr()?;
-                            let first = expr.span.clone();
-                            let last = rhs.span.clone();
-                            Ok(Node {
-                                node: Stmt::Control(
-                                    control::Assign {
-                                        op,
-                                        lhs: expr.into(),
-                                        rhs: rhs.into(),
-                                    }
-                                    .into(),
-                                ),
-                                span: SourceSpan::new(first.begin, last.end),
-                                attrs: None,
-                            })
+                            let rhs = self.parse_expr(tree)?;
+
+                            let first = tree.get(expr).span();
+                            let last = tree.get(rhs).span();
+
+                            Ok(tree.insert(Stmt::Control(
+                                control::Assign {
+                                    span: SourceSpan::new(first.begin, last.end),
+                                    op,
+                                    lhs: expr.into(),
+                                    rhs: rhs.into(),
+                                }
+                                .into(),
+                            )))
                         }
-                        _ => Ok(Node {
-                            node: Stmt::Expr(expr.node),
-                            span: expr.span,
-                            attrs: None,
-                        }),
+                        _ => Ok(tree.insert(Stmt::Expr(tree.get(expr).clone()))),
                     }
                 }
                 _ => Err(Error::UnexpectedToken {

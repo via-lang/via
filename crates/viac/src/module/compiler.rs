@@ -10,7 +10,7 @@
 use std::{collections::HashMap, fmt};
 
 use crate::{
-    ast::{node::Node, stmt::Stmt},
+    ast::Tree,
     clinic::{Clinic, Diagnostic, StageControl},
     lexer::{Lexer, token::Token},
     module::{binding::Binding, symbol::SymbolId},
@@ -59,7 +59,7 @@ pub mod state {
     #[derive(Debug)]
     pub struct Parsed {
         pub tt: Box<[Token]>,
-        pub ast: Box<[Node<Stmt>]>,
+        pub ast: Tree,
     }
 
     #[derive(Debug)]

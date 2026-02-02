@@ -7,4 +7,20 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-pub fn lower() {}
+use super::{function::Function, instr::Instr, term::Term};
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct BlockId(u32);
+
+#[derive(Debug)]
+pub struct Block {
+    pub items: Vec<BlockItem>,
+    pub term: Term,
+}
+
+#[derive(Debug)]
+pub enum BlockItem {
+    Instr(Instr),
+    Block(Block),
+    Function(Function),
+}

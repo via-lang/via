@@ -8,13 +8,13 @@
 ** ================================================ */
 
 use super::{
-    attr,
-    aux::{Body, Param},
-    expr::Expr,
+    attr::AttrId,
+    aux::{Nodes, ParamId},
+    expr::ExprId,
     macros::ast,
-    node::{Node, NodeRef, Nodes},
-    place::Place,
-    ty::Ty,
+    place::PlaceId,
+    stmt::StmtId,
+    ty::TyId,
 };
 use crate::lexer::token::Token;
 
@@ -23,49 +23,49 @@ ast! {
         None {  },
         True {  },
         False {  },
-        Integer { token: Token },
-        Float { token: Token },
-        String { token: Token },
+        Integer { value: i64 },
+        Float { value: f64 },
+        String { string: std::string::String },
         Range {
-            lhs: NodeRef<Expr>,
-            rhs: NodeRef<Expr>,
+            lhs: ExprId,
+            rhs: ExprId,
             inclusive: bool,
         },
-        Tuple { exprs: Nodes<Expr> },
-        Array { exprs: Nodes<Expr> },
-        Map { pairs: Vec<(Node<Expr>, Node<Expr>)> },
+        Tuple { exprs: Vec<ExprId> },
+        Array { exprs: Vec<ExprId> },
+        Map { pairs: Vec<(ExprId, ExprId)> },
         Lambda {
-            params: Nodes<Param>,
-            result: Option<NodeRef<Ty>>,
-            body: Body,
+            params: Vec<ParamId>,
+            result: Option<TyId>,
+            body: Nodes<StmtId>,
         },
         Unary {
             op: Token,
-            expr: NodeRef<Expr>,
+            expr: ExprId,
         },
         Binary {
             op: Token,
-            lhs: NodeRef<Expr>,
-            rhs: NodeRef<Expr>,
+            lhs: ExprId,
+            rhs: ExprId,
         },
-        Reference { expr: NodeRef<Expr> },
+        Reference { expr: ExprId },
         Ternary {
-            cond: NodeRef<Expr>,
-            iftrue: NodeRef<Expr>,
-            iffalse: NodeRef<Expr>,
+            cond: ExprId,
+            iftrue: ExprId,
+            iffalse: ExprId,
         },
         Call {
-            callee: NodeRef<Expr>,
-            args: Nodes<Expr>
+            callee: ExprId,
+            args: Vec<ExprId>
         },
         Cast {
-            expr: NodeRef<Expr>,
-            ty: NodeRef<Ty>,
+            expr: ExprId,
+            ty: TyId,
         },
-        Try { expr: NodeRef<Expr> },
-        Await { expr: NodeRef<Expr> },
-        Type { ty: NodeRef<Ty> },
-        Attr { attr: NodeRef<attr::Attr> },
-        Read { place: NodeRef<Place> },
+        Try { expr: ExprId },
+        Await { expr: ExprId },
+        Type { ty: TyId },
+        Attr { attr: AttrId },
+        Read { place: PlaceId },
     }
 }

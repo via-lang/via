@@ -7,24 +7,18 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::{expr::ExprId, macros::ast};
-use crate::lexer::token::Token;
+use crate::{
+    hir::{block::Block, env::Env},
+    module::symbol::SymbolId,
+    sema::ty::Ty,
+};
 
-ast! {
-    Place {
-        This { },
-        Symbol { symbol: String },
-        Dynamic {
-            expr: ExprId,
-            field: Token,
-        },
-        Static {
-            expr: ExprId,
-            field: Token,
-        },
-        Subscript {
-            expr: ExprId,
-            index: ExprId,
-        },
-    }
+#[derive(Debug)]
+pub struct Function {
+    symbol: SymbolId,
+    result: Ty,
+    params: Vec<Ty>,
+    entry: Block,
+    blocks: Vec<Block>,
+    env: Env,
 }

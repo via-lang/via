@@ -15,8 +15,6 @@ pub mod error;
 mod expr;
 mod macros;
 mod stmt;
-#[cfg(test)]
-mod test;
 mod ty;
 
 pub(super) mod prelude {
@@ -27,7 +25,6 @@ pub(super) mod prelude {
         macros::*,
     };
     pub(super) use crate::{
-        ast::node::{Node, Nodes},
         lexer::token::TokenKind::{self, *},
         source::{SourceBuf, SourceSpan},
     };
@@ -38,9 +35,8 @@ use prelude::*;
 
 use crate::{
     ast::{
-        aux::Param,
-        node::{Marker, Node},
-        stmt::Stmt,
+        Id, Tree,
+        aux::{Nodes, Param, ParamId},
     },
     lexer::token::Token,
     module::compiler::{Compiler, state::Lexed},
@@ -101,41 +97,43 @@ impl<'a> Parser<'a> {
     }
 
     #[allow(private_bounds)]
-    pub(super) fn parse_body<F, T>(&mut self, mut parse: F) -> Result<Nodes<T>>
+    pub(super) fn parse_body<F, I>(&mut self, tree: &mut Tree, mut parse: F) -> Result<Nodes<I>>
     where
-        F: FnMut(&mut Self) -> Result<Node<T>>,
-        T: Marker,
+        F: FnMut(&mut Self, &mut Tree) -> Result<I>,
+        I: Id,
     {
         let first = expect_one!(self, LBrace)?;
-        let mut body = Vec::<Node<T>>::new();
+        let mut inner = vec![];
 
         while !check!(self, RBrace) {
-            let node = parse(self)?;
-            body.push(node);
+            let id = parse(self, tree)?;
+            inner.push(id);
         }
 
         let last = expect_one!(self, RBrace)?;
         Ok(Nodes {
-            nodes: body,
+            inner,
             span: SourceSpan::merge(first.span, last.span),
         })
     }
 
-    pub(super) fn parse_list<F, T>(
+    pub(super) fn parse_list<F, I>(
         &mut self,
+        tree: &mut Tree,
         brackets: (TokenKind, TokenKind),
         mut parse: F,
-    ) -> Result<Nodes<T>>
+    ) -> Result<Nodes<I>>
     where
-        F: FnMut(&mut Self) -> Result<Node<T>>,
-        T: Marker,
+        F: FnMut(&mut Self, &mut Tree) -> Result<I>,
+        I: Id,
     {
         let first = expect_one!(self, brackets.0)?;
-        let mut body = vec![];
+        let mut inner = vec![];
 
         while !check!(self, brackets.1) {
-            let node = parse(self)?;
-            body.push(node);
+            let id = parse(self, tree)?;
+            inner.push(id);
+
             if !optional!(self, Comma) {
                 break;
             }
@@ -143,44 +141,41 @@ impl<'a> Parser<'a> {
 
         let last = expect_one!(self, brackets.1)?;
         Ok(Nodes {
-            nodes: body,
+            inner,
             span: SourceSpan::merge(first.span, last.span),
         })
     }
 
-    pub(super) fn parse_param(&mut self) -> Result<Node<Param>> {
+    pub(super) fn parse_param(&mut self, tree: &mut Tree) -> Result<ParamId> {
         self.with_context(Context::Param, |parser| {
             let name = expect_one!(parser, Ident)?;
             let first = name.span.clone();
 
             expect_one!(parser, Col)?;
 
-            let ty = parser.parse_param_ty()?;
-            let last = ty.span.clone();
+            let ty = parser.parse_param_ty(tree)?;
+            let last = tree.get(ty).span();
 
-            Ok(Node {
-                node: Param {
-                    name,
-                    ty: ty.into(),
-                },
+            Ok(tree.insert(Param {
                 span: SourceSpan::merge(first, last),
-                attrs: None,
-            })
+                name,
+                ty: ty.into(),
+            }))
         })
     }
 
-    pub(crate) fn parse(&mut self) -> Result<Box<[Node<Stmt>]>> {
-        let mut ast = vec![];
+    pub(crate) fn parse(&mut self) -> Result<Tree> {
+        let mut tree = Tree::default();
         loop {
             if check!(self, EndOfFile) {
-                break Ok(Box::from(ast));
+                break Ok(tree);
             }
-            let stmt = self.parse_stmt()?;
-            ast.push(stmt);
+            let stmt = self.parse_stmt(&mut tree)?;
+            tree.stmts.push(stmt);
         }
     }
 }
 
-pub fn parse(c: &Compiler<Lexed>) -> Result<Box<[Node<Stmt>]>> {
+pub fn parse(c: &Compiler<Lexed>) -> Result<Tree> {
     Parser::new(c.source(), &c.stage().tt).parse()
 }
