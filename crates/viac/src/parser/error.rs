@@ -27,13 +27,13 @@ pub enum Error {
         src: SourceBuf,
     },
 
-    #[error("unexpected token")]
+    #[error("unexpected token '{got}'")]
     #[diagnostic(code(syn::unexp::token))]
     UnexpectedToken {
         #[source_code]
         src: SourceBuf,
 
-        #[label("expected one of {expected} => got {got}")]
+        #[label("expected one of {expected} here")]
         span: SourceSpan,
 
         expected: PrettyVec<&'static str>,

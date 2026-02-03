@@ -12,6 +12,7 @@ use std::{collections::HashMap, fmt};
 use crate::{
     ast::Tree,
     clinic::{Clinic, Diagnostic, StageControl},
+    hir,
     lexer::{Lexer, token::Token},
     module::{binding::Binding, symbol::SymbolId},
     parser,
@@ -23,7 +24,7 @@ pub type Result<T> = std::result::Result<T, Ice>;
 #[derive(Debug)]
 pub enum IceKind {
     ParseError,
-    IrError,
+    HirError,
     TypeError,
     BytecodeError,
 }
@@ -38,7 +39,7 @@ impl fmt::Display for Ice {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.kind {
             IceKind::ParseError => write!(f, "parsing: {}", self.what),
-            IceKind::IrError => write!(f, "ir-lowering: {}", self.what),
+            IceKind::HirError => write!(f, "Hir-lowering: {}", self.what),
             IceKind::TypeError => write!(f, "type-checking: {}", self.what),
             IceKind::BytecodeError => write!(f, "bytecode-lowering: {}", self.what),
         }
@@ -63,7 +64,9 @@ pub mod state {
     }
 
     #[derive(Debug)]
-    pub struct Ir;
+    pub struct Hir {
+        pub hir: hir::Hir,
+    }
 
     #[derive(Debug)]
     pub struct Bytecode;
@@ -74,7 +77,6 @@ use state::*;
 #[derive(Debug)]
 struct Core<'a> {
     source: &'a SourceBuf,
-    clinic: &'a mut Clinic,
 }
 
 #[derive(Debug)]
@@ -105,9 +107,9 @@ impl<'a, S> Compiler<'a, S> {
 }
 
 impl<'a> Compiler<'a, Empty> {
-    pub fn new(source: &'a SourceBuf, clinic: &'a mut Clinic) -> Self {
+    pub fn new(source: &'a SourceBuf) -> Self {
         Self {
-            core: Core { source, clinic },
+            core: Core { source },
             stage: Empty,
         }
     }
@@ -120,11 +122,11 @@ impl<'a> Compiler<'a, Empty> {
 }
 
 impl<'a> Compiler<'a, Lexed> {
-    pub fn parse(self) -> Result<Compiler<'a, Parsed>> {
+    pub fn parse(self, clinic: &mut Clinic) -> Result<Compiler<'a, Parsed>> {
         match parser::parse(&self) {
             Ok(ast) => Ok(self.with_state(|stage, _| Parsed { tt: stage.tt, ast })),
             Err(e) => {
-                self.core.clinic.report(Diagnostic {
+                clinic.report(Diagnostic {
                     report: miette::Report::new(e),
                     control: StageControl::Terminate,
                 });
@@ -138,15 +140,14 @@ impl<'a> Compiler<'a, Lexed> {
 }
 
 impl<'a> Compiler<'a, Parsed> {
-    pub fn lower(self) -> Result<Compiler<'a, Ir>> {
-        Err(Ice {
-            kind: IceKind::IrError,
-            what: "unimplemented".to_string(),
-        })
+    pub fn lower(self, clinic: &mut Clinic) -> Result<Compiler<'a, Hir>> {
+        let hir = hir::lower(&self, clinic);
+        println!("{hir}");
+        Ok(self.with_state(|_, _| state::Hir { hir }))
     }
 }
 
-impl<'a> Compiler<'a, Ir> {
+impl<'a> Compiler<'a, Hir> {
     pub fn optimize(self) -> Self {
         self
     }
@@ -182,10 +183,10 @@ pub struct CompilationUnit {
 }
 
 pub fn compile(src: &SourceBuf, clinic: &mut Clinic) -> Result<CompilationUnit> {
-    Ok(Compiler::new(src, clinic)
+    Ok(Compiler::new(src)
         .tokenize()
-        .parse()?
-        .lower()?
+        .parse(clinic)?
+        .lower(clinic)?
         .typecheck()?
         .optimize()
         .lower()?

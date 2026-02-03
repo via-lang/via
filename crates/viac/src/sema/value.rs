@@ -7,16 +7,13 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-#[derive(Debug)]
+use derive_more::Display;
+
+#[derive(Display, Debug)]
 pub enum ConstValue {
     None,
     Bool(bool),
     Int(i64),
     Float(f64),
     String(String),
-}
-
-#[derive(Debug)]
-pub enum Value {
-    Const(ConstValue),
 }

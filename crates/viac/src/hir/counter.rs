@@ -12,15 +12,35 @@ use std::{
     ops::{Add, AddAssign},
 };
 
-pub trait Id: Copy + Add<Output = Self> + AddAssign + From<usize> {}
+pub trait Id: Debug + Copy + PartialEq + Add<Output = Self> + AddAssign + From<usize> {}
 
 #[derive(Debug)]
 pub struct Counter<T: Id>(T);
 
 impl<T: Id> Counter<T> {
-    pub fn next<const N: usize>(&mut self) -> [T; N] {
+    pub fn new(init: usize) -> Self {
+        Self(T::from(init))
+    }
+
+    pub fn bump<const N: usize>(&mut self) -> [T; N] {
         let start = self.0;
         self.0 += T::from(N);
         std::array::from_fn(|i| start + T::from(i))
+    }
+
+    pub fn reset(&mut self) -> T {
+        let value = self.0;
+        self.0 = T::from(0);
+        value
+    }
+
+    pub fn restore(&mut self, n: T) {
+        self.0 = n;
+    }
+}
+
+impl<T: Id> Default for Counter<T> {
+    fn default() -> Self {
+        Self::new(0)
     }
 }

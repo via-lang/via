@@ -13,7 +13,7 @@ use super::{prelude::*, ty::AllowRaiseClause};
 use crate::{
     ast::{
         Tree,
-        decl::{self, DeclId},
+        decl::{self, Decl},
     },
     lexer::token::Token,
 };
@@ -35,15 +35,15 @@ impl Parser<'_> {
             expect_one!(parser, Eq)?;
 
             let expr = parser.parse_expr(tree)?;
-            let last = tree.get(expr).span();
+            let last = expr.span();
 
             optional!(parser, Semi);
 
             Ok(decl::Variable {
                 span: SourceSpan::new(first.begin, last.end),
                 symbol,
-                ty: ty.map(Into::into),
-                expr: expr.into(),
+                ty: ty.map(|t| tree.insert(t)),
+                expr: tree.insert(expr),
             })
         })
     }
@@ -60,7 +60,7 @@ impl Parser<'_> {
         let result = optional!(self, Arrow)
             .then(|| self.parse_return_ty(tree))
             .transpose()?
-            .map(Into::into);
+            .map(|t| tree.insert(t));
 
         self.pop_context();
 
@@ -87,14 +87,14 @@ impl Parser<'_> {
             expect_one!(parser, Eq)?;
 
             let ty = parser.parse_type(tree, AllowRaiseClause::No)?;
-            let last = tree.get(ty).span();
+            let last = ty.span();
 
             optional!(parser, Semi);
 
             Ok(decl::Type {
                 span: SourceSpan::new(begin.span.begin, last.end),
                 symbol,
-                ty: ty.into(),
+                ty: tree.insert(ty),
             })
         })
     }
@@ -106,14 +106,14 @@ impl Parser<'_> {
             expect_one!(parser, Eq)?;
 
             let expr = parser.parse_expr(tree)?;
-            let last = tree.get(expr).span();
+            let last = expr.span();
 
             optional!(parser, Semi);
 
             Ok(decl::Const {
                 span: SourceSpan::new(begin.span.begin, last.end),
                 symbol,
-                expr: expr.into(),
+                expr: tree.insert(expr),
             })
         })
     }
@@ -174,45 +174,22 @@ impl Parser<'_> {
         &mut self,
         tree: &mut Tree,
         allow_import: AllowImport,
-    ) -> Result<DeclId> {
+    ) -> Result<Decl> {
         if let Ok(token) = self.peek() {
             match token.kind {
-                KwVar => self
-                    .parse_decl_variable(tree)
-                    .map(Into::into)
-                    .map(|d| tree.insert(d)),
-                KwFn => self
-                    .parse_decl_function(tree)
-                    .map(Into::into)
-                    .map(|d| tree.insert(d)),
-                KwUse => self
-                    .parse_decl_use(tree)
-                    .map(Into::into)
-                    .map(|d| tree.insert(d)),
-                KwType => self
-                    .parse_decl_type(tree)
-                    .map(Into::into)
-                    .map(|d| tree.insert(d)),
-                KwConst => self
-                    .parse_decl_const(tree)
-                    .map(Into::into)
-                    .map(|d| tree.insert(d)),
-                KwStruct => self
-                    .parse_decl_struct(tree)
-                    .map(Into::into)
-                    .map(|d| tree.insert(d)),
-                KwImport if allow_import.into() => self
-                    .parse_decl_import()
-                    .map(Into::into)
-                    .map(|d| tree.insert(d)),
-                _ => {
-                    return Err(Error::UnexpectedToken {
-                        src: self.src.clone(),
-                        span: token.span.to_miette_span(),
-                        expected: vec![].into(),
-                        got: self.src.get_span(token.span).to_owned(),
-                    });
-                }
+                KwVar => self.parse_decl_variable(tree).map(Into::into),
+                KwFn => self.parse_decl_function(tree).map(Into::into),
+                KwUse => self.parse_decl_use(tree).map(Into::into),
+                KwType => self.parse_decl_type(tree).map(Into::into),
+                KwConst => self.parse_decl_const(tree).map(Into::into),
+                KwStruct => self.parse_decl_struct(tree).map(Into::into),
+                KwImport if allow_import.into() => self.parse_decl_import().map(Into::into),
+                _ => Err(Error::UnexpectedToken {
+                    src: self.src.clone(),
+                    span: token.span.to_miette_span(),
+                    expected: vec![].into(),
+                    got: self.src.get_span(token.span).to_owned(),
+                }),
             }
         } else {
             Err(Error::UnexpectedEndOfFile {

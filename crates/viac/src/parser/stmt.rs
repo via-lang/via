@@ -8,23 +8,18 @@
 ** ================================================ */
 
 use super::{decl::AllowImport, prelude::*};
-use crate::ast::{
-    Tree, control,
-    stmt::{Stmt, StmtId},
-};
+use crate::ast::{Tree, control, stmt::Stmt};
 
 impl Parser<'_> {
-    pub(super) fn parse_stmt(&mut self, tree: &mut Tree) -> Result<StmtId> {
+    pub(super) fn parse_stmt(&mut self, tree: &mut Tree) -> Result<Stmt> {
         if let Ok(token) = self.peek() {
             match token.kind {
-                KwBreak | KwContinue | KwReturn | KwRaise | KwWhile | KwFor | KwIf => self
-                    .parse_control(tree)
-                    .map(|c| Stmt::Control(tree.get(c).clone()))
-                    .map(|node| tree.insert(node)),
-                KwVar | KwFn | KwUse | KwType | KwConst | KwStruct | KwImport => self
-                    .parse_decl(tree, AllowImport::Yes)
-                    .map(|d| Stmt::Decl(tree.get(d).clone()))
-                    .map(|node| tree.insert(node)),
+                KwBreak | KwContinue | KwReturn | KwRaise | KwWhile | KwFor | KwIf => {
+                    self.parse_control(tree).map(Stmt::Control)
+                }
+                KwVar | KwFn | KwUse | KwType | KwConst | KwStruct | KwImport => {
+                    self.parse_decl(tree, AllowImport::Yes).map(Stmt::Decl)
+                }
                 _ if self.is_expr_start() => {
                     let expr = self.parse_expr(tree)?;
 
@@ -34,20 +29,20 @@ impl Parser<'_> {
                             let op = self.consume()?;
                             let rhs = self.parse_expr(tree)?;
 
-                            let first = tree.get(expr).span();
-                            let last = tree.get(rhs).span();
+                            let first = expr.span();
+                            let last = rhs.span();
 
-                            Ok(tree.insert(Stmt::Control(
+                            Ok(Stmt::Control(
                                 control::Assign {
                                     span: SourceSpan::new(first.begin, last.end),
                                     op,
-                                    lhs: expr.into(),
-                                    rhs: rhs.into(),
+                                    lhs: tree.insert(expr),
+                                    rhs: tree.insert(rhs),
                                 }
                                 .into(),
-                            )))
+                            ))
                         }
-                        _ => Ok(tree.insert(Stmt::Expr(tree.get(expr).clone()))),
+                        _ => Ok(Stmt::Expr(expr.clone())),
                     }
                 }
                 _ => Err(Error::UnexpectedToken {

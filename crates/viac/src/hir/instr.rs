@@ -7,25 +7,44 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use derive_more::{Add, AddAssign, From};
+use std::fmt;
+
+use derive_more::{Add, AddAssign, Display, From};
 
 use super::counter::Id;
 use crate::{
+    hir::block::BlockId,
     module::symbol::SymbolId,
     sema::{ty::TyId, value::ConstValue},
 };
 
 #[repr(transparent)]
-#[derive(From, Add, AddAssign, Clone, Copy, Debug)]
-pub struct ValueId(usize);
+#[derive(From, Add, AddAssign, Debug, Clone, Copy, PartialEq)]
+pub struct TempId(usize);
 
-impl Id for ValueId {}
+impl Id for TempId {}
+impl fmt::Display for TempId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "v{}", self.0)
+    }
+}
 
 #[repr(transparent)]
-#[derive(From, Add, AddAssign, Clone, Copy, Debug)]
+#[derive(From, Add, AddAssign, Debug, Clone, Copy, PartialEq)]
 pub struct LocalId(usize);
 
 impl Id for LocalId {}
+impl fmt::Display for LocalId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "l{}", self.0)
+    }
+}
+
+#[derive(Display, From, Debug, Clone, Copy, PartialEq)]
+pub enum ValueId {
+    Temp(TempId),
+    Local(LocalId),
+}
 
 #[derive(Debug)]
 pub enum Instr {
@@ -47,16 +66,12 @@ pub enum Instr {
         values: Vec<ValueId>,
         out: ValueId,
     },
-    Bind {
-        value: ValueId,
-        out: LocalId,
-    },
     Copy {
         value: ValueId,
         out: ValueId,
     },
     Closure {
-        symbol: Option<SymbolId>,
+        block: BlockId,
         upvals: Vec<ValueId>,
         out: ValueId,
     },
@@ -162,4 +177,28 @@ pub enum Instr {
         rhs: ValueId,
         out: ValueId,
     },
+}
+
+impl fmt::Display for Instr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut write_out = |out: Option<ValueId>| {
+            if let Some(out) = out {
+                write!(f, "{out} = ")
+            } else {
+                Ok(())
+            }
+        };
+
+        match self {
+            Self::Const { value, out } => {
+                write_out(Some(*out))?;
+                writeln!(f, "{value}")
+            }
+            Self::Closure { block, upvals, out } => {
+                write_out(Some(*out))?;
+                writeln!(f, "closure<{block}> env={upvals:?}")
+            }
+            _ => todo!(),
+        }
+    }
 }

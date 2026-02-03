@@ -59,11 +59,11 @@ impl Tree {
     }
 }
 
-pub(super) trait Node {
+pub trait Node {
     type Id: Id;
 }
 
-pub(super) trait Id: From<usize> {
+pub trait Id: From<usize> {
     type Node: Node;
 
     fn inner(self) -> u32;

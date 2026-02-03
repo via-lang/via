@@ -8,7 +8,7 @@
 ** ================================================ */
 
 use super::symbol::SymbolId;
-use crate::sema::{ty::Ty, value::Value};
+use crate::sema::ty::Ty;
 
 #[derive(Debug)]
 pub enum Binding {
@@ -19,7 +19,6 @@ pub enum Binding {
     Constant {
         id: SymbolId,
         ty: Ty,
-        value: Value,
     },
     Function {
         id: SymbolId,

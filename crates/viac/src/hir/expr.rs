@@ -8,31 +8,28 @@
 ** ================================================ */
 
 use super::{
-    block::{Block, BlockItem},
+    Hir,
+    block::BlockId,
     builder::IrBuilder,
-    env::Env,
     error::{Error, Result},
     instr::{Instr, ValueId},
 };
 use crate::{
-    ast::{
-        expr::{Expr, ExprId},
-        value::Value,
-    },
+    ast::{expr::Expr, value::Value},
     sema::value::ConstValue,
     source::SourceSpan,
 };
 
-impl IrBuilder<'_> {
+impl<'a> IrBuilder<'a> {
     pub(super) fn lower_expr(
         &mut self,
-        env: &mut Env,
-        block: &mut Block,
-        expr: ExprId,
+        hir: &mut Hir,
+        block: BlockId,
+        expr: &'a Expr,
         out: Option<ValueId>,
-    ) -> Result<()> {
-        let expr = self.ast.get(expr);
+    ) -> Result<BlockId> {
         let src = self.source.clone();
+
         let require_out = || match out {
             Some(out) => Ok(out),
             None => Err(Error::ExprIgnored {
@@ -72,10 +69,10 @@ impl IrBuilder<'_> {
                     out: require_out()?,
                 },
                 Value::Range(range) => {
-                    let [lhs, rhs] = env.value_id.next::<2>();
+                    let [lhs, rhs] = hir.temp_id.bump::<2>().map(Into::into);
 
-                    self.lower_expr(env, block, range.lhs, Some(lhs));
-                    self.lower_expr(env, block, range.rhs, Some(rhs));
+                    self.lower_expr(hir, block, self.ast.get(range.lhs), Some(lhs))?;
+                    self.lower_expr(hir, block, self.ast.get(range.rhs), Some(rhs))?;
 
                     Instr::Range {
                         inclusive: range.inclusive,
@@ -89,26 +86,30 @@ impl IrBuilder<'_> {
                         .exprs
                         .iter()
                         .map(|expr| {
-                            let [out] = env.value_id.next::<1>();
-                            self.lower_expr(env, block, *expr, Some(out));
-                            out
+                            let [out] = hir.temp_id.bump::<1>().map(Into::into);
+                            let expr = self.ast.get(*expr);
+                            self.lower_expr(hir, block, expr, Some(out))?;
+                            Ok(out)
                         })
-                        .collect();
+                        .collect::<Result<_>>()?;
+
                     Instr::Tuple {
                         values,
                         out: require_out()?,
                     }
                 }
-                Value::Array(array) => {
-                    let values = array
+                Value::Array(tuple) => {
+                    let values = tuple
                         .exprs
                         .iter()
                         .map(|expr| {
-                            let [out] = env.value_id.next::<1>();
-                            self.lower_expr(env, block, *expr, Some(out));
-                            out
+                            let [out] = hir.temp_id.bump::<1>().map(Into::into);
+                            let expr = self.ast.get(*expr);
+                            self.lower_expr(hir, block, expr, Some(out))?;
+                            Ok(out)
                         })
-                        .collect();
+                        .collect::<Result<_>>()?;
+
                     Instr::Array {
                         values,
                         out: require_out()?,
@@ -118,7 +119,8 @@ impl IrBuilder<'_> {
             },
             Expr::Place(_) => todo!(),
         };
-        block.items.push(BlockItem::Instr(instr));
-        Ok(())
+
+        self.push(hir, block, instr);
+        Ok(block)
     }
 }

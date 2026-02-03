@@ -10,7 +10,7 @@
 use super::prelude::*;
 use crate::ast::{
     Tree,
-    ty::{self, TyId},
+    ty::{self, Ty},
 };
 
 yes_or_no!(pub AllowRaiseClause);
@@ -20,21 +20,19 @@ impl Parser<'_> {
         &mut self,
         tree: &mut Tree,
         allow_raise: AllowRaiseClause,
-    ) -> Result<TyId> {
+    ) -> Result<Ty> {
         let token = self.peek()?;
         let mut lhs = match token.kind {
-            KwNone | KwBool | KwInt | KwFloat | KwString => tree.insert(
-                ty::Builtin {
-                    span: token.span,
-                    token: self.consume()?,
-                }
-                .into(),
-            ),
+            KwNone | KwBool | KwInt | KwFloat | KwString => ty::Builtin {
+                span: token.span,
+                token: self.consume()?,
+            }
+            .into(),
             LParen => {
-                self.consume()?.span;
+                self.consume()?;
 
                 let ty = self.parse_type(tree, allow_raise)?;
-                expect_one!(self, RParen)?.span;
+                expect_one!(self, RParen)?;
                 ty
             }
             LBracket => {
@@ -43,15 +41,13 @@ impl Parser<'_> {
                 let ty = self.parse_type(tree, AllowRaiseClause::No)?;
                 let last = expect_one!(self, RBracket)?;
 
-                tree.insert(
-                    ty::Array {
-                        span: SourceSpan::new(token.span.begin, last.span.end),
-                        ty: ty.into(),
-                    }
-                    .into(),
-                )
+                ty::Array {
+                    span: SourceSpan::new(token.span.begin, last.span.end),
+                    ty: tree.insert(ty),
+                }
+                .into()
             }
-            LBrace => self.with_context(Context::TypeMap, |parser| -> Result<TyId> {
+            LBrace => self.with_context(Context::TypeMap, |parser| -> Result<Ty> {
                 parser.consume()?;
                 let key = parser.parse_type(tree, AllowRaiseClause::No)?;
 
@@ -60,16 +56,14 @@ impl Parser<'_> {
                 let value = parser.parse_type(tree, AllowRaiseClause::No)?;
                 let last = expect_one!(parser, RBrace)?;
 
-                Ok(tree.insert(
-                    ty::Map {
-                        span: SourceSpan::new(token.span.begin, last.span.end),
-                        key: key.into(),
-                        value: value.into(),
-                    }
-                    .into(),
-                ))
+                Ok(ty::Map {
+                    span: SourceSpan::new(token.span.begin, last.span.end),
+                    key: tree.insert(key),
+                    value: tree.insert(value),
+                }
+                .into())
             })?,
-            KwFn => self.with_context(Context::TypeFn, |parser| -> Result<TyId> {
+            KwFn => self.with_context(Context::TypeFn, |parser| -> Result<Ty> {
                 parser.consume()?;
 
                 let params = parser.parse_list(tree, (LParen, RParen), |parser, tree| {
@@ -79,31 +73,27 @@ impl Parser<'_> {
                 expect_one!(parser, Arrow)?;
 
                 let result = parser.parse_return_ty(tree)?;
-                let last = tree.get(result).span();
+                let last = result.span();
 
-                Ok(tree.insert(
-                    ty::Function {
-                        span: SourceSpan::new(token.span.begin, last.end),
-                        params: params.inner,
-                        result: result.into(),
-                    }
-                    .into(),
-                ))
+                Ok(ty::Function {
+                    span: SourceSpan::new(token.span.begin, last.end),
+                    params: params.inner,
+                    result: tree.insert(result),
+                }
+                .into())
             })?,
-            KwType => self.with_context(Context::TypeId, |parser| -> Result<TyId> {
+            KwType => self.with_context(Context::TypeId, |parser| -> Result<Ty> {
                 parser.consume()?;
                 expect_one!(parser, LParen)?;
 
                 let expr = parser.parse_expr(tree)?;
                 let last = expect_one!(parser, RParen)?;
 
-                Ok(tree.insert(
-                    ty::TypeOf {
-                        span: SourceSpan::new(token.span.begin, last.span.end),
-                        expr: expr.into(),
-                    }
-                    .into(),
-                ))
+                Ok(ty::TypeOf {
+                    span: SourceSpan::new(token.span.begin, last.span.end),
+                    expr: tree.insert(expr),
+                }
+                .into())
             })?,
             _ => {
                 return Err(Error::UnexpectedToken {
@@ -116,32 +106,28 @@ impl Parser<'_> {
         };
 
         loop {
-            let first = tree.get(lhs).span();
+            let first = lhs.span();
             lhs = match self.peek().map(|t| t.kind) {
                 Ok(Quest) => {
                     self.consume()?;
-                    tree.insert(
-                        ty::Optional {
-                            span: first,
-                            ty: lhs.into(),
-                        }
-                        .into(),
-                    )
+                    ty::Optional {
+                        span: first,
+                        ty: tree.insert(lhs),
+                    }
+                    .into()
                 }
-                Ok(Pipe) => self.with_context(Context::TypeUnion, |parser| -> Result<TyId> {
+                Ok(Pipe) => self.with_context(Context::TypeUnion, |parser| -> Result<Ty> {
                     parser.consume()?;
 
                     let rhs = parser.parse_type(tree, AllowRaiseClause::No)?;
-                    let last = tree.get(rhs).span();
+                    let last = rhs.span();
 
-                    Ok(tree.insert(
-                        ty::Union {
-                            span: SourceSpan::new(first.begin, last.end),
-                            lhs: lhs.into(),
-                            rhs: rhs.into(),
-                        }
-                        .into(),
-                    ))
+                    Ok(ty::Union {
+                        span: SourceSpan::new(first.begin, last.end),
+                        lhs: tree.insert(lhs),
+                        rhs: tree.insert(rhs),
+                    }
+                    .into())
                 })?,
                 Ok(KwRaise) => {
                     let token = self.consume()?;
@@ -154,31 +140,29 @@ impl Parser<'_> {
                     }
 
                     let rhs = self.parse_type(tree, AllowRaiseClause::No)?;
-                    let last = tree.get(rhs).span();
+                    let last = rhs.span();
 
-                    tree.insert(
-                        ty::Effect {
-                            span: SourceSpan::new(first.begin, last.end),
-                            lhs: lhs.into(),
-                            rhs: rhs.into(),
-                        }
-                        .into(),
-                    )
+                    ty::Effect {
+                        span: SourceSpan::new(first.begin, last.end),
+                        lhs: tree.insert(lhs),
+                        rhs: tree.insert(rhs),
+                    }
+                    .into()
                 }
                 _ => break Ok(lhs),
             };
         }
     }
 
-    pub(crate) fn parse_return_ty(&mut self, tree: &mut Tree) -> Result<TyId> {
+    pub(crate) fn parse_return_ty(&mut self, tree: &mut Tree) -> Result<Ty> {
         self.parse_type(tree, AllowRaiseClause::Yes)
     }
 
-    pub(crate) fn parse_param_ty(&mut self, tree: &mut Tree) -> Result<TyId> {
+    pub(crate) fn parse_param_ty(&mut self, tree: &mut Tree) -> Result<Ty> {
         self.parse_type(tree, AllowRaiseClause::No)
     }
 
-    pub(crate) fn parse_cast_ty(&mut self, tree: &mut Tree) -> Result<TyId> {
+    pub(crate) fn parse_cast_ty(&mut self, tree: &mut Tree) -> Result<Ty> {
         self.parse_type(tree, AllowRaiseClause::No)
     }
 }

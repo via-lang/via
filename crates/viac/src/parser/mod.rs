@@ -36,7 +36,7 @@ use prelude::*;
 use crate::{
     ast::{
         Id, Tree,
-        aux::{Nodes, Param, ParamId},
+        aux::{Nodes, Param},
     },
     lexer::token::Token,
     module::compiler::{Compiler, state::Lexed},
@@ -99,14 +99,15 @@ impl<'a> Parser<'a> {
     #[allow(private_bounds)]
     pub(super) fn parse_body<F, I>(&mut self, tree: &mut Tree, mut parse: F) -> Result<Nodes<I>>
     where
-        F: FnMut(&mut Self, &mut Tree) -> Result<I>,
+        F: FnMut(&mut Self, &mut Tree) -> Result<I::Node>,
         I: Id,
     {
         let first = expect_one!(self, LBrace)?;
         let mut inner = vec![];
 
         while !check!(self, RBrace) {
-            let id = parse(self, tree)?;
+            let node = parse(self, tree)?;
+            let id = tree.insert(node);
             inner.push(id);
         }
 
@@ -124,14 +125,15 @@ impl<'a> Parser<'a> {
         mut parse: F,
     ) -> Result<Nodes<I>>
     where
-        F: FnMut(&mut Self, &mut Tree) -> Result<I>,
+        F: FnMut(&mut Self, &mut Tree) -> Result<I::Node>,
         I: Id,
     {
         let first = expect_one!(self, brackets.0)?;
         let mut inner = vec![];
 
         while !check!(self, brackets.1) {
-            let id = parse(self, tree)?;
+            let node = parse(self, tree)?;
+            let id = tree.insert(node);
             inner.push(id);
 
             if !optional!(self, Comma) {
@@ -146,7 +148,7 @@ impl<'a> Parser<'a> {
         })
     }
 
-    pub(super) fn parse_param(&mut self, tree: &mut Tree) -> Result<ParamId> {
+    pub(super) fn parse_param(&mut self, tree: &mut Tree) -> Result<Param> {
         self.with_context(Context::Param, |parser| {
             let name = expect_one!(parser, Ident)?;
             let first = name.span.clone();
@@ -154,13 +156,13 @@ impl<'a> Parser<'a> {
             expect_one!(parser, Col)?;
 
             let ty = parser.parse_param_ty(tree)?;
-            let last = tree.get(ty).span();
+            let last = ty.span();
 
-            Ok(tree.insert(Param {
+            Ok(Param {
                 span: SourceSpan::merge(first, last),
                 name,
-                ty: ty.into(),
-            }))
+                ty: tree.insert(ty),
+            })
         })
     }
 
@@ -171,7 +173,8 @@ impl<'a> Parser<'a> {
                 break Ok(tree);
             }
             let stmt = self.parse_stmt(&mut tree)?;
-            tree.stmts.push(stmt);
+            let id = tree.insert(stmt);
+            tree.stmts.push(id);
         }
     }
 }
