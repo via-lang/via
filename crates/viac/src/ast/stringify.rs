@@ -6,10 +6,3 @@
 ** ------------------------------------------------ **
 **         https://github.com/via-lang/via          **
 ** ================================================ */
-
-mod driver;
-mod stub;
-
-fn main() -> miette::Result<()> {
-    driver::main()
-}

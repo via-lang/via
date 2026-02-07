@@ -8,11 +8,11 @@
 ** ================================================ */
 
 use std::{
-    fmt::Debug,
+    fmt::Display,
     ops::{Add, AddAssign},
 };
 
-pub trait Id: Debug + Copy + PartialEq + Add<Output = Self> + AddAssign + From<usize> {}
+pub trait Id: Display + Copy + PartialEq + Add<Output = Self> + AddAssign + From<usize> {}
 
 #[derive(Debug)]
 pub struct Counter<T: Id>(T);

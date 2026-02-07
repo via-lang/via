@@ -59,10 +59,9 @@ macro_rules! expect_one {
         match $this.consume()? {
             token if matches!(&token.kind, $kind) => Ok(token),
             token => Err(Error::UnexpectedToken {
-                src: $this.src.clone(),
                 span: token.span.to_miette_span(),
                 expected: vec![].into(),
-                got: $this.src.get_span(token.span).to_owned(),
+                got: $this.src.get_span(&token.span).to_owned(),
             }),
         }
     };
@@ -70,10 +69,9 @@ macro_rules! expect_one {
         match $this.consume()? {
             token if $kind == token.kind => Ok(token),
             token => Err(Error::UnexpectedToken {
-                src: $this.src.clone(),
                 span: token.span.to_miette_span(),
                 expected: vec![].into(),
-                got: $this.src.get_span(token.span).to_owned(),
+                got: $this.src.get_span(&token.span).to_owned(),
             }),
         }
     };

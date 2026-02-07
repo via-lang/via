@@ -7,44 +7,23 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use std::{collections::HashMap, fmt};
+use std::collections::HashMap;
 
 use crate::{
     ast::Tree,
-    clinic::{Clinic, Diagnostic, StageControl},
+    clinic::{Clinic, Error as CompilationError},
     hir,
     lexer::{Lexer, token::Token},
-    module::{binding::Binding, symbol::SymbolId},
+    module::{
+        binding::Binding,
+        error::Error,
+        symbol::{SymbolId, SymbolTable},
+    },
     parser,
     source::SourceBuf,
 };
 
-pub type Result<T> = std::result::Result<T, Ice>;
-
-#[derive(Debug)]
-pub enum IceKind {
-    ParseError,
-    HirError,
-    TypeError,
-    BytecodeError,
-}
-
-#[derive(Debug)]
-pub struct Ice {
-    pub kind: IceKind,
-    pub what: String,
-}
-
-impl fmt::Display for Ice {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.kind {
-            IceKind::ParseError => write!(f, "parsing: {}", self.what),
-            IceKind::HirError => write!(f, "Hir-lowering: {}", self.what),
-            IceKind::TypeError => write!(f, "type-checking: {}", self.what),
-            IceKind::BytecodeError => write!(f, "bytecode-lowering: {}", self.what),
-        }
-    }
-}
+pub type Result<T> = std::result::Result<T, Error>;
 
 pub mod state {
     use super::*;
@@ -122,28 +101,27 @@ impl<'a> Compiler<'a, Empty> {
 }
 
 impl<'a> Compiler<'a, Lexed> {
-    pub fn parse(self, clinic: &mut Clinic) -> Result<Compiler<'a, Parsed>> {
+    pub fn parse(self, clinic: &mut Clinic) -> Option<Compiler<'a, Parsed>> {
         match parser::parse(&self) {
-            Ok(ast) => Ok(self.with_state(|stage, _| Parsed { tt: stage.tt, ast })),
+            Ok(ast) => Some(self.with_state(|stage, _| Parsed { tt: stage.tt, ast })),
             Err(e) => {
-                clinic.report(Diagnostic {
-                    report: miette::Report::new(e),
-                    control: StageControl::Terminate,
-                });
-                Err(Ice {
-                    kind: IceKind::ParseError,
-                    what: "unimplemented".to_string(),
-                })
+                clinic.report(CompilationError::Parser(e));
+                None
             }
         }
     }
 }
 
 impl<'a> Compiler<'a, Parsed> {
-    pub fn lower(self, clinic: &mut Clinic) -> Result<Compiler<'a, Hir>> {
-        let hir = hir::lower(&self, clinic);
-        println!("{hir}");
-        Ok(self.with_state(|_, _| state::Hir { hir }))
+    pub fn lower(
+        self,
+        symbols: &mut SymbolTable,
+        clinic: &mut Clinic,
+    ) -> Option<Compiler<'a, Hir>> {
+        hir::lower(&self, symbols, clinic).map(|hir| {
+            println!("{hir}");
+            self.with_state(|_, _| state::Hir { hir })
+        })
     }
 }
 
@@ -152,17 +130,14 @@ impl<'a> Compiler<'a, Hir> {
         self
     }
 
-    pub fn typecheck(self) -> Result<Self> {
-        Err(Ice {
-            kind: IceKind::TypeError,
-            what: "unimplemented".to_string(),
-        })
+    pub fn typecheck(self) -> Option<Self> {
+        Some(self)
     }
 
-    pub fn lower(self) -> Result<Compiler<'a, Bytecode>> {
-        Err(Ice {
-            kind: IceKind::BytecodeError,
-            what: "unimplemented".to_string(),
+    pub fn lower(self) -> Option<Compiler<'a, Bytecode>> {
+        Some(Compiler {
+            stage: Bytecode {},
+            core: self.core,
         })
     }
 }
@@ -173,7 +148,9 @@ impl<'a> Compiler<'a, Bytecode> {
     }
 
     pub fn to_unit(self) -> CompilationUnit {
-        todo!()
+        CompilationUnit {
+            bindings: HashMap::new(),
+        }
     }
 }
 
@@ -182,14 +159,20 @@ pub struct CompilationUnit {
     pub(super) bindings: HashMap<SymbolId, Binding>,
 }
 
-pub fn compile(src: &SourceBuf, clinic: &mut Clinic) -> Result<CompilationUnit> {
-    Ok(Compiler::new(src)
-        .tokenize()
-        .parse(clinic)?
-        .lower(clinic)?
-        .typecheck()?
-        .optimize()
-        .lower()?
-        .optimize()
-        .to_unit())
+pub fn compile(
+    source: &SourceBuf,
+    symbols: &mut SymbolTable,
+    clinic: &mut Clinic,
+) -> Option<CompilationUnit> {
+    Some(
+        Compiler::new(source)
+            .tokenize()
+            .parse(clinic)?
+            .lower(symbols, clinic)?
+            .typecheck()?
+            .optimize()
+            .lower()?
+            .optimize()
+            .to_unit(),
+    )
 }

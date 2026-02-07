@@ -19,7 +19,6 @@ use std::fmt::Debug;
 use crate::{clinic::Clinic, source::SourceBuf};
 use binding::Binding;
 use compiler::CompilationUnit;
-use error::{Error, Result};
 use symbol::SymbolId;
 use symbol::SymbolTable;
 
@@ -29,8 +28,9 @@ pub trait Module: Debug {
 
 #[derive(Debug)]
 pub struct SourceModule {
-    source: SourceBuf,
+    #[allow(unused)]
     symbols: SymbolTable,
+    source: SourceBuf,
     unit: CompilationUnit,
 }
 
@@ -41,17 +41,13 @@ impl Module for SourceModule {
 }
 
 impl SourceModule {
-    pub(crate) fn new(src: &SourceBuf, clinic: &mut Clinic) -> Result<Self> {
-        let symbols = SymbolTable::new();
-
-        match compiler::compile(src, clinic) {
-            Ok(unit) => Ok(Self {
-                source: src.clone(),
-                symbols,
-                unit,
-            }),
-            Err(ice) => Err(Error::IcError { err: ice }),
-        }
+    pub(crate) fn new(src: &SourceBuf, clinic: &mut Clinic) -> Option<Self> {
+        let mut symbols = SymbolTable::new();
+        compiler::compile(src, &mut symbols, clinic).map(|unit| Self {
+            symbols,
+            source: src.clone(),
+            unit,
+        })
     }
 
     pub fn source(&self) -> &SourceBuf {

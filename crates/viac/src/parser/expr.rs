@@ -49,7 +49,7 @@ impl Parser<'_> {
                     Ok(Expr::Place(
                         place::Symbol {
                             span: span.clone(),
-                            symbol: parser.src.get_span(span).to_owned(),
+                            symbol: parser.src.get_span(&span).to_owned(),
                         }
                         .into(),
                     ))
@@ -78,7 +78,7 @@ impl Parser<'_> {
                             span: span.clone(),
                             value: parser
                                 .src
-                                .get_span(span.clone())
+                                .get_span(&span)
                                 .parse::<i64>()
                                 .expect("lexically valid integer literal must be parsable"),
                         }
@@ -93,7 +93,7 @@ impl Parser<'_> {
                             span: span.clone(),
                             value: parser
                                 .src
-                                .get_span(span.clone())
+                                .get_span(&span)
                                 .parse::<f64>()
                                 .expect("lexically valid float literal must be parsable"),
                         }
@@ -103,17 +103,15 @@ impl Parser<'_> {
                 String { terminated } => {
                     if !terminated {
                         return Err(Error::UnterminatedStringLiteral {
-                            src: parser.src.clone(),
                             string: token.span.to_miette_span(),
                             quote: miette::SourceSpan::new((token.span.end - 1).into(), 1),
                         });
                     }
                     parser.consume()?;
-                    let span = token.span.clone();
                     Ok(Expr::Value(
                         value::String {
                             span: span.clone(),
-                            string: parser.src.get_span(span).to_owned(),
+                            string: parser.src.get_span(&token.span).to_owned(),
                         }
                         .into(),
                     ))
@@ -263,10 +261,9 @@ impl Parser<'_> {
                     Ok(Expr::Value(value::Attr { span, attr }.into()))
                 }
                 _ => Err(Error::UnexpectedToken {
-                    src: parser.src.clone(),
                     span: token.span.to_miette_span(),
                     expected: vec![].into(),
-                    got: parser.src.get_span(token.span).to_owned(),
+                    got: parser.src.get_span(&token.span).to_owned(),
                 }),
             }
         })
@@ -276,35 +273,31 @@ impl Parser<'_> {
         let mut expr = self.parse_expr_primary(tree, AllowPrefix::Yes)?;
         loop {
             expr = match self.peek().map(|t| t.kind) {
-                Ok(Dot) if matches!(self.peek_ahead(1).map(|t| t.kind), Ok(KwAwait)) => {
-                    self.consume()?;
-
-                    let tok = self.consume()?;
-                    let first = expr.span();
-
-                    Expr::Value(
-                        value::Await {
-                            span: SourceSpan::new(first.begin, tok.span.end),
-                            expr: tree.insert(expr),
-                        }
-                        .into(),
-                    )
-                }
                 Ok(Dot) => {
                     self.consume()?;
+                    let last = self.consume()?;
+                    let span = SourceSpan::merge(expr.span(), last.span.clone());
+                    let expr = tree.insert(expr);
 
-                    let field = expect_one!(self, Ident)?;
-                    let first = expr.span();
-                    let last = field.span.clone();
-
-                    Expr::Place(
-                        place::Dynamic {
-                            span: SourceSpan::new(first.begin, last.end),
-                            expr: tree.insert(expr),
-                            field,
+                    match last.kind {
+                        KwCopy => Expr::Value(value::Copy { span, expr }.into()),
+                        KwAwait => Expr::Value(value::Await { span, expr }.into()),
+                        Ident => Expr::Place(
+                            place::Dynamic {
+                                span,
+                                expr,
+                                field: last,
+                            }
+                            .into(),
+                        ),
+                        _ => {
+                            return Err(Error::UnexpectedToken {
+                                span: span.to_miette_span(),
+                                expected: vec!["`copy`", "`await`", "identifier"].into(),
+                                got: self.src.get_span(&span).to_owned(),
+                            });
                         }
-                        .into(),
-                    )
+                    }
                 }
                 Ok(ColCol) => {
                     self.consume()?;

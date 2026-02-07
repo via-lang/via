@@ -12,7 +12,6 @@ use super::{
     aux::{Nodes, ParamId},
     expr::ExprId,
     macros::ast,
-    place::PlaceId,
     stmt::StmtId,
     ty::TyId,
 };
@@ -64,8 +63,8 @@ ast! {
         },
         Try { expr: ExprId },
         Await { expr: ExprId },
+        Copy { expr: ExprId },
         Type { ty: TyId },
         Attr { attr: AttrId },
-        Read { place: PlaceId },
     }
 }

@@ -15,6 +15,7 @@ pub mod expr;
 pub mod macros;
 pub mod place;
 pub mod stmt;
+pub mod stringify;
 pub mod ty;
 pub mod value;
 

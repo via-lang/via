@@ -10,22 +10,30 @@
 use super::{Hir, block::Block};
 use crate::{
     ast::Tree,
-    clinic::{Clinic, Diagnostic, StageControl},
-    hir::{block::BlockId, instr::Instr, term::Term},
+    clinic::Clinic,
+    hir::{block::BlockId, env::Env, instr::Instr, term::Term},
+    module::symbol::SymbolTable,
     source::SourceBuf,
 };
 
 #[derive(Debug)]
 pub struct IrBuilder<'a> {
     pub(super) source: SourceBuf,
+    pub(super) symbols: &'a mut SymbolTable,
     pub(super) ast: &'a Tree,
     pub(super) clinic: &'a mut Clinic,
 }
 
 impl<'a> IrBuilder<'a> {
-    pub fn new(source: &SourceBuf, ast: &'a Tree, clinic: &'a mut Clinic) -> Self {
+    pub fn new(
+        source: &SourceBuf,
+        symbols: &'a mut SymbolTable,
+        ast: &'a Tree,
+        clinic: &'a mut Clinic,
+    ) -> Self {
         Self {
             source: source.clone(),
+            symbols,
             ast,
             clinic,
         }
@@ -46,23 +54,19 @@ impl<'a> IrBuilder<'a> {
         hir.get_mut(block).instrs.push(instr);
     }
 
-    pub(crate) fn lower(&mut self) -> Hir {
-        let mut hir = Hir::default();
-        let mut current = self.block(&mut hir);
+    pub fn is_terminated(&self, hir: &mut Hir, block: BlockId) -> bool {
+        !matches!(hir.get(block).term, Term::Halt)
+    }
 
+    pub(crate) fn lower(&mut self) -> Option<Hir> {
+        let mut hir = Hir::default();
+        let mut env = Env::new();
+
+        let mut current = self.block(&mut hir);
         for stmt in &self.ast.stmts {
-            match self.lower_stmt(&mut hir, current, self.ast.get(*stmt)) {
-                Ok(b) => current = b,
-                Err(e) => {
-                    self.clinic.report(Diagnostic {
-                        report: miette::Report::new(e),
-                        control: StageControl::Terminate,
-                    });
-                    continue;
-                }
-            };
+            current = self.lower_stmt(&mut hir, &mut env, current, self.ast.get(*stmt));
         }
 
-        hir
+        self.clinic.healthy().then_some(hir)
     }
 }

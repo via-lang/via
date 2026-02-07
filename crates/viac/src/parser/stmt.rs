@@ -46,16 +46,13 @@ impl Parser<'_> {
                     }
                 }
                 _ => Err(Error::UnexpectedToken {
-                    src: self.src.clone(),
                     span: token.span.to_miette_span(),
                     expected: vec![].into(),
-                    got: self.src.get_span(token.span).to_owned(),
+                    got: self.src.get_span(&token.span).to_owned(),
                 }),
             }
         } else {
-            Err(Error::UnexpectedEndOfFile {
-                src: self.src.clone(),
-            })
+            Err(Error::UnexpectedEndOfFile {})
         }
     }
 }

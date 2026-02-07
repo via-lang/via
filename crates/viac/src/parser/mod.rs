@@ -78,18 +78,14 @@ impl<'a> Parser<'a> {
         self.toks
             .get(self.pos)
             .cloned()
-            .ok_or_else(|| Error::UnexpectedEndOfFile {
-                src: self.src.clone(),
-            })
+            .ok_or(Error::UnexpectedEndOfFile {})
     }
 
     fn peek_ahead(&self, ahead: u32) -> Result<Token> {
         self.toks
             .get(self.pos + ahead as usize)
             .cloned()
-            .ok_or_else(|| Error::UnexpectedEndOfFile {
-                src: self.src.clone(),
-            })
+            .ok_or(Error::UnexpectedEndOfFile {})
     }
 
     fn consume(&mut self) -> Result<Token> {

@@ -9,10 +9,14 @@
 
 pub mod block;
 pub mod builder;
+pub mod control;
 pub mod counter;
+pub mod decl;
+pub mod env;
 pub mod error;
 pub mod expr;
 pub mod instr;
+pub mod place;
 pub mod stmt;
 pub mod term;
 
@@ -20,19 +24,18 @@ use std::fmt;
 
 use crate::{
     clinic::Clinic,
-    module::compiler::{Compiler, state::Parsed},
+    module::{
+        compiler::{Compiler, state::Parsed},
+        symbol::SymbolTable,
+    },
 };
 
 use block::{Block, BlockId};
 use builder::IrBuilder;
-use counter::Counter;
-use instr::{LocalId, TempId};
 
 #[derive(Debug, Default)]
 pub struct Hir {
     blocks: Vec<Block>,
-    temp_id: Counter<TempId>,
-    local_id: Counter<LocalId>,
 }
 
 impl Hir {
@@ -58,6 +61,10 @@ impl fmt::Display for Hir {
     }
 }
 
-pub(crate) fn lower(c: &Compiler<Parsed>, clinic: &mut Clinic) -> Hir {
-    IrBuilder::new(c.source(), &c.stage().ast, clinic).lower()
+pub(crate) fn lower(
+    c: &Compiler<Parsed>,
+    symbols: &mut SymbolTable,
+    clinic: &mut Clinic,
+) -> Option<Hir> {
+    IrBuilder::new(c.source(), symbols, &c.stage().ast, clinic).lower()
 }

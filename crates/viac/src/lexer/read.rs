@@ -28,7 +28,7 @@ impl Lexer {
 
         let span = SourceSpan::new(start, self.pos);
         let kind = KEYWORD_LIST
-            .get(self.src.get_span(span.clone()))
+            .get(self.src.get_span(&span))
             .cloned()
             .unwrap_or(Ident);
 

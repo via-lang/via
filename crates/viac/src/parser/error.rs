@@ -14,7 +14,7 @@ use std::string::String;
 use miette::{Diagnostic, SourceSpan};
 use thiserror::Error;
 
-use crate::{clinic::PrettyVec, source::SourceBuf};
+use crate::clinic::PrettyVec;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -22,17 +22,11 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     #[error("unexpected end of file")]
     #[diagnostic(code(syn::unexp::eof))]
-    UnexpectedEndOfFile {
-        #[source_code]
-        src: SourceBuf,
-    },
+    UnexpectedEndOfFile {},
 
     #[error("unexpected token '{got}'")]
     #[diagnostic(code(syn::unexp::token))]
     UnexpectedToken {
-        #[source_code]
-        src: SourceBuf,
-
         #[label("expected one of {expected} here")]
         span: SourceSpan,
 
@@ -43,9 +37,6 @@ pub enum Error {
     #[error("unterminated string literal")]
     #[diagnostic(code(syn::unterm::str_lit))]
     UnterminatedStringLiteral {
-        #[source_code]
-        src: SourceBuf,
-
         #[label("here")]
         string: SourceSpan,
 
@@ -59,9 +50,6 @@ pub enum Error {
         help("express union types as `T | E` instead of `T raise E`")
     )]
     UnexpectedRaiseClause {
-        #[source_code]
-        src: SourceBuf,
-
         #[label("here")]
         span: SourceSpan,
     },

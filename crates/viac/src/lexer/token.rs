@@ -48,6 +48,7 @@ pub enum TokenKind {
     KwContinue,
     KwReturn,
     KwRaise,
+    KwCopy,
     KwAsync,
     KwAwait,
     KwSpawn,

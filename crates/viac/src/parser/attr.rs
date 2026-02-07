@@ -20,7 +20,7 @@ impl Parser<'_> {
             let name = expect_one!(parser, Ident)?;
 
             let span = SourceSpan::merge(first.span, name.span.clone());
-            let slice = parser.src.get_span(name.span);
+            let slice = parser.src.get_span(&name.span);
 
             let attr = match slice {
                 "native" => attr::Native { span }.into(),
@@ -28,7 +28,6 @@ impl Parser<'_> {
                 "distinct" => attr::Distinct { span }.into(),
                 _ => {
                     return Err(Error::UnexpectedToken {
-                        src: parser.src.clone(),
                         span: span.to_miette_span(),
                         expected: vec!["native", "inline", "distinct"].into(),
                         got: slice.to_string(),

@@ -74,7 +74,7 @@ impl Parser<'_> {
             elseif.push((tree.insert(cond), body));
         }
 
-        let else_body = check!(self, KwElse)
+        let alt = check!(self, KwElse)
             .then(|| -> Result<Nodes<StmtId>> {
                 self.consume()?;
                 let body = self.parse_body(tree, Self::parse_stmt)?;
@@ -88,7 +88,7 @@ impl Parser<'_> {
             cond: tree.insert(cond),
             body,
             elseif,
-            else_body,
+            alt,
         })
     }
 
@@ -154,16 +154,13 @@ impl Parser<'_> {
                 KwFor => self.parse_control_for(tree).map(Into::into),
                 KwIf => self.parse_control_if(tree).map(Into::into),
                 _ => Err(Error::UnexpectedToken {
-                    src: self.src.clone(),
                     span: token.span.to_miette_span(),
                     expected: vec![].into(),
-                    got: self.src.get_span(token.span).to_owned(),
+                    got: self.src.get_span(&token.span).to_owned(),
                 }),
             }
         } else {
-            Err(Error::UnexpectedEndOfFile {
-                src: self.src.clone(),
-            })
+            Err(Error::UnexpectedEndOfFile {})
         }
     }
 }

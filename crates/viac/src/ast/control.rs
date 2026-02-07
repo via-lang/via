@@ -24,7 +24,7 @@ ast! {
             cond: ExprId,
             body: Nodes<StmtId>,
             elseif: Vec<(ExprId, Nodes<StmtId>)>,
-            else_body: Option<Nodes<StmtId>>,
+            alt: Option<Nodes<StmtId>>,
         },
         While {
             cond: ExprId,

@@ -8,4 +8,5 @@ itertools = "0.14"
 assert_matches = "1.5"
 derive_more = "2.1"
 anyhow = "1"
+miette = { version = "7.6.0", features = ["fancy"] }
 phf = { version = "0.13.1", features = ["macros"] }

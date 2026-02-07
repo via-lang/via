@@ -7,7 +7,6 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use anyhow::Result;
 use clap::{Parser, Subcommand};
 use clio::Input;
 
@@ -42,7 +41,7 @@ enum Command {
     Repl,
 }
 
-pub fn main() -> Result<()> {
+pub fn main() -> miette::Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Some(Command::Run { input }) => stub::run(input.path())?,

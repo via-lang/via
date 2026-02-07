@@ -37,7 +37,7 @@ impl<'a> SourceBuf {
             .expect("SourceBuf: attempt to read out-of-range slice index")
     }
 
-    pub fn get_span(&'a self, span: SourceSpan) -> &'a str {
+    pub fn get_span(&'a self, span: &SourceSpan) -> &'a str {
         self.get(span.begin..span.end)
     }
 }

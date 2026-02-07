@@ -13,30 +13,20 @@
 use miette::Diagnostic;
 use thiserror::Error;
 
-use super::{compiler::Ice, tree::ModulePath};
+use super::tree::ModulePath;
 use crate::clinic::PrettyVec;
-
-#[derive(Debug)]
-pub enum CompilerError {
-    Parse(crate::parser::error::Error),
-}
 
 pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Error, Diagnostic, Debug)]
 pub enum Error {
-    #[error("internal compiler error during compilation step {err}")]
-    #[diagnostic(
-        code(module::ice),
-        help(
-            "!!! THIS ERROR IS NOT SUPPOSED TO HAPPEN !!! report at https://github.com/via-lang/via"
-        )
-    )]
-    IcError { err: Ice },
+    #[error("compilation error")]
+    #[diagnostic()]
+    CompilationError,
 
-    #[error("os error: {err}")]
+    #[error("os error: {0}")]
     #[diagnostic(code(module::os_error))]
-    OsError { err: std::io::Error },
+    OsError(#[from] std::io::Error),
 
     #[error("'{path}' does not correspond to any module within search parameters")]
     #[diagnostic(code(module::not_found))]

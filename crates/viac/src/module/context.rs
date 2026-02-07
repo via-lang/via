@@ -17,11 +17,11 @@ use bitflags::bitflags;
 
 use super::{
     Module, SourceModule,
-    error::Error,
+    error::{Error, Result},
     tree::{ModuleId, ModulePath, ModuleTree},
 };
 use crate::{
-    clinic::{Clinic, Diagnostic, PrettyVec, StageControl},
+    clinic::{Clinic, PrettyVec},
     source::SourceBuf,
 };
 
@@ -32,11 +32,11 @@ bitflags! {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ModuleContext {
     pub(super) tree: ModuleTree,
-    pub(super) modules: HashMap<ModuleId, Box<dyn Module>>,
     pub(super) clinic: Clinic,
+    pub(super) modules: HashMap<ModuleId, Box<dyn Module>>,
     pub(super) paths: Vec<PathBuf>,
 }
 
@@ -44,57 +44,46 @@ impl ModuleContext {
     pub fn new(root: &Path) -> Self {
         Self {
             tree: ModuleTree::new(),
+            clinic: Clinic::new(),
             modules: HashMap::new(),
-            clinic: Clinic::default(),
             paths: vec![root.to_path_buf()],
         }
-    }
-
-    pub fn is_healthy(&mut self) -> bool {
-        !self.clinic.emit()
     }
 
     pub fn get(&self, id: ModuleId) -> Option<&dyn Module> {
         self.modules.get(&id).map(Box::as_ref)
     }
 
-    pub fn load(&mut self, fs_path: &Path, path: impl Into<ModulePath>) -> Option<ModuleId> {
+    pub fn load(&mut self, fs_path: &Path, path: impl Into<ModulePath>) -> Result<ModuleId> {
         let path = path.into();
         let id = self.tree.insert(&path);
 
         match self.modules.entry(id) {
-            Entry::Occupied(_) => Some(id),
+            Entry::Occupied(_) => Ok(id),
             Entry::Vacant(e) => {
-                let report = |clinic: &mut Clinic, e| {
-                    clinic.report(Diagnostic {
-                        report: miette::Report::new(e),
-                        control: StageControl::Terminate,
-                    })
-                };
-
-                let code = fs::read_to_string(fs_path)
-                    .map_err(|err| Error::OsError { err })
-                    .map_err(|e| report(&mut self.clinic, e))
-                    .ok()?;
-
+                let code = fs::read_to_string(fs_path).map_err(Error::OsError)?;
                 let source = SourceBuf::new(
                     format!("<module:{path} @ {}>", fs_path.to_string_lossy()),
                     code,
                 );
 
-                let module = SourceModule::new(&source, &mut self.clinic)
-                    .map_err(|e| report(&mut self.clinic, e))
-                    .ok()?;
+                let module = SourceModule::new(&source, &mut self.clinic);
 
-                e.insert(Box::new(module));
-                Some(id)
+                self.clinic.emit(&source);
+
+                module
+                    .map(|m| {
+                        e.insert(Box::new(m));
+                        id
+                    })
+                    .ok_or(Error::CompilationError)
             }
         }
     }
 
-    pub fn resolve(&mut self, path: ModulePath) -> Option<ModuleId> {
+    pub fn resolve(&mut self, path: ModulePath) -> Result<ModuleId> {
         if let Some(id) = self.tree.get(&path) {
-            return Some(id);
+            return Ok(id);
         }
 
         let mut candidates = vec![];
@@ -122,12 +111,5 @@ impl ModuleContext {
                 ),
             }),
         }
-        .map_err(|err| {
-            self.clinic.report(Diagnostic {
-                report: miette::Report::new(err),
-                control: StageControl::Terminate,
-            })
-        })
-        .ok()
     }
 }

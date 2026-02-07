@@ -10,40 +10,62 @@
 use std::fmt;
 
 use itertools::Itertools;
-use miette::SourceSpan;
+use miette::{Diagnostic, Severity, SourceSpan};
+use thiserror::Error;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum StageControl {
-    Ok,
-    Terminate,
+use crate::{hir, parser, source::SourceBuf};
+
+#[derive(Debug, Error, Diagnostic)]
+pub enum Error {
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    Parser(#[from] parser::error::Error),
+
+    #[error(transparent)]
+    #[diagnostic(transparent)]
+    Hir(#[from] hir::error::Error),
 }
 
 #[derive(Debug)]
-pub struct Diagnostic {
-    pub report: miette::Report,
-    pub control: StageControl,
-}
-
-#[derive(Default, Debug)]
 pub struct Clinic {
-    diags: Vec<Diagnostic>,
+    healthy: bool,
+    diags: Vec<Error>,
 }
 
 impl Clinic {
-    pub fn report(&mut self, d: Diagnostic) {
-        self.diags.push(d);
+    pub fn new() -> Self {
+        Self {
+            healthy: true,
+            diags: Vec::new(),
+        }
     }
 
-    pub fn emit(&mut self) -> bool {
-        for diag in self.diags.iter() {
-            println!("{:?}", diag.report);
-            match diag.control {
-                StageControl::Ok => {}
-                StageControl::Terminate => return true,
-            }
+    pub fn healthy(&self) -> bool {
+        self.healthy
+    }
+
+    pub fn report(&mut self, e: Error) {
+        if let Some(Severity::Error) = dbg!(&e).severity() {
+            self.healthy = false;
         }
-        self.diags.clear();
-        false
+        self.diags.push(e);
+    }
+
+    pub fn collect(&mut self) -> Vec<Error> {
+        self.diags.drain(..).collect_vec()
+    }
+
+    pub fn emit(&mut self, src: &SourceBuf) {
+        for diag in self.diags.drain(..) {
+            let report = miette::Report::new(diag).with_source_code(src.clone());
+            println!("{report:?}");
+        }
+    }
+}
+
+impl Default for Clinic {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

@@ -97,10 +97,9 @@ impl Parser<'_> {
             })?,
             _ => {
                 return Err(Error::UnexpectedToken {
-                    src: self.src.clone(),
                     span: token.span.to_miette_span(),
                     expected: vec![].into(),
-                    got: self.src.get_span(token.span).to_owned(),
+                    got: self.src.get_span(&token.span).to_owned(),
                 });
             }
         };
@@ -134,7 +133,6 @@ impl Parser<'_> {
 
                     if !bool::from(allow_raise) {
                         return Err(Error::UnexpectedRaiseClause {
-                            src: self.src.clone(),
                             span: token.span.to_miette_span(),
                         });
                     }

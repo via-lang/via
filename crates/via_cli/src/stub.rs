@@ -9,16 +9,10 @@
 
 use std::path::Path;
 
-use anyhow::{Ok, Result, anyhow};
-
 use viac::module::context::ModuleContext;
 
-pub fn run(path: &Path) -> Result<()> {
+pub fn run(path: &Path) -> miette::Result<()> {
     let mut ctxt = ModuleContext::new(path);
-    ctxt.load(path, "main");
-
-    if !ctxt.is_healthy() {
-        return Err(anyhow!("dihh"));
-    }
+    ctxt.load(path, "main").map_err(miette::Report::new)?;
     Ok(())
 }

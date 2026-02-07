@@ -7,10 +7,18 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
+use std::fmt;
+
 use bimap::BiMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SymbolId(u32);
+
+impl fmt::Display for SymbolId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "@{}", self.0)
+    }
+}
 
 #[derive(Default, Debug)]
 pub struct SymbolTable {

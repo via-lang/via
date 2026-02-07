@@ -6,6 +6,7 @@ publish = true
 
 [dependencies]
 viac = { path = "../viac" }
+miette.workspace = true
 anyhow.workspace = true
 clap = { version = "4.5.54", features = ["derive"] }
 clio = { version = "0.3.5" , features = ["clap-parse"] }
