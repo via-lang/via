@@ -41,7 +41,7 @@ A fair way to compared it to Lua would be: _via is to Lua what Rust is to C_.
 
 ### But what are invariants?
 
-An **invariant** is a guarantee by the compiler that a contract within the program will **never** be breached. That is still quite vague, so it is demonstrated in the following examples:
+An **invariant** is a guarantee by the compiler that a **contract within the program will never be breached**. That is still quite vague, so it is demonstrated in the following examples:
 
 In Lua, there is no way to guarantee _anything_ about parameters passed to functions at **compile-time**:
 
@@ -56,9 +56,9 @@ foo(nil, nil) -- alright
 foo(foo, foo) -- go for it!
 ```
 
-There are **five possible ways** in which this function can fail, completely undetectable at compile-time. This is completely unacceptable because of the trivial nature of this function. You can imagine the possibilities of failure in larger, more complex code.
+There are **five possible ways in which this function can fail, completely undetectable at compile-time**. This is completely unacceptable because of the trivial nature of this function. You can imagine the possibilities of failure in larger, more complex code.
 
-And no, Luau does not fix this. All it does is bolt on an half-baked type system that fails to resolve trivial types most of the time. This happens because Lua is fully-dynamic which makes its type system fundamentally incompatible with compile-time invariants, which in this case are:
+And no, **Luau does not fix this**. All it does is bolt on an half-baked type system that fails to resolve trivial types most of the time. This happens because Lua is fully-dynamic which makes its type system fundamentally incompatible with compile-time invariants, which in this case are:
 
 - `n` **is a** `number`
 - `n` **is not** `0`
@@ -70,10 +70,10 @@ None of which can be truly validated without explicit runtime-checks.
 
 Now the same function in via:
 
-```
+```rust
 fn foo(
-    n: float + !0,  // `n` is a float that is not equal to 0
-    f: fn(float) -> float  // `f` is a function that takes no arguments and returns a float
+    n: float + !0,          // `n` is a float that is not equal to 0
+    f: fn(float) -> float   // `f` is a function that takes no arguments and returns a float
 ) -> float {
     f(n) / n
 }
@@ -107,7 +107,7 @@ t["self"] = t           // error: cannot index value of type `[int]` with `strin
 t["foo"] = fn "bar"     // error: <same as above>
 ```
 
-via doesn’t even have “catch-all” tables. Arrays and maps are split, and every index assignment must satisfy the type system. There is no silent type mutation, no runtime surprises, and no creeping complexity.
+**via doesn’t even have “catch-all” tables**. Arrays and maps are split, and every index assignment must satisfy the type system. There is no silent type mutation, no runtime surprises, and no creeping complexity.
 
 ---
 
