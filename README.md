@@ -35,15 +35,13 @@
 
 _Not quite_.
 
-via isn't just "x with nicer syntax" or "x but faster", it is a language that aims to have **fully sealed compile-time invariants**.
+via isn't just _x with nicer syntax_ or _x but faster_, it is a language that aims to have **fully sealed compile-time invariants**.
 
-A fair way to compared it to Lua would be: "_via is to Lua what Rust is to C_".
+A fair way to compared it to Lua would be: _via is to Lua what Rust is to C_.
 
 ### But what are invariants?
 
-An **invariant** is a guarantee by the compiler that a contract within the program will **never** be breached. That is still quite vague, so it can be demonstrated with the following comparisons:
-
----
+An **invariant** is a guarantee by the compiler that a contract within the program will **never** be breached. That is still quite vague, so it is demonstrated in the following examples:
 
 In Lua, there is no way to guarantee _anything_ about parameters passed to functions at **compile-time**:
 
