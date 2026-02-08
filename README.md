@@ -96,7 +96,7 @@ As you can see, the type keeps getting more complex with each addition. There is
 
 If you were to try the same thing in via:
 
-```
+```zig
 var t = [10]
 t[1] = "hello!!"        // error: cannot assign value of type `string` to `[int]`
                         // |- help: type `[int]` does not implement trait `IndexAssign<I = int, string>`
@@ -120,13 +120,61 @@ local first = t[0] -- type: nil | unknown
 
 Here is what it would look like in via:
 
-```
-var t = []
-var first = t.first()   -- error: cannot infer type of `t`
-                        -- |- help: explictily annotate `t` as `[T]`
+```rust
+let t = []
+let first = t.first()   // error: cannot infer type of `t`
+                        // |- help: explictily annotate `t` as `[T]`
 ```
 
-As you can see, this does not compile. Because via does not have an `unknown` type. When the array is declared, the compiler infers its type as `[_]` (array with unknown inner type) and continues under the _assumption that it can solve its inner type later on in the code_. But since `first` does not introduce any new information about the inner type of the array, it is typed as `_ raise OutOfRange` (unknown type that may raise `OutOfRange`). And since there is never enough information to infer `_`, the compiler throws an error because the "no `unknown`s" invariant is violated.
+As you can see, this does not compile. Because via does not have an `unknown` type. When the array is declared, the compiler infers its type as `[_]` (array with unknown inner type) and **continues under the assumption that it can solve its inner type later on in the code**. But since `first` does not introduce any new information about the inner type of the array, it is typed as `_ raise OutOfRange` (unknown type that may raise `OutOfRange`). And since there is never enough information to infer `_`, the compiler throws an error because the **"no unknown types"** invariant is violated.
+
+---
+
+In Lua, functions signatures have no reflection of the functions error invariant:
+
+```lua
+function foo(a)
+    if a == 1 then
+        error("oops")
+    elseif a == 2 then
+        error(10)
+    else
+        return a + a
+    end
+end
+
+local result = foo(...) -- uhh error maybe???
+```
+
+There is **absolutely no way of knowing whether if this function throws or not**. The only way to find out is to `pcall` it, which is extremely inefficient. Now some Lua forks like Luau have a `never` type, but that still results in opaque error types, and is ambiguous between other non-continous control flow operations like _infinite loops_.
+
+The problem this creates is the fact that you can never know if _any_ function _anywhere_ in your code base will fail or not, and due to that only way to enforce the **"errors must always be handled"** invariant becomes sprinkling `pcall` everywhere; making your code repetitive, cluttered, and fragile.
+
+In via, the same function would look like:
+
+```rust
+struct Oops;
+
+fn foo(a: int) -> int raise Oops {
+    if a == 1 {
+        raise Oops
+    } else if a == 2 {
+        raise 10    // error: cannot raise type `int` in function with raise type `Oops`
+                    // |- help: add `int` to the raise type by changing raise clause to: `raise Oops | int`
+    } else {
+        return a + a
+    }
+}
+
+let result = foo(...)?    // type: int | Oops
+
+let n = result * 2;     // error: cannot multiply type `int | Oops` with `int`
+                        // |- help: type `int | Oops` does not implement trait `Mul<int>`
+                        //          explicitly handle variants of this union: type `int` and type `Oops`
+
+let raw = foo(a)        // error: cannot propagate raise alternative `Oops` here
+                        // |- help: explicitly handle the error by inserting a `?` after the function call
+```
 
 ---
 
@@ -136,7 +184,7 @@ _These are just a few examples where Lua completely ignores compile-time invaria
 
 After all, can't we just write better code?
 
-_Yes, you absolutely can._ But there are **expensive** tradeoffs:
+_Yes, you absolutely can._ But there are **expensive tradeoffs**:
 
 - **Surprise errors**: Would you rather your script _not compile_ or _die in production_? via is in favor of the _former_.
 - **Code duplication**: End up sprinkling `assert` to check the type of every parameter, making your code cluttered, repetitive, and fragile.
