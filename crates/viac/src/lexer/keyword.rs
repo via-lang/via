@@ -27,7 +27,6 @@ pub const KEYWORD_LIST: phf::Map<&'static str, TokenKind> = phf_map! {
     "continue" => KwContinue,
     "return" => KwReturn,
     "raise" => KwRaise,
-    "copy" => KwCopy,
     "async" => KwAsync,
     "await" => KwAwait,
     "spawn" => KwSpawn,

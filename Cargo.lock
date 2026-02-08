@@ -730,10 +730,6 @@ dependencies = [
 [[package]]
 name = "via_macros"
 version = "0.1.0"
-
-[[package]]
-name = "via_proc_macros"
-version = "0.0.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -759,7 +755,6 @@ dependencies = [
  "thiserror",
  "unicode-ident",
  "via_macros",
- "via_proc_macros",
 ]
 
 [[package]]

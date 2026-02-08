@@ -12,7 +12,8 @@ use super::{
 };
 use crate::{
     ast::{aux::Nodes, control::Control, stmt::StmtId},
-    hir::error::Error,
+    hir::{env::LoopEnv, error::Error},
+    source::SourceSpan,
 };
 
 impl<'a> IrBuilder<'a> {
@@ -37,6 +38,17 @@ impl<'a> IrBuilder<'a> {
         block: BlockId,
         control: &'a Control,
     ) -> BlockId {
+        let mut rogue_ctrl = |span: &SourceSpan| {
+            self.clinic.report(
+                Error::RogueControlStatement {
+                    span: span.to_miette_span(),
+                    allowed: vec!["for-loops".to_owned(), "while-loops".to_owned()].into(),
+                }
+                .into(),
+            );
+            block
+        };
+
         match control {
             Control::Break(brk) => {
                 if let Some(loop_env) = &env.loop_env {
@@ -49,14 +61,7 @@ impl<'a> IrBuilder<'a> {
                     );
                     loop_env.exit
                 } else {
-                    self.clinic.report(
-                        Error::RogueControlStatement {
-                            span: brk.span.to_miette_span(),
-                            allowed: vec!["for-loops".to_owned(), "while-loops".to_owned()].into(),
-                        }
-                        .into(),
-                    );
-                    block
+                    rogue_ctrl(&brk.span)
                 }
             }
             Control::Continue(cont) => {
@@ -70,14 +75,7 @@ impl<'a> IrBuilder<'a> {
                     );
                     loop_env.control
                 } else {
-                    self.clinic.report(
-                        Error::RogueControlStatement {
-                            span: cont.span.to_miette_span(),
-                            allowed: vec!["for-loops".to_owned(), "while-loops".to_owned()].into(),
-                        }
-                        .into(),
-                    );
-                    block
+                    rogue_ctrl(&cont.span)
                 }
             }
             Control::Return(ret) => {
@@ -91,7 +89,7 @@ impl<'a> IrBuilder<'a> {
                         block,
                         self.ast.get(ast_value),
                         out,
-                        ReadKind::Move,
+                        ReadKind::Borrow,
                     );
                     value = Some(out);
                 }
@@ -182,7 +180,10 @@ impl<'a> IrBuilder<'a> {
                 let body = self.block(hir);
                 let exit = self.block(hir);
 
+                env.set_loop_env(Some(LoopEnv { control, exit }));
+
                 let [cond] = env.temp_id.bump::<1>();
+
                 self.lower_expr(
                     hir,
                     env,
@@ -206,6 +207,7 @@ impl<'a> IrBuilder<'a> {
                 self.terminate(hir, body, Term::Jump { block: control });
                 self.terminate(hir, block, Term::Jump { block: control });
 
+                env.set_loop_env(None);
                 exit
             }
             _ => todo!(),

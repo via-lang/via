@@ -11,6 +11,7 @@ pub mod binding;
 pub mod compiler;
 pub mod context;
 pub mod error;
+pub mod loader;
 pub mod symbol;
 pub mod tree;
 

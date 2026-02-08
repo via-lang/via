@@ -9,10 +9,12 @@
 
 use std::path::Path;
 
-use viac::module::context::ModuleContext;
+use viac::module::{context::ModuleContext, loader::FsLoader};
 
 pub fn run(path: &Path) -> miette::Result<()> {
-    let mut ctxt = ModuleContext::new(path);
-    ctxt.load(path, "main").map_err(miette::Report::new)?;
+    let mut loader = FsLoader::new(path);
+    let mut ctxt = ModuleContext::new();
+    ctxt.load(&mut loader, "main")
+        .map_err(miette::Report::new)?;
     Ok(())
 }

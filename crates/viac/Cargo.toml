@@ -2,11 +2,9 @@
 name = "viac"
 version = "0.1.0"
 edition = "2024"
-publish = true
 
 [dependencies]
 via_macros = { path = "../via_macros" }
-via_proc_macros = { path = "../via_proc_macros" }
 assert_matches.workspace = true
 bitflags.workspace = true
 itertools.workspace = true

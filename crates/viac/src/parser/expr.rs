@@ -280,7 +280,6 @@ impl Parser<'_> {
                     let expr = tree.insert(expr);
 
                     match last.kind {
-                        KwCopy => Expr::Value(value::Copy { span, expr }.into()),
                         KwAwait => Expr::Value(value::Await { span, expr }.into()),
                         Ident => Expr::Place(
                             place::Dynamic {

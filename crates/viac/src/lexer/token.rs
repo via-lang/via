@@ -8,7 +8,7 @@
 ** ================================================ */
 
 use strum::IntoStaticStr;
-use via_proc_macros::PrecData;
+use via_macros::PrecData;
 
 use crate::source::SourceSpan;
 
@@ -48,7 +48,6 @@ pub enum TokenKind {
     KwContinue,
     KwReturn,
     KwRaise,
-    KwCopy,
     KwAsync,
     KwAwait,
     KwSpawn,

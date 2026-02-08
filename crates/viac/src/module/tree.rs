@@ -9,7 +9,7 @@
 
 use std::{collections::HashMap, fmt};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModulePath(pub Box<[String]>);
 
 impl ModulePath {

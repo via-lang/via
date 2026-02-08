@@ -63,7 +63,6 @@ ast! {
         },
         Try { expr: ExprId },
         Await { expr: ExprId },
-        Copy { expr: ExprId },
         Type { ty: TyId },
         Attr { attr: AttrId },
     }

@@ -7,8 +7,6 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use via_macros::bug;
-
 use super::{prelude::*, ty::AllowRaiseClause};
 use crate::{
     ast::{
@@ -155,12 +153,10 @@ impl Parser<'_> {
                 })
                 .transpose()?;
 
-            let last = alias.clone().map(|t| t.span).unwrap_or_else(|| {
-                path.last()
-                    .unwrap_or_else(|| bug!("misparsed import path"))
-                    .span
-                    .clone()
-            });
+            let last = alias
+                .clone()
+                .map(|t| t.span)
+                .unwrap_or_else(|| path.last().expect("misparsed path").span.clone());
 
             Ok(decl::Import {
                 span: SourceSpan::new(first.span.begin, last.end),

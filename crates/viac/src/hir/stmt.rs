@@ -22,7 +22,7 @@ impl<'a> IrBuilder<'a> {
             Stmt::Decl(decl) => self.lower_decl(hir, env, block, decl),
             Stmt::Control(control) => self.lower_control(hir, env, block, control),
             Stmt::Expr(expr) => {
-                self.lower_expr(hir, env, block, expr, ValueId::Discard, ReadKind::Move);
+                self.lower_expr(hir, env, block, expr, ValueId::Discard, ReadKind::Borrow);
                 block
             }
         }

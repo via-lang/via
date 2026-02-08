@@ -69,7 +69,7 @@ pub enum TyKind {
     ///
     /// Expressed as `[T]` where `T` is the generic type parameter.
     ///
-    /// The type parameter has the following constraints:
+    /// The type parameter has the following invariants:
     /// - Cannot be *monostate*.
     /// - Cannot have an effect qualifier (e.g. `raise` clause).
     Array(TyId),
@@ -79,12 +79,12 @@ pub enum TyKind {
     /// Expressed as `{T: U}` where `T` is the generic "key" type parameter
     /// and `U` is the "value" type parameter.
     ///
-    /// The "key" type parameter has the following constraints:
+    /// The "key" type parameter has the following invariants:
     /// - Cannot be *monostate*.
     /// - Cannot be referencial.
     /// - Must implement the `Hash` trait.
     ///
-    /// The "value" type parameter has the following constraints:
+    /// The "value" type parameter has the following invariants:
     /// - Cannot be *monostate*.
     Map {
         key: TyId,
@@ -99,10 +99,10 @@ pub enum TyKind {
     User(SymbolId),
 }
 
-/// Fully qualified type construct.
+/// Qualified type construct.
 ///
 /// Primary abstraction unit for representing semantic types constructs.
-/// Composed of [unqualified type] + [type qualifiers].
+/// Composed of [raw type] + [qualifiers].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ty {
     pub kind: TyKind,

@@ -1,0 +1,99 @@
+/* ================================================ **
+**           The via Programming Language           **
+** ------------------------------------------------ **
+**        Copyright (C) XnLogicaL 2024-2026         **
+**           Licensed under GNU GPL v3.0            **
+** ------------------------------------------------ **
+**         https://github.com/via-lang/via          **
+** ================================================ */
+
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
+
+use crate::{
+    clinic::{Clinic, PrettyVec},
+    source::SourceBuf,
+};
+
+use super::{
+    Module, SourceModule,
+    error::{Error, Result},
+    tree::ModulePath,
+};
+
+pub trait ModuleLoader {
+    fn load_module(
+        &mut self,
+        clinic: &mut Clinic,
+        path: impl Into<ModulePath>,
+    ) -> Result<Box<dyn Module>>;
+}
+
+#[derive(Debug)]
+pub struct FsLoader {
+    search_paths: Vec<PathBuf>,
+}
+
+impl FsLoader {
+    pub fn new(root: &Path) -> Self {
+        Self {
+            search_paths: vec![root.to_path_buf()],
+        }
+    }
+
+    pub fn add_search_path(&mut self, path: &Path) -> &mut Self {
+        self.search_paths.push(path.to_path_buf());
+        self
+    }
+
+    fn resolve(&mut self, path: ModulePath) -> Result<PathBuf> {
+        let mut candidates = vec![];
+        for mut dir in self.search_paths.clone() {
+            path.0.iter().for_each(|node| dir.push(node));
+
+            if let Ok(path) = fs::canonicalize(dir)
+                && let Ok(meta) = fs::metadata(&path)
+                && meta.is_file()
+            {
+                candidates.push(path);
+            }
+        }
+
+        match candidates.as_slice() {
+            [c] => Ok(c.clone()),
+            [] => Err(Error::ModuleNotFound { path }),
+            [_, _, ..] => Err(Error::AmbigiousModulePath {
+                path,
+                candidates: PrettyVec::from(
+                    candidates
+                        .iter()
+                        .map(|c| c.to_string_lossy().to_string())
+                        .collect::<Vec<String>>(),
+                ),
+            }),
+        }
+    }
+}
+
+impl ModuleLoader for FsLoader {
+    fn load_module(
+        &mut self,
+        clinic: &mut Clinic,
+        path: impl Into<ModulePath>,
+    ) -> Result<Box<dyn Module>> {
+        let path = path.into();
+        let fs_path = self.resolve(path.clone())?;
+
+        let code = fs::read_to_string(&fs_path).map_err(Error::OsError)?;
+        let source = SourceBuf::new(
+            format!("<module:{path} @ {}>", fs_path.to_string_lossy()),
+            code,
+        );
+
+        SourceModule::new(&source, clinic)
+            .map(|m| -> Box<dyn Module> { Box::new(m) })
+            .ok_or(Error::CompilationError)
+    }
+}

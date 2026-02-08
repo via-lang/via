@@ -7,23 +7,16 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use std::{
-    collections::{HashMap, hash_map::Entry},
-    fs,
-    path::{Path, PathBuf},
-};
+use std::collections::{HashMap, hash_map::Entry};
 
 use bitflags::bitflags;
 
 use super::{
-    Module, SourceModule,
-    error::{Error, Result},
+    Module,
+    error::Result,
     tree::{ModuleId, ModulePath, ModuleTree},
 };
-use crate::{
-    clinic::{Clinic, PrettyVec},
-    source::SourceBuf,
-};
+use crate::{clinic::Clinic, module::loader::ModuleLoader};
 
 bitflags! {
     #[derive(Debug)]
@@ -37,16 +30,14 @@ pub struct ModuleContext {
     pub(super) tree: ModuleTree,
     pub(super) clinic: Clinic,
     pub(super) modules: HashMap<ModuleId, Box<dyn Module>>,
-    pub(super) paths: Vec<PathBuf>,
 }
 
 impl ModuleContext {
-    pub fn new(root: &Path) -> Self {
+    pub fn new() -> Self {
         Self {
             tree: ModuleTree::new(),
             clinic: Clinic::new(),
             modules: HashMap::new(),
-            paths: vec![root.to_path_buf()],
         }
     }
 
@@ -54,62 +45,27 @@ impl ModuleContext {
         self.modules.get(&id).map(Box::as_ref)
     }
 
-    pub fn load(&mut self, fs_path: &Path, path: impl Into<ModulePath>) -> Result<ModuleId> {
+    pub fn load(
+        &mut self,
+        loader: &mut impl ModuleLoader,
+        path: impl Into<ModulePath>,
+    ) -> Result<ModuleId> {
         let path = path.into();
         let id = self.tree.insert(&path);
 
         match self.modules.entry(id) {
-            Entry::Occupied(_) => Ok(id),
+            Entry::Occupied(_) => {}
             Entry::Vacant(e) => {
-                let code = fs::read_to_string(fs_path).map_err(Error::OsError)?;
-                let source = SourceBuf::new(
-                    format!("<module:{path} @ {}>", fs_path.to_string_lossy()),
-                    code,
-                );
-
-                let module = SourceModule::new(&source, &mut self.clinic);
-
-                self.clinic.emit(&source);
-
-                module
-                    .map(|m| {
-                        e.insert(Box::new(m));
-                        id
-                    })
-                    .ok_or(Error::CompilationError)
+                let module = loader.load_module(&mut self.clinic, path)?;
+                e.insert(module);
             }
         }
+        Ok(id)
     }
+}
 
-    pub fn resolve(&mut self, path: ModulePath) -> Result<ModuleId> {
-        if let Some(id) = self.tree.get(&path) {
-            return Ok(id);
-        }
-
-        let mut candidates = vec![];
-        for mut dir in self.paths.clone() {
-            path.0.iter().for_each(|node| dir.push(node));
-
-            if let Ok(path) = fs::canonicalize(dir)
-                && let Ok(meta) = fs::metadata(&path)
-                && meta.is_file()
-            {
-                candidates.push(path);
-            }
-        }
-
-        match &candidates.as_slice() {
-            [] => Err(Error::ModuleNotFound { path }),
-            [c] => Ok(self.load(c.as_path(), path)?),
-            [_, _, ..] => Err(Error::AmbigiousModulePath {
-                path,
-                candidates: PrettyVec::from(
-                    candidates
-                        .iter()
-                        .map(|c| c.to_string_lossy().to_string())
-                        .collect::<Vec<String>>(),
-                ),
-            }),
-        }
+impl Default for ModuleContext {
+    fn default() -> Self {
+        Self::new()
     }
 }

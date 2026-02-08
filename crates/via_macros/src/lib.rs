@@ -7,4 +7,11 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-mod bug;
+mod prec_data;
+
+use proc_macro::TokenStream;
+
+#[proc_macro_derive(PrecData, attributes(prec_data, prec))]
+pub fn prec_data(input: TokenStream) -> TokenStream {
+    prec_data::expand(input)
+}

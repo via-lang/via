@@ -88,10 +88,6 @@ pub enum Instr {
         value: ValueId,
         out: ValueId,
     },
-    Move {
-        value: ValueId,
-        out: ValueId,
-    },
     Get {
         value: TempId,
         field: ValueId,
@@ -246,10 +242,6 @@ impl fmt::Display for Instr {
             Self::Copy { value, out } => {
                 write_out(Some(*out))?;
                 writeln!(f, "copy {value}")
-            }
-            Self::Move { value, out } => {
-                write_out(Some(*out))?;
-                writeln!(f, "move {value}")
             }
             Self::Get { value, field, out } => {
                 write_out(Some(*out))?;

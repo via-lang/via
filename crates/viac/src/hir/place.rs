@@ -19,7 +19,6 @@ use crate::ast::place::Place;
 
 pub(super) enum ReadKind {
     Copy,
-    Move,
     Borrow,
 }
 
@@ -54,7 +53,6 @@ impl<'a> IrBuilder<'a> {
                     block,
                     match read_kind {
                         ReadKind::Copy => Instr::Copy { value, out },
-                        ReadKind::Move => Instr::Move { value, out },
                         ReadKind::Borrow => todo!(),
                     },
                 );

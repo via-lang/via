@@ -42,6 +42,7 @@ impl Parser<'_> {
             let last = expr.span();
 
             optional!(parser, Semi);
+
             Ok(control::Raise {
                 span: SourceSpan::new(first.begin, last.end),
                 expr: tree.insert(expr),
@@ -144,10 +145,18 @@ impl Parser<'_> {
             match token.kind {
                 KwBreak => self
                     .consume()
-                    .map(|token| control::Break { span: token.span }.into()),
+                    .map(|token| control::Break { span: token.span })
+                    .map(Into::into)
+                    .inspect(|_| {
+                        optional!(self, Semi);
+                    }),
                 KwContinue => self
                     .consume()
-                    .map(|token| control::Continue { span: token.span }.into()),
+                    .map(|token| control::Continue { span: token.span })
+                    .map(Into::into)
+                    .inspect(|_| {
+                        optional!(self, Semi);
+                    }),
                 KwReturn => self.parse_control_return(tree).map(Into::into),
                 KwRaise => self.parse_control_raise(tree).map(Into::into),
                 KwWhile => self.parse_control_while(tree).map(Into::into),

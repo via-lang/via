@@ -97,7 +97,7 @@ impl<'a> IrBuilder<'a> {
                         block,
                         self.ast.get(range.lhs),
                         lhs,
-                        ReadKind::Move,
+                        ReadKind::Borrow,
                     );
 
                     self.lower_expr(
@@ -106,7 +106,7 @@ impl<'a> IrBuilder<'a> {
                         block,
                         self.ast.get(range.rhs),
                         rhs,
-                        ReadKind::Move,
+                        ReadKind::Borrow,
                     );
 
                     self.push(
@@ -127,7 +127,7 @@ impl<'a> IrBuilder<'a> {
                         .map(|expr| {
                             let expr = self.ast.get(*expr);
                             let [out] = env.temp_id.bump::<1>();
-                            self.lower_expr(hir, env, block, expr, out, ReadKind::Move);
+                            self.lower_expr(hir, env, block, expr, out, ReadKind::Copy);
                             out
                         })
                         .collect::<_>();
@@ -141,7 +141,7 @@ impl<'a> IrBuilder<'a> {
                         .map(|expr| {
                             let expr = self.ast.get(*expr);
                             let [out] = env.temp_id.bump::<1>();
-                            self.lower_expr(hir, env, block, expr, out, ReadKind::Move);
+                            self.lower_expr(hir, env, block, expr, out, ReadKind::Copy);
                             out
                         })
                         .collect::<_>();
@@ -177,7 +177,7 @@ impl<'a> IrBuilder<'a> {
                         block,
                         self.ast.get(unary.expr),
                         value,
-                        ReadKind::Move,
+                        ReadKind::Borrow,
                     );
 
                     self.push(
@@ -197,7 +197,7 @@ impl<'a> IrBuilder<'a> {
                         .map(|expr| {
                             let expr = self.ast.get(*expr);
                             let [out] = env.temp_id.bump::<1>();
-                            self.lower_expr(hir, env, block, expr, out, ReadKind::Move);
+                            self.lower_expr(hir, env, block, expr, out, ReadKind::Copy);
                             out
                         })
                         .collect::<_>();
@@ -208,7 +208,7 @@ impl<'a> IrBuilder<'a> {
                         block,
                         self.ast.get(call.callee),
                         callee,
-                        ReadKind::Move,
+                        ReadKind::Borrow,
                     );
 
                     self.push(
@@ -224,8 +224,24 @@ impl<'a> IrBuilder<'a> {
                 Value::Binary(bin) => {
                     let [lhs, rhs] = env.temp_id.bump::<2>();
 
-                    self.lower_expr(hir, env, block, self.ast.get(bin.lhs), lhs, ReadKind::Move);
-                    self.lower_expr(hir, env, block, self.ast.get(bin.rhs), rhs, ReadKind::Move);
+                    self.lower_expr(
+                        hir,
+                        env,
+                        block,
+                        self.ast.get(bin.lhs),
+                        lhs,
+                        ReadKind::Borrow,
+                    );
+
+                    self.lower_expr(
+                        hir,
+                        env,
+                        block,
+                        self.ast.get(bin.rhs),
+                        rhs,
+                        ReadKind::Borrow,
+                    );
+
                     self.push(
                         hir,
                         block,
@@ -240,14 +256,6 @@ impl<'a> IrBuilder<'a> {
                         },
                     );
                 }
-                Value::Copy(copy) => self.lower_expr(
-                    hir,
-                    env,
-                    block,
-                    self.ast.get(copy.expr),
-                    out,
-                    ReadKind::Copy,
-                ),
                 _ => todo!(),
             },
             Expr::Place(place) => self.lower_place(hir, env, block, place, out, read_kind),

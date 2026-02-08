@@ -30,7 +30,7 @@ impl<'a> IrBuilder<'a> {
                     block,
                     self.ast.get(var.expr),
                     local,
-                    ReadKind::Move,
+                    ReadKind::Borrow,
                 );
 
                 block
