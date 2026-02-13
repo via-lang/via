@@ -7,11 +7,10 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::{macros::ast, place::Place, value::Value};
+use super::Ty;
+use crate::intern::Interned;
 
-ast! {
-    enum Expr {
-        Place(Place),
-        Value(Value),
-    }
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Array<'cx> {
+    ty: Interned<'cx, Ty<'cx>>,
 }

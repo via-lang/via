@@ -7,13 +7,12 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-mod attr;
+mod body;
 pub mod context;
-mod control;
-mod decl;
 pub mod error;
 mod expr;
 mod macros;
+mod param;
 mod stmt;
 mod ty;
 
@@ -25,6 +24,7 @@ pub(super) mod prelude {
         macros::*,
     };
     pub(super) use crate::{
+        ast::Tree,
         lexer::token::TokenKind::{self, *},
         source::{SourceBuf, SourceSpan},
     };
@@ -34,12 +34,10 @@ use context::Context;
 use prelude::*;
 
 use crate::{
-    ast::{
-        Id, Tree,
-        aux::{Nodes, Param},
-    },
+    ast::{Id, Tree},
     lexer::token::Token,
     module::compiler::{Compiler, state::Lexed},
+    parser::body::Allow,
 };
 
 pub struct Parser<'a> {
@@ -81,6 +79,7 @@ impl<'a> Parser<'a> {
             .ok_or(Error::UnexpectedEndOfFile {})
     }
 
+    #[allow(dead_code)]
     fn peek_ahead(&self, ahead: u32) -> Result<Token> {
         self.toks
             .get(self.pos + ahead as usize)
@@ -92,34 +91,12 @@ impl<'a> Parser<'a> {
         self.peek().inspect(|_| self.pos += 1)
     }
 
-    #[allow(private_bounds)]
-    pub(super) fn parse_body<F, I>(&mut self, tree: &mut Tree, mut parse: F) -> Result<Nodes<I>>
-    where
-        F: FnMut(&mut Self, &mut Tree) -> Result<I::Node>,
-        I: Id,
-    {
-        let first = expect_one!(self, LBrace)?;
-        let mut inner = vec![];
-
-        while !check!(self, RBrace) {
-            let node = parse(self, tree)?;
-            let id = tree.insert(node);
-            inner.push(id);
-        }
-
-        let last = expect_one!(self, RBrace)?;
-        Ok(Nodes {
-            inner,
-            span: SourceSpan::merge(first.span, last.span),
-        })
-    }
-
     pub(super) fn parse_list<F, I>(
         &mut self,
         tree: &mut Tree,
-        brackets: (TokenKind, TokenKind),
         mut parse: F,
-    ) -> Result<Nodes<I>>
+        brackets: (TokenKind, TokenKind),
+    ) -> Result<(Vec<I>, SourceSpan)>
     where
         F: FnMut(&mut Self, &mut Tree) -> Result<I::Node>,
         I: Id,
@@ -138,28 +115,7 @@ impl<'a> Parser<'a> {
         }
 
         let last = expect_one!(self, brackets.1)?;
-        Ok(Nodes {
-            inner,
-            span: SourceSpan::merge(first.span, last.span),
-        })
-    }
-
-    pub(super) fn parse_param(&mut self, tree: &mut Tree) -> Result<Param> {
-        self.with_context(Context::Param, |parser| {
-            let name = expect_one!(parser, Ident)?;
-            let first = name.span.clone();
-
-            expect_one!(parser, Col)?;
-
-            let ty = parser.parse_param_ty(tree)?;
-            let last = ty.span();
-
-            Ok(Param {
-                span: SourceSpan::merge(first, last),
-                name,
-                ty: tree.insert(ty),
-            })
-        })
+        Ok((inner, SourceSpan::merge(first.span, last.span)))
     }
 
     pub(crate) fn parse(&mut self) -> Result<Tree> {
@@ -168,9 +124,9 @@ impl<'a> Parser<'a> {
             if check!(self, EndOfFile) {
                 break Ok(tree);
             }
-            let stmt = self.parse_stmt(&mut tree)?;
+            let stmt = self.parse_stmt(&mut tree, Allow::all())?;
             let id = tree.insert(stmt);
-            tree.stmts.push(id);
+            tree.inner.push(id);
         }
     }
 }

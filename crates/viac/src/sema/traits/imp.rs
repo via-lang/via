@@ -7,11 +7,10 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::{macros::ast, place::Place, value::Value};
+use super::Trait;
+use crate::intern::Interned;
 
-ast! {
-    enum Expr {
-        Place(Place),
-        Value(Value),
-    }
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TraitImpl<'cx> {
+    pub class: Interned<'cx, Trait<'cx>>,
 }

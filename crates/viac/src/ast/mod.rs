@@ -7,22 +7,15 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-pub mod attr;
-pub mod aux;
-pub mod control;
-pub mod decl;
+pub mod body;
 pub mod expr;
 pub mod macros;
+pub mod param;
 pub mod place;
 pub mod stmt;
-pub mod stringify;
 pub mod ty;
 pub mod value;
 
-use attr::Attr;
-use aux::Param;
-use control::Control;
-use decl::Decl;
 use expr::Expr;
 use place::Place;
 use stmt::Stmt;
@@ -35,7 +28,7 @@ macro_rules! tree {
             #[derive(Default, Debug)]
             #[allow(non_snake_case)]
             pub struct Tree {
-                pub stmts: Vec<stmt::StmtId>,
+                pub inner: Vec<stmt::StmtId>,
                 $(
                     [<$name _nodes>]: Vec<$name>
                 ),*
@@ -44,7 +37,7 @@ macro_rules! tree {
     };
 }
 
-tree! { Attr, Control, Decl, Expr, Place, Stmt, Ty, Value, Param }
+tree! { Expr, Place, Ty, Value, Stmt }
 
 impl Tree {
     pub fn get<I: Id>(&self, id: I) -> &I::Node {

@@ -8,9 +8,12 @@
 ** ================================================ */
 
 use super::prelude::*;
-use crate::ast::{
-    Tree,
-    ty::{self, Ty},
+use crate::{
+    ast::{
+        Tree,
+        ty::{self, Ty},
+    },
+    parser::param::{AllowNamedParam, OmitEmptyParams},
 };
 
 yes_or_no!(pub AllowRaiseClause);
@@ -23,7 +26,7 @@ impl Parser<'_> {
     ) -> Result<Ty> {
         let token = self.peek()?;
         let mut lhs = match token.kind {
-            KwNone | KwBool | KwInt | KwFloat | KwString => ty::Builtin {
+            KwNone | KwBool | KwInt | KwFloat | KwString | Bang => ty::Builtin {
                 span: token.span,
                 token: self.consume()?,
             }
@@ -66,10 +69,6 @@ impl Parser<'_> {
             KwFn => self.with_context(Context::TypeFn, |parser| -> Result<Ty> {
                 parser.consume()?;
 
-                let params = parser.parse_list(tree, (LParen, RParen), |parser, tree| {
-                    parser.parse_type(tree, AllowRaiseClause::No)
-                })?;
-
                 expect_one!(parser, Arrow)?;
 
                 let result = parser.parse_return_ty(tree)?;
@@ -77,7 +76,13 @@ impl Parser<'_> {
 
                 Ok(ty::Function {
                     span: SourceSpan::new(token.span.begin, last.end),
-                    params: params.inner,
+                    params: parser.parse_params(
+                        tree,
+                        OmitEmptyParams::Yes {
+                            fallback: token.span,
+                        },
+                        AllowNamedParam::No,
+                    )?,
                     result: tree.insert(result),
                 }
                 .into())
@@ -89,7 +94,7 @@ impl Parser<'_> {
                 let expr = parser.parse_expr(tree)?;
                 let last = expect_one!(parser, RParen)?;
 
-                Ok(ty::TypeOf {
+                Ok(ty::Type {
                     span: SourceSpan::new(token.span.begin, last.span.end),
                     expr: tree.insert(expr),
                 }
@@ -97,7 +102,7 @@ impl Parser<'_> {
             })?,
             _ => {
                 return Err(Error::UnexpectedToken {
-                    span: token.span.to_miette_span(),
+                    span: token.span.into(),
                     expected: vec![].into(),
                     got: self.src.get_span(&token.span).to_owned(),
                 });
@@ -133,14 +138,14 @@ impl Parser<'_> {
 
                     if !bool::from(allow_raise) {
                         return Err(Error::UnexpectedRaiseClause {
-                            span: token.span.to_miette_span(),
+                            span: token.span.into(),
                         });
                     }
 
                     let rhs = self.parse_type(tree, AllowRaiseClause::No)?;
                     let last = rhs.span();
 
-                    ty::Effect {
+                    ty::Raise {
                         span: SourceSpan::new(first.begin, last.end),
                         lhs: tree.insert(lhs),
                         rhs: tree.insert(rhs),

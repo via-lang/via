@@ -23,14 +23,16 @@ use crate::source::SourceSpan;
 impl Lexer {
     pub(crate) fn read_ident(&mut self) -> Token {
         let start = self.pos;
-        self.bump(); // first char
+        let first = self.bump(); // first char
         self.eat_while(|c| c == '_' || is_xid_continue(c));
 
         let span = SourceSpan::new(start, self.pos);
         let kind = KEYWORD_LIST
             .get(self.src.get_span(&span))
             .cloned()
-            .unwrap_or(Ident);
+            .unwrap_or(Ident {
+                placeholder: span.len() == 1 && first == Some('_'),
+            });
 
         Token { kind, span }
     }

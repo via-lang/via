@@ -13,7 +13,7 @@ use super::{
     counter::Counter,
     instr::{LocalId, TempId},
 };
-use crate::{hir::block::BlockId, module::symbol::SymbolId};
+use crate::{mir::block::BlockId, module::symbol::SymbolId};
 
 #[derive(Debug)]
 pub(super) struct LoopEnv {

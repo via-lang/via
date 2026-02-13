@@ -13,7 +13,7 @@ use itertools::Itertools;
 use miette::{Diagnostic, Severity, SourceSpan};
 use thiserror::Error;
 
-use crate::{hir, parser, source::SourceBuf};
+use crate::{mir, parser, source::SourceBuf};
 
 #[derive(Debug, Error, Diagnostic)]
 pub enum Error {
@@ -23,7 +23,7 @@ pub enum Error {
 
     #[error(transparent)]
     #[diagnostic(transparent)]
-    Hir(#[from] hir::error::Error),
+    Mir(#[from] mir::error::Error),
 }
 
 #[derive(Debug)]

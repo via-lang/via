@@ -7,16 +7,20 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use std::collections::{HashMap, hash_map::Entry};
+use std::{
+    collections::{HashMap, hash_map::Entry},
+    fs,
+    path::Path,
+};
 
 use bitflags::bitflags;
 
 use super::{
-    Module,
-    error::Result,
+    Module, SourceModule,
+    error::{Error, Result},
     tree::{ModuleId, ModulePath, ModuleTree},
 };
-use crate::{clinic::Clinic, module::loader::ModuleLoader};
+use crate::{clinic::Clinic, module::loader::ModuleLoader, source::SourceBuf};
 
 bitflags! {
     #[derive(Debug)]
@@ -45,7 +49,7 @@ impl ModuleContext {
         self.modules.get(&id).map(Box::as_ref)
     }
 
-    pub fn load(
+    pub fn load_module(
         &mut self,
         loader: &mut impl ModuleLoader,
         path: impl Into<ModulePath>,
@@ -60,6 +64,20 @@ impl ModuleContext {
                 e.insert(module);
             }
         }
+        Ok(id)
+    }
+
+    pub fn load_script(&mut self, path: &Path) -> Result<ModuleId> {
+        let code = fs::read_to_string(path).map_err(Error::OsError)?;
+        let name = format!("<main @ {}>", path.to_string_lossy());
+        let source = SourceBuf::new(name, code);
+
+        let module = SourceModule::new(&source, &mut self.clinic)
+            .map(|m| -> Box<dyn Module> { Box::new(m) })
+            .ok_or(Error::CompilationError)?;
+
+        let id = self.tree.insert(&"main".into());
+        self.modules.insert(id, module);
         Ok(id)
     }
 }

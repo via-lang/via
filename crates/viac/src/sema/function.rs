@@ -7,22 +7,11 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::symbol::SymbolId;
-use crate::sema::ty::Ty;
+use super::ty::Ty;
+use crate::intern::Interned;
 
-#[derive(Debug)]
-pub enum Binding {
-    Type {
-        id: SymbolId,
-        ty: Ty,
-    },
-    Constant {
-        id: SymbolId,
-        ty: Ty,
-    },
-    Function {
-        id: SymbolId,
-        ret: Ty,
-        params: Vec<Ty>,
-    },
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Function<'cx> {
+    pub result: Interned<'cx, Ty<'cx>>,
+    pub params: Interned<'cx, Ty<'cx>>,
 }

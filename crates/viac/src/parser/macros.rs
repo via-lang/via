@@ -14,6 +14,16 @@ macro_rules! yes_or_no {
             Yes,
             No,
         }
+
+        impl From<bool> for $name {
+            fn from(value: bool) -> Self {
+                match value {
+                    true => $name::Yes,
+                    false => $name::No,
+                }
+            }
+        }
+
         impl From<$name> for bool {
             fn from(value: $name) -> Self {
                 value == $name::Yes
@@ -23,13 +33,13 @@ macro_rules! yes_or_no {
 }
 
 macro_rules! check {
-    ($this:expr, $kind:pat_param) => {
+    ($this:expr => $kind:pat_param) => {
         $this.peek().is_ok_and(|token| matches!(token.kind, $kind))
     };
     ($this:expr, $kind:expr) => {
         $this.peek().is_ok_and(|token| token.kind == $kind)
     };
-    ($this:expr, $kind:pat_param, $ahead:expr) => {
+    ($this:expr => $kind:pat_param, $ahead:expr) => {
         $this
             .peek_ahead($ahead)
             .is_ok_and(|token| matches!(token.kind, $kind))
@@ -42,7 +52,7 @@ macro_rules! check {
 }
 
 macro_rules! optional {
-    ($this:expr, $kind:pat_param) => {
+    ($this:expr => $kind:pat_param) => {
         check!($this, $kind)
             .then(|| $this.consume().is_ok())
             .unwrap_or(false)
@@ -55,11 +65,11 @@ macro_rules! optional {
 }
 
 macro_rules! expect_one {
-    ($this:expr, $kind:pat_param) => {
+    ($this:expr => $kind:pat_param) => {
         match $this.consume()? {
             token if matches!(&token.kind, $kind) => Ok(token),
             token => Err(Error::UnexpectedToken {
-                span: token.span.to_miette_span(),
+                span: token.span.into(),
                 expected: vec![].into(),
                 got: $this.src.get_span(&token.span).to_owned(),
             }),
@@ -69,7 +79,7 @@ macro_rules! expect_one {
         match $this.consume()? {
             token if $kind == token.kind => Ok(token),
             token => Err(Error::UnexpectedToken {
-                span: token.span.to_miette_span(),
+                span: token.span.into(),
                 expected: vec![].into(),
                 got: $this.src.get_span(&token.span).to_owned(),
             }),

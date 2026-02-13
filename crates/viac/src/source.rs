@@ -54,7 +54,7 @@ impl SourceCode for SourceBuf {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct SourceSpan {
     pub begin: usize,
     pub end: usize,
@@ -65,17 +65,24 @@ impl SourceSpan {
         Self { begin, end }
     }
 
+    #[allow(clippy::len_without_is_empty)]
+    pub fn len(&self) -> usize {
+        self.end - self.begin
+    }
+
     pub fn merge(lhs: SourceSpan, rhs: SourceSpan) -> Self {
         Self {
             begin: lhs.begin,
             end: rhs.begin,
         }
     }
+}
 
-    pub fn to_miette_span(&self) -> miette::SourceSpan {
-        miette::SourceSpan::new(
-            miette::SourceOffset::from(self.begin),
-            self.end - self.begin,
+impl From<SourceSpan> for miette::SourceSpan {
+    fn from(value: SourceSpan) -> Self {
+        Self::new(
+            miette::SourceOffset::from(value.begin),
+            value.end - value.begin,
         )
     }
 }

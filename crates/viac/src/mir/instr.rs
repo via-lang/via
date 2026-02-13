@@ -13,7 +13,7 @@ use derive_more::{Add, AddAssign, From};
 
 use super::counter::Id;
 use crate::{
-    hir::block::BlockId,
+    mir::block::BlockId,
     module::symbol::SymbolId,
     sema::{ty::TyId, value::ConstValue},
 };
@@ -85,6 +85,10 @@ pub enum Instr {
         out: ValueId,
     },
     Copy {
+        value: ValueId,
+        out: ValueId,
+    },
+    Borrow {
         value: ValueId,
         out: ValueId,
     },
@@ -242,6 +246,10 @@ impl fmt::Display for Instr {
             Self::Copy { value, out } => {
                 write_out(Some(*out))?;
                 writeln!(f, "copy {value}")
+            }
+            Self::Borrow { value, out } => {
+                write_out(Some(*out))?;
+                writeln!(f, "&{value}")
             }
             Self::Get { value, field, out } => {
                 write_out(Some(*out))?;

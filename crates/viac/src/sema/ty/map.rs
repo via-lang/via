@@ -7,24 +7,11 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::{Id, ty::TyId};
-use crate::{ast::macros::ast, lexer::token::Token, source::SourceSpan};
+use super::Ty;
+use crate::intern::Interned;
 
-#[derive(Debug, Clone)]
-pub struct Nodes<I: Id> {
-    pub inner: Vec<I>,
-    pub span: SourceSpan,
-}
-
-ast! {
-    Param {
-        name: Token,
-        ty: TyId,
-    }
-}
-
-impl PartialEq for Param {
-    fn eq(&self, other: &Self) -> bool {
-        self.ty == other.ty
-    }
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Map<'cx> {
+    pub key: Interned<'cx, Ty<'cx>>,
+    pub value: Interned<'cx, Ty<'cx>>,
 }

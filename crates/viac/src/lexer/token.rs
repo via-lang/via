@@ -28,12 +28,17 @@ pub enum TokenKind {
     Int {
         base: Base,
     },
+
     Float,
     String {
         terminated: bool,
     },
-    Ident,
+
+    Ident {
+        placeholder: bool,
+    },
     KwVar,
+    KwLet,
     KwMut,
     KwConst,
     KwFn,

@@ -12,6 +12,7 @@ use super::token::TokenKind::{self, *};
 
 pub const KEYWORD_LIST: phf::Map<&'static str, TokenKind> = phf_map! {
     "var" => KwVar,
+    "let" => KwLet,
     "mut" => KwMut,
     "const" => KwConst,
     "fn" => KwFn,

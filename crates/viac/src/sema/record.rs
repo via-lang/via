@@ -7,11 +7,17 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::{macros::ast, place::Place, value::Value};
+use super::{ty::Ty, visibility::Visibility};
+use crate::{intern::Interned, module::symbol::SymbolId};
 
-ast! {
-    enum Expr {
-        Place(Place),
-        Value(Value),
-    }
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Field<'cx> {
+    pub vis: Visibility,
+    pub name: SymbolId,
+    pub ty: Interned<'cx, Ty<'cx>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Record<'cx> {
+    pub fields: Vec<Field<'cx>>,
 }

@@ -7,11 +7,13 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::{macros::ast, place::Place, value::Value};
-
-ast! {
-    enum Expr {
-        Place(Place),
-        Value(Value),
-    }
+#[repr(u8)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Builtin {
+    Never,
+    None,
+    Bool,
+    Int,
+    Float,
+    String,
 }

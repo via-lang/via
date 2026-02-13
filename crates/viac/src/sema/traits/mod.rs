@@ -7,11 +7,14 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::{macros::ast, place::Place, value::Value};
+use super::{canonical_map::CanonicalMap, function::Function, ty::Ty};
+use crate::{intern::Interned, module::symbol::SymbolId};
 
-ast! {
-    enum Expr {
-        Place(Place),
-        Value(Value),
-    }
+pub mod context;
+pub mod imp;
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Trait<'cx> {
+    pub tys: CanonicalMap<SymbolId, Interned<'cx, Ty<'cx>>>,
+    pub fns: CanonicalMap<SymbolId, Interned<'cx, Function<'cx>>>,
 }

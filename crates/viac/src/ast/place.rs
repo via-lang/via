@@ -11,8 +11,8 @@ use super::{expr::ExprId, macros::ast};
 use crate::lexer::token::Token;
 
 ast! {
-    Place {
-        This { },
+    enum Place {
+        This {},
         Symbol { symbol: String },
         Dynamic {
             expr: ExprId,

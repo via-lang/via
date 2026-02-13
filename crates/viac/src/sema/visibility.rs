@@ -7,12 +7,8 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::macros::ast;
-
-ast! {
-    Attr {
-        Native {},
-        Inline {},
-        Distinct {},
-    }
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Visibility {
+    Public,
+    Hidden,
 }

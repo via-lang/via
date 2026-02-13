@@ -7,7 +7,6 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-pub mod binding;
 pub mod compiler;
 pub mod context;
 pub mod error;

@@ -7,11 +7,12 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::{macros::ast, place::Place, value::Value};
+use super::{expr::ExprId, stmt::StmtId};
+use crate::source::SourceSpan;
 
-ast! {
-    enum Expr {
-        Place(Place),
-        Value(Value),
-    }
+#[derive(Debug, Clone)]
+pub struct Body {
+    pub inner: Box<[StmtId]>,
+    pub span: SourceSpan,
+    pub tail: Option<ExprId>,
 }

@@ -53,4 +53,11 @@ pub enum Error {
         #[label("here")]
         span: SourceSpan,
     },
+
+    #[error("`self` parameter may not appear twice")]
+    #[diagnostic(code(syn::unexp::self_parm), help("remove parameter"))]
+    UnexpectedSelfParam {
+        #[label("here")]
+        span: SourceSpan,
+    },
 }

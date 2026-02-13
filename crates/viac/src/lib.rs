@@ -12,7 +12,9 @@
 pub mod ast;
 pub mod clinic;
 pub mod hir;
+pub mod intern;
 pub mod lexer;
+pub mod mir;
 pub mod module;
 pub mod parser;
 pub mod sema;

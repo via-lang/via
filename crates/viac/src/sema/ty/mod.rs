@@ -7,11 +7,21 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::{macros::ast, place::Place, value::Value};
+use array::Array;
+use builtin::Builtin;
+use function::Function;
+use map::Map;
 
-ast! {
-    enum Expr {
-        Place(Place),
-        Value(Value),
-    }
+pub mod array;
+pub mod builtin;
+pub mod context;
+pub mod function;
+pub mod map;
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Ty<'cx> {
+    Builtin(Builtin),
+    Array(Array<'cx>),
+    Map(Map<'cx>),
+    Function(Function<'cx>),
 }

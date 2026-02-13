@@ -14,6 +14,7 @@ use crate::{
     clinic::{Clinic, Error as CompilationError},
     hir,
     lexer::{Lexer, token::Token},
+    mir,
     module::{
         binding::Binding,
         error::Error,
@@ -45,6 +46,11 @@ pub mod state {
     #[derive(Debug)]
     pub struct Hir {
         pub hir: hir::Hir,
+    }
+
+    #[derive(Debug)]
+    pub struct Mir {
+        pub mir: mir::Mir,
     }
 
     #[derive(Debug)]
@@ -119,7 +125,7 @@ impl<'a> Compiler<'a, Parsed> {
         clinic: &mut Clinic,
     ) -> Option<Compiler<'a, Hir>> {
         hir::lower(&self, symbols, clinic).map(|hir| {
-            println!("{hir}");
+            println!("{hir:#?}");
             self.with_state(|_, _| state::Hir { hir })
         })
     }
@@ -132,6 +138,23 @@ impl<'a> Compiler<'a, Hir> {
 
     pub fn typecheck(self) -> Option<Self> {
         Some(self)
+    }
+
+    pub fn lower(
+        self,
+        symbols: &mut SymbolTable,
+        clinic: &mut Clinic,
+    ) -> Option<Compiler<'a, Mir>> {
+        mir::lower(&self, symbols, clinic).map(|mir| {
+            println!("{mir}");
+            self.with_state(|_, _| state::Mir { mir })
+        })
+    }
+}
+
+impl<'a> Compiler<'a, Mir> {
+    pub fn optimize(self) -> Self {
+        self
     }
 
     pub fn lower(self) -> Option<Compiler<'a, Bytecode>> {
@@ -171,8 +194,9 @@ pub fn compile(
             .lower(symbols, clinic)?
             .typecheck()?
             .optimize()
-            .lower()?
+            .lower(symbols, clinic)?
             .optimize()
+            .lower()?
             .to_unit(),
     )
 }

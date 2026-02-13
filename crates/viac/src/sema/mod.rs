@@ -7,10 +7,36 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-//! Semantic analysis module.
-//!
-//! This module provides core semantic constructs and methods.
-//! Used for lowering, optimization, and diagnostics.
+use crate::intern::Interned;
 
+use constant::Constant;
+use function::Function;
+use record::Record;
+use traits::Trait;
+use ty::Ty;
+use visibility::Visibility;
+
+pub mod canonical_map;
+pub mod constant;
+pub mod context;
+pub mod function;
+pub mod record;
+pub mod traits;
 pub mod ty;
 pub mod value;
+pub mod visibility;
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum DefKind<'cx> {
+    Type(Interned<'cx, Ty<'cx>>),
+    Trait(Interned<'cx, Trait<'cx>>),
+    Record(Interned<'cx, Record<'cx>>),
+    Function(Interned<'cx, Function<'cx>>),
+    Constant(Interned<'cx, Constant<'cx>>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Def<'cx> {
+    pub vis: Visibility,
+    pub kind: DefKind<'cx>,
+}

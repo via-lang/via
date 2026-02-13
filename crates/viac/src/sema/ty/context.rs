@@ -7,26 +7,31 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-pub mod builder;
-pub mod expr;
-pub mod stmt;
-
+use super::Ty;
 use crate::{
-    clinic::Clinic,
-    module::{
-        compiler::{Compiler, state::Parsed},
-        symbol::SymbolTable,
-    },
+    intern::{Interned, Interner},
+    source::SourceSpan,
 };
-use builder::HirBuilder;
 
 #[derive(Debug)]
-pub struct Hir {}
+pub enum TyOrigin {
+    Source { span: SourceSpan },
+    Infered { from: SourceSpan },
+    Builtin,
+}
 
-pub(crate) fn lower(
-    c: &Compiler<Parsed>,
-    symbols: &mut SymbolTable,
-    clinic: &mut Clinic,
-) -> Option<Hir> {
-    HirBuilder::new(c.source(), symbols, clinic, &c.stage().ast).lower()
+pub struct TyContext<'cx> {
+    tys: Interner<Ty<'cx>>,
+}
+
+impl<'cx> TyContext<'cx> {
+    pub fn new() -> Self {
+        Self {
+            tys: Interner::default(),
+        }
+    }
+
+    pub fn intern(&'cx mut self, ty: Ty<'cx>) -> Interned<'cx, Ty<'cx>> {
+        self.tys.intern(ty)
+    }
 }

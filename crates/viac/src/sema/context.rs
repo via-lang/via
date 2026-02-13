@@ -7,11 +7,20 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::{macros::ast, place::Place, value::Value};
+use delegate::delegate;
 
-ast! {
-    enum Expr {
-        Place(Place),
-        Value(Value),
+use super::Def;
+use crate::intern::{Interned, Interner};
+
+pub struct SemContext<'cx> {
+    defs: Interner<Def<'cx>>,
+}
+
+impl<'cx> SemContext<'cx> {
+    delegate! {
+        to self.defs {
+            fn intern(&'cx mut self, def: Def<'cx>)
+                -> Interned<'cx, Def<'cx>>;
+        }
     }
 }

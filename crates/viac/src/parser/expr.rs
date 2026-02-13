@@ -7,8 +7,11 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::prelude::*;
-use crate::ast::{Tree, aux::Nodes, expr::Expr, place, value};
+use super::{body::ExpectBraces, prelude::*};
+use crate::{
+    ast::{Tree, expr::Expr, place, value},
+    parser::{body::Allow, param::*},
+};
 
 yes_or_no!(AllowPrefix);
 
@@ -17,7 +20,7 @@ impl Parser<'_> {
         matches!(
             self.peek().map(|t| t.kind),
             Ok(
-                Ident
+                Ident { placeholder: _ }
                 | KwTrue
                 | KwFalse
                 | KwNone
@@ -41,14 +44,14 @@ impl Parser<'_> {
     fn parse_expr_primary(&mut self, tree: &mut Tree, allow_prefix: AllowPrefix) -> Result<Expr> {
         self.with_context(Context::ExprPrimary, |parser| {
             let token = parser.peek()?;
-            let span = token.span.clone();
+            let span = token.span;
 
             match token.kind {
-                Ident => {
+                Ident { .. } => {
                     parser.consume()?;
                     Ok(Expr::Place(
                         place::Symbol {
-                            span: span.clone(),
+                            span,
                             symbol: parser.src.get_span(&span).to_owned(),
                         }
                         .into(),
@@ -72,10 +75,10 @@ impl Parser<'_> {
                 }
                 Int { base: _ } => {
                     parser.consume()?;
-                    let span = token.span.clone();
+
                     Ok(Expr::Value(
                         value::Integer {
-                            span: span.clone(),
+                            span: token.span,
                             value: parser
                                 .src
                                 .get_span(&span)
@@ -87,10 +90,10 @@ impl Parser<'_> {
                 }
                 Float => {
                     parser.consume()?;
-                    let span = token.span.clone();
+
                     Ok(Expr::Value(
                         value::Float {
-                            span: span.clone(),
+                            span: token.span,
                             value: parser
                                 .src
                                 .get_span(&span)
@@ -103,15 +106,15 @@ impl Parser<'_> {
                 String { terminated } => {
                     if !terminated {
                         return Err(Error::UnterminatedStringLiteral {
-                            string: token.span.to_miette_span(),
+                            string: token.span.into(),
                             quote: miette::SourceSpan::new((token.span.end - 1).into(), 1),
                         });
                     }
                     parser.consume()?;
                     Ok(Expr::Value(
                         value::String {
-                            span: span.clone(),
-                            string: parser.src.get_span(&token.span).to_owned(),
+                            span,
+                            value: parser.src.get_span(&token.span).to_owned(),
                         }
                         .into(),
                     ))
@@ -155,13 +158,11 @@ impl Parser<'_> {
                     Ok(expr)
                 }
                 LBracket => parser.with_context(Context::ExprArray, |parser| {
-                    let exprs = parser.parse_list(tree, (LBracket, RBracket), Self::parse_expr)?;
-                    let span = exprs.span.clone();
-
+                    let exprs = parser.parse_list(tree, Self::parse_expr, (LBracket, RBracket))?;
                     Ok(Expr::Value(
                         value::Array {
-                            span,
-                            exprs: exprs.inner,
+                            span: exprs.1,
+                            exprs: exprs.0,
                         }
                         .into(),
                     ))
@@ -200,7 +201,7 @@ impl Parser<'_> {
                     let expr = parser.parse_expr(tree)?;
                     let last = expr.span();
                     Ok(Expr::Value(
-                        value::Reference {
+                        value::Borrow {
                             span: SourceSpan::new(token.span.begin, last.end),
                             expr: tree.insert(expr),
                         }
@@ -211,7 +212,7 @@ impl Parser<'_> {
                     parser.consume()?;
 
                     let expr = parser.parse_expr_primary(tree, AllowPrefix::No)?;
-                    let first = token.span.clone();
+                    let first = token.span;
                     let last = expr.span();
 
                     Ok(Expr::Value(
@@ -227,13 +228,13 @@ impl Parser<'_> {
                     parser.consume()?;
                     parser.push_context(Context::ExprLambda);
 
-                    let params = check!(parser, LParen)
-                        .then(|| parser.parse_list(tree, (LParen, RParen), Self::parse_param))
-                        .transpose()?
-                        .unwrap_or(Nodes {
-                            inner: vec![],
-                            span: token.span.clone(),
-                        });
+                    let params = parser.parse_params(
+                        tree,
+                        OmitEmptyParams::Yes {
+                            fallback: token.span,
+                        },
+                        AllowNamedParam::Yes,
+                    )?;
 
                     let result = optional!(parser, Arrow)
                         .then(|| parser.parse_return_ty(tree))
@@ -242,26 +243,20 @@ impl Parser<'_> {
 
                     parser.pop_context();
 
-                    let body = parser.parse_body(tree, Self::parse_stmt)?;
-                    let last = body.span.clone();
+                    let body = parser.parse_body(tree, ExpectBraces::Yes, Allow::all())?;
 
                     Ok(Expr::Value(
                         value::Lambda {
-                            span: SourceSpan::new(token.span.begin, last.end),
-                            params: params.inner,
+                            span: SourceSpan::new(token.span.begin, body.span.end),
+                            params,
                             result,
                             body,
                         }
                         .into(),
                     ))
                 }
-                Hash => {
-                    let attr = parser.parse_attr(tree)?;
-                    let span = tree.get(attr).span();
-                    Ok(Expr::Value(value::Attr { span, attr }.into()))
-                }
                 _ => Err(Error::UnexpectedToken {
-                    span: token.span.to_miette_span(),
+                    span: token.span.into(),
                     expected: vec![].into(),
                     got: parser.src.get_span(&token.span).to_owned(),
                 }),
@@ -276,12 +271,12 @@ impl Parser<'_> {
                 Ok(Dot) => {
                     self.consume()?;
                     let last = self.consume()?;
-                    let span = SourceSpan::merge(expr.span(), last.span.clone());
+                    let span = SourceSpan::merge(expr.span(), last.span);
                     let expr = tree.insert(expr);
 
                     match last.kind {
                         KwAwait => Expr::Value(value::Await { span, expr }.into()),
-                        Ident => Expr::Place(
+                        Ident { .. } => Expr::Place(
                             place::Dynamic {
                                 span,
                                 expr,
@@ -291,7 +286,7 @@ impl Parser<'_> {
                         ),
                         _ => {
                             return Err(Error::UnexpectedToken {
-                                span: span.to_miette_span(),
+                                span: span.into(),
                                 expected: vec!["`copy`", "`await`", "identifier"].into(),
                                 got: self.src.get_span(&span).to_owned(),
                             });
@@ -301,13 +296,11 @@ impl Parser<'_> {
                 Ok(ColCol) => {
                     self.consume()?;
 
-                    let field = expect_one!(self, Ident)?;
-                    let first = expr.span();
-                    let last = field.span.clone();
+                    let field = expect_one!(self => Ident { .. })?;
 
                     Expr::Place(
                         place::Static {
-                            span: SourceSpan::new(first.begin, last.end),
+                            span: SourceSpan::new(expr.span().begin, field.span.end),
                             expr: tree.insert(expr),
                             field,
                         }
@@ -331,21 +324,21 @@ impl Parser<'_> {
                     )
                 }
                 Ok(LParen) => {
-                    let args = self.parse_list(tree, (LParen, RParen), Self::parse_expr)?;
+                    let args = self.parse_list(tree, Self::parse_expr, (LParen, RParen))?;
                     let first = expr.span();
-                    let last = args.span.clone();
 
                     Expr::Value(
                         value::Call {
-                            span: SourceSpan::new(first.begin, last.end),
+                            span: SourceSpan::new(first.begin, args.1.end),
                             callee: tree.insert(expr),
-                            args: args.inner,
+                            args: args.0,
                         }
                         .into(),
                     )
                 }
                 Ok(DotDot) => {
                     self.consume()?;
+
                     let inclusive = optional!(self, Eq);
                     let end = self.parse_expr(tree)?;
                     let first = expr.span();
@@ -357,27 +350,6 @@ impl Parser<'_> {
                             lhs: tree.insert(expr),
                             rhs: tree.insert(end),
                             inclusive,
-                        }
-                        .into(),
-                    )
-                }
-                Ok(KwIf) => {
-                    self.consume()?;
-
-                    let first = expr.span();
-                    let cond = self.parse_expr(tree)?;
-
-                    expect_one!(self, KwElse)?;
-
-                    let alt = self.parse_expr(tree)?;
-                    let last = alt.span();
-
-                    Expr::Value(
-                        value::Ternary {
-                            span: SourceSpan::new(first.begin, last.end),
-                            cond: tree.insert(cond),
-                            iftrue: tree.insert(expr),
-                            iffalse: tree.insert(alt),
                         }
                         .into(),
                     )

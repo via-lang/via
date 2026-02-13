@@ -58,26 +58,6 @@ macro_rules! ast_traits {
     };
 }
 
-macro_rules! ast_single_struct {
-    (
-        $node:ident {
-            $($field:ident : $ty:ty),* $(,)?
-        }
-    ) => {
-        #[derive(Debug, Clone)]
-        pub struct $node {
-            pub span: crate::source::SourceSpan,
-            $(pub $field : $ty),*
-        }
-
-        impl $node {
-            pub fn span(&self) -> crate::source::SourceSpan {
-                self.span.clone()
-            }
-        }
-    };
-}
-
 macro_rules! ast_structs {
     ($(
         $name:ident {
@@ -130,7 +110,7 @@ macro_rules! ast_expr_enum {
 
 macro_rules! ast {
     (
-        $node:ident {
+        enum $node:ident {
             $(
                 $name:ident {
                     $($field:ident : $ty:ty),* $(,)?
@@ -152,7 +132,7 @@ macro_rules! ast {
         }
     };
     (
-        $node:ident {
+        enum $node:ident {
             $(
                 $name:ident($expr:expr)
             ),* $(,)?
@@ -166,25 +146,11 @@ macro_rules! ast {
             super::macros::ast_traits!($node);
         }
     };
-    (
-        $node:ident {
-            $($field:ident : $ty:ty),* $(,)?
-        }
-    ) => {
-        paste::paste! {
-            super::macros::ast_single_struct! {
-                $node { $($field : $ty),* }
-            }
-            super::macros::ast_id!($node);
-            super::macros::ast_traits!($node);
-        }
-    };
 }
 
 pub(super) use ast;
 pub(super) use ast_expr_enum;
 pub(super) use ast_id;
-pub(super) use ast_single_struct;
 pub(super) use ast_struct_enum;
 pub(super) use ast_structs;
 pub(super) use ast_traits;
