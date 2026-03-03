@@ -12,11 +12,7 @@ use std::fmt;
 use derive_more::{Add, AddAssign, From};
 
 use super::counter::Id;
-use crate::{
-    mir::block::BlockId,
-    module::symbol::SymbolId,
-    sema::{ty::TyId, value::ConstValue},
-};
+use crate::sema::{ty::Ty, value::ConstValue};
 
 #[repr(transparent)]
 #[derive(From, Add, AddAssign, Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -65,60 +61,16 @@ pub enum Instr {
         value: ConstValue,
         out: ValueId,
     },
-    Range {
-        inclusive: bool,
-        lhs: TempId,
-        rhs: TempId,
-        out: ValueId,
-    },
-    Tuple {
-        values: Vec<TempId>,
-        out: ValueId,
-    },
-    Array {
-        values: Vec<TempId>,
-        out: ValueId,
-    },
-    Closure {
-        block: BlockId,
-        upvals: Vec<LocalId>,
-        out: ValueId,
-    },
-    Copy {
-        value: ValueId,
-        out: ValueId,
-    },
-    Borrow {
-        value: ValueId,
-        out: ValueId,
-    },
-    Get {
-        value: TempId,
-        field: ValueId,
-        out: ValueId,
-    },
-    GetStatic {
-        value: TempId,
-        field: SymbolId,
-        out: ValueId,
-    },
-    GetDynamic {
-        value: TempId,
-        field: SymbolId,
-        out: ValueId,
-    },
-    Call {
-        callee: TempId,
-        args: Vec<TempId>,
-        out: Option<ValueId>,
-    },
-    Cast {
-        value: TempId,
-        ty: TyId,
-        out: ValueId,
-    },
     Negate {
         value: TempId,
+        out: ValueId,
+    },
+    Not {
+        in_: ValueId,
+        out: ValueId,
+    },
+    BitNot {
+        in_: ValueId,
         out: ValueId,
     },
     Add {
@@ -151,10 +103,6 @@ pub enum Instr {
         rhs: TempId,
         out: ValueId,
     },
-    Not {
-        in_: ValueId,
-        out: ValueId,
-    },
     And {
         lhs: TempId,
         rhs: TempId,
@@ -163,10 +111,6 @@ pub enum Instr {
     Or {
         lhs: TempId,
         rhs: TempId,
-        out: ValueId,
-    },
-    BitNot {
-        in_: ValueId,
         out: ValueId,
     },
     BitAnd {
@@ -217,55 +161,6 @@ impl fmt::Display for Instr {
             Self::Const { value, out } => {
                 write_out(Some(*out))?;
                 writeln!(f, "{value}")
-            }
-            Self::Range {
-                inclusive,
-                lhs,
-                rhs,
-                out,
-            } => {
-                write_out(Some(*out))?;
-                writeln!(
-                    f,
-                    "range {lhs}, {}{rhs}",
-                    inclusive.then_some("=").unwrap_or_default()
-                )
-            }
-            Self::Tuple { values, out } => {
-                write_out(Some(*out))?;
-                writeln!(f, "tuple {}", stringify_vec(values))
-            }
-            Self::Array { values, out } => {
-                write_out(Some(*out))?;
-                writeln!(f, "array {}", stringify_vec(values))
-            }
-            Self::Closure { block, upvals, out } => {
-                write_out(Some(*out))?;
-                writeln!(f, "closure{block} env=[{}]", stringify_vec(upvals))
-            }
-            Self::Copy { value, out } => {
-                write_out(Some(*out))?;
-                writeln!(f, "copy {value}")
-            }
-            Self::Borrow { value, out } => {
-                write_out(Some(*out))?;
-                writeln!(f, "&{value}")
-            }
-            Self::Get { value, field, out } => {
-                write_out(Some(*out))?;
-                writeln!(f, "{value}[{field}]")
-            }
-            Self::GetStatic { value, field, out } => {
-                write_out(Some(*out))?;
-                writeln!(f, "getstatic {value}, {field}")
-            }
-            Self::GetDynamic { value, field, out } => {
-                write_out(Some(*out))?;
-                writeln!(f, "getdyn {value}, {field}")
-            }
-            Self::Call { callee, args, out } => {
-                write_out(*out)?;
-                writeln!(f, "call {callee}({})", stringify_vec(args))
             }
             Self::Negate { value, out } => {
                 write_out(Some(*out))?;

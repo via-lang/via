@@ -7,26 +7,22 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use std::collections::HashMap;
-
 use crate::{
     ast::Tree,
-    clinic::{Clinic, Error as CompilationError},
-    hir,
+    clinic::Clinic,
+    hir::{self, builder::HirBuilder},
     lexer::{Lexer, token::Token},
-    mir,
-    module::{
-        binding::Binding,
-        error::Error,
-        symbol::{SymbolId, SymbolTable},
-    },
-    parser,
+    mir::{self, builder::MirBuilder},
+    module::{error::Error, symbol::SymbolTable},
+    parser::Parser,
     source::SourceBuf,
 };
 
 pub type Result<T> = std::result::Result<T, Error>;
 
 pub mod state {
+    use crate::lir;
+
     use super::*;
 
     #[derive(Debug)]
@@ -39,7 +35,6 @@ pub mod state {
 
     #[derive(Debug)]
     pub struct Parsed {
-        pub tt: Box<[Token]>,
         pub ast: Tree,
     }
 
@@ -54,23 +49,28 @@ pub mod state {
     }
 
     #[derive(Debug)]
+    pub struct Lir {
+        pub lir: lir::Lir,
+    }
+
+    #[derive(Debug)]
     pub struct Bytecode;
 }
 
 use state::*;
 
 #[derive(Debug)]
-struct Core<'a> {
-    source: &'a SourceBuf,
+struct Core<'cx> {
+    source: &'cx SourceBuf,
 }
 
 #[derive(Debug)]
-pub struct Compiler<'a, S> {
+pub struct Compiler<'cx, S> {
     stage: S,
-    core: Core<'a>,
+    core: Core<'cx>,
 }
 
-impl<'a, S> Compiler<'a, S> {
+impl<'cx, S> Compiler<'cx, S> {
     pub fn source(&self) -> &SourceBuf {
         self.core.source
     }
@@ -79,7 +79,7 @@ impl<'a, S> Compiler<'a, S> {
         &self.stage
     }
 
-    fn with_state<O, F>(self, f: F) -> Compiler<'a, O>
+    fn with_state<O, F>(self, f: F) -> Compiler<'cx, O>
     where
         F: FnOnce(S, &Core) -> O,
     {
@@ -91,47 +91,51 @@ impl<'a, S> Compiler<'a, S> {
     }
 }
 
-impl<'a> Compiler<'a, Empty> {
-    pub fn new(source: &'a SourceBuf) -> Self {
+impl<'cx> Compiler<'cx, Empty> {
+    pub fn new(source: &'cx SourceBuf) -> Self {
         Self {
             core: Core { source },
             stage: Empty,
         }
     }
 
-    pub fn tokenize(self) -> Compiler<'a, Lexed> {
+    pub fn tokenize(self) -> Compiler<'cx, Lexed> {
         self.with_state(|_, core| Lexed {
             tt: Lexer::new(core.source).tokenize(),
         })
     }
 }
 
-impl<'a> Compiler<'a, Lexed> {
-    pub fn parse(self, clinic: &mut Clinic) -> Option<Compiler<'a, Parsed>> {
-        match parser::parse(&self) {
-            Ok(ast) => Some(self.with_state(|stage, _| Parsed { tt: stage.tt, ast })),
+impl<'cx> Compiler<'cx, Lexed> {
+    pub fn parse(self, clinic: &mut Clinic) -> Option<Compiler<'cx, Parsed>> {
+        let mut parser = Parser::new(&self.stage.tt);
+
+        match parser.parse() {
+            Ok(ast) => Some(self.with_state(|_, _| Parsed { ast })),
             Err(e) => {
-                clinic.report(CompilationError::Parser(e));
+                clinic.report(e);
                 None
             }
         }
     }
 }
 
-impl<'a> Compiler<'a, Parsed> {
+impl<'cx> Compiler<'cx, Parsed> {
     pub fn lower(
         self,
         symbols: &mut SymbolTable,
         clinic: &mut Clinic,
-    ) -> Option<Compiler<'a, Hir>> {
-        hir::lower(&self, symbols, clinic).map(|hir| {
-            println!("{hir:#?}");
-            self.with_state(|_, _| state::Hir { hir })
-        })
+    ) -> Option<Compiler<'cx, Hir>> {
+        let mut hir_builder = HirBuilder::new(symbols, clinic, &self.stage.ast);
+
+        match hir_builder.lower() {
+            Some(hir) => Some(self.with_state(|_, _| Hir { hir })),
+            None => None,
+        }
     }
 }
 
-impl<'a> Compiler<'a, Hir> {
+impl<'cx> Compiler<'cx, Hir> {
     pub fn optimize(self) -> Self {
         self
     }
@@ -142,45 +146,52 @@ impl<'a> Compiler<'a, Hir> {
 
     pub fn lower(
         self,
-        symbols: &mut SymbolTable,
-        clinic: &mut Clinic,
-    ) -> Option<Compiler<'a, Mir>> {
-        mir::lower(&self, symbols, clinic).map(|mir| {
-            println!("{mir}");
-            self.with_state(|_, _| state::Mir { mir })
-        })
+        symbols: &'cx mut SymbolTable,
+        clinic: &'cx mut Clinic,
+    ) -> Option<Compiler<'cx, Mir>> {
+        let mut mir_builder = MirBuilder::new(symbols, clinic, &self.stage.hir);
+
+        match mir_builder.lower() {
+            Some(mir) => Some(self.with_state(|_, _| Mir { mir })),
+            None => None,
+        }
     }
 }
 
-impl<'a> Compiler<'a, Mir> {
+impl<'cx> Compiler<'cx, Mir> {
     pub fn optimize(self) -> Self {
         self
     }
 
-    pub fn lower(self) -> Option<Compiler<'a, Bytecode>> {
+    pub fn lower(self) -> Option<Compiler<'cx, Lir>> {
         Some(Compiler {
-            stage: Bytecode {},
+            stage: Lir { lir: todo!() },
             core: self.core,
         })
     }
 }
 
-impl<'a> Compiler<'a, Bytecode> {
+impl<'cx> Compiler<'cx, Lir> {
+    pub fn lower(self) -> Compiler<'cx, Bytecode> {
+        Compiler {
+            stage: Bytecode {},
+            core: self.core,
+        }
+    }
+}
+
+impl<'cx> Compiler<'cx, Bytecode> {
     pub fn optimize(self) -> Self {
         self
     }
 
     pub fn to_unit(self) -> CompilationUnit {
-        CompilationUnit {
-            bindings: HashMap::new(),
-        }
+        CompilationUnit {}
     }
 }
 
 #[derive(Debug)]
-pub struct CompilationUnit {
-    pub(super) bindings: HashMap<SymbolId, Binding>,
-}
+pub struct CompilationUnit {}
 
 pub fn compile(
     source: &SourceBuf,
@@ -197,6 +208,7 @@ pub fn compile(
             .lower(symbols, clinic)?
             .optimize()
             .lower()?
+            .lower()
             .to_unit(),
     )
 }

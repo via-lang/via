@@ -7,41 +7,18 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::{expr::ExprId, macros::ast, param::Params};
-use crate::lexer::token::Token;
+use crate::source::SourceSpan;
 
-ast! {
-    enum Ty {
-        Builtin {
-            token: Token
-        },
-        Optional {
-            ty: TyId
-        },
-        Tuple {
-            tys: Vec<TyId>
-        },
-        Array {
-            ty: TyId
-        },
-        Map {
-            key: TyId,
-            value: TyId,
-        },
-        Function {
-            params: Params,
-            result: TyId,
-        },
-        Union {
-            lhs: TyId,
-            rhs: TyId
-        },
-        Raise {
-            lhs: TyId,
-            rhs: TyId
-        },
-        Type {
-            expr: ExprId
-        },
-    }
+#[derive(Debug)]
+pub enum TyKind {
+    None,
+    Bool,
+    Int,
+    Float,
+}
+
+#[derive(Debug)]
+pub struct Ty {
+    pub kind: TyKind,
+    pub span: SourceSpan,
 }

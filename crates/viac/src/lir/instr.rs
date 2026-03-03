@@ -7,8 +7,5 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Visibility {
-    Public,
-    Hidden,
-}
+#[derive(Debug)]
+pub enum Instr {}

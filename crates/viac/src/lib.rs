@@ -7,13 +7,12 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-//! Compiler super-module.
-
 pub mod ast;
 pub mod clinic;
 pub mod hir;
 pub mod intern;
 pub mod lexer;
+pub mod lir;
 pub mod mir;
 pub mod module;
 pub mod parser;

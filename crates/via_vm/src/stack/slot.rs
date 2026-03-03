@@ -7,31 +7,35 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::Ty;
-use crate::{
-    intern::{Interned, Interner},
-    source::SourceSpan,
-};
+use crate::value::Value;
 
 #[derive(Debug)]
-pub enum TyOrigin {
-    Source { span: SourceSpan },
-    Infered { from: SourceSpan },
-    Builtin,
+pub enum SlotKind {
+    Value,
+    Frame,
 }
 
-pub struct TyContext<'cx> {
-    tys: Interner<Ty<'cx>>,
+#[derive(Debug)]
+pub struct Slot {
+    #[cfg(debug_assertions)]
+    pub kind: SlotKind,
+    pub ptr: usize,
 }
 
-impl<'cx> TyContext<'cx> {
-    pub fn new() -> Self {
+impl Slot {
+    pub fn value(ptr: *mut Value) -> Self {
         Self {
-            tys: Interner::default(),
+            #[cfg(debug_assertions)]
+            kind: SlotKind::Value,
+            ptr: ptr as usize,
         }
     }
 
-    pub fn intern(&'cx mut self, ty: Ty<'cx>) -> Interned<'cx, Ty<'cx>> {
-        self.tys.intern(ty)
+    pub fn frame(ptr: *mut ()) -> Self {
+        Self {
+            #[cfg(debug_assertions)]
+            kind: SlotKind::Frame,
+            ptr: ptr as usize,
+        }
     }
 }

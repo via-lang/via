@@ -22,7 +22,7 @@ fn parse_prec(variant: &syn::Variant) -> Result<Option<syn::Expr>, syn::Error> {
 
 fn parse_prec_type(input: &DeriveInput) -> Result<syn::Type, syn::Error> {
     for attr in &input.attrs {
-        if attr.path().is_ident("prec_data") {
+        if attr.path().is_ident("token_kind") {
             return attr.parse_args::<syn::Type>();
         }
     }
@@ -40,7 +40,7 @@ pub fn expand(input: TokenStream) -> TokenStream {
     let enum_data = match &input.data {
         syn::Data::Enum(e) => e,
         _ => {
-            return syn::Error::new_spanned(enum_name, "PrecData only works on enums")
+            return syn::Error::new_spanned(enum_name, "Token only works on enums")
                 .to_compile_error()
                 .into();
         }

@@ -7,11 +7,31 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::{macros::ast, place::Place, value::Value};
+use crate::source::SourceSpan;
 
-ast! {
-    enum Expr {
-        Place(Place),
-        Value(Value),
-    }
+#[derive(Debug)]
+pub enum PlaceKind {
+    Symbol(String),
+}
+
+#[derive(Debug)]
+pub struct Place {
+    pub kind: PlaceKind,
+    pub span: SourceSpan,
+}
+
+#[derive(Debug)]
+pub enum ExprKind {
+    None,
+    True,
+    False,
+    Integer(u128),
+    Float(f64),
+    Read(Place),
+}
+
+#[derive(Debug)]
+pub struct Expr {
+    pub kind: ExprKind,
+    pub span: SourceSpan,
 }

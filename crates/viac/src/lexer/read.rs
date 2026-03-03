@@ -23,16 +23,15 @@ use crate::source::SourceSpan;
 impl Lexer {
     pub(crate) fn read_ident(&mut self) -> Token {
         let start = self.pos;
-        let first = self.bump(); // first char
+        self.bump();
         self.eat_while(|c| c == '_' || is_xid_continue(c));
 
         let span = SourceSpan::new(start, self.pos);
+        let text = self.src.read_span(&span);
         let kind = KEYWORD_LIST
-            .get(self.src.get_span(&span))
+            .get(text)
             .cloned()
-            .unwrap_or(Ident {
-                placeholder: span.len() == 1 && first == Some('_'),
-            });
+            .unwrap_or(Ident(text.to_owned()));
 
         Token { kind, span }
     }
@@ -40,54 +39,61 @@ impl Lexer {
     pub(crate) fn read_number(&mut self) -> Token {
         let start = self.pos;
 
-        if self.eat_str("0x") {
+        let base = if self.eat_str("0x") {
             self.eat_while(|c| c.is_ascii_hexdigit());
-            return Token {
-                kind: Int { base: Base::Hex },
-                span: SourceSpan::new(start, self.pos),
-            };
-        }
-
-        if self.eat_str("0b") {
+            Base::Hex
+        } else if self.eat_str("0b") {
             self.eat_while(|c| c == '0' || c == '1');
-            return Token {
-                kind: Int { base: Base::Binary },
-                span: SourceSpan::new(start, self.pos),
-            };
-        }
-
-        self.eat_while(|c| c.is_ascii_digit());
-
-        let is_float = match (self.peek(), self.peek_n(1)) {
-            (Some('.'), Some(c)) if c.is_ascii_digit() => {
-                self.bump();
-                self.eat_while(|c| c.is_ascii_digit());
-                true
-            }
-            _ => false,
+            Base::Binary
+        } else {
+            self.eat_while(|c| c.is_ascii_digit());
+            Base::Decimal
         };
 
-        Token {
-            kind: if is_float {
-                Float
-            } else {
-                Int {
-                    base: Base::Decimal,
+        let is_float = if base == Base::Decimal {
+            match (self.peek(), self.peek_n(1)) {
+                (Some('.'), Some(c)) if c.is_ascii_digit() => {
+                    self.bump(); // consume '.'
+                    self.eat_while(|c| c.is_ascii_digit());
+                    true
                 }
-            },
-            span: SourceSpan::new(start, self.pos),
-        }
+                _ => false,
+            }
+        } else {
+            false
+        };
+
+        let span = SourceSpan::new(start, self.pos);
+        let text = self.src.read_span(&span);
+
+        let kind = if is_float {
+            text.parse::<f64>().map(Float).unwrap_or(Illegal)
+        } else {
+            text.parse::<u128>()
+                .map(|value| Int { value, base })
+                .unwrap_or(Illegal)
+        };
+
+        Token { kind, span }
     }
 
     pub(crate) fn read_string(&mut self) -> Token {
         let start = self.pos;
         self.bump(); // opening "
+
+        let inner = self.pos;
         self.eat_while(|c| c != '"');
+
+        let span = SourceSpan::new(inner, self.pos);
+        let literal = self.src.read_span(&span).to_string();
 
         let terminated = self.eat('"');
 
         Token {
-            kind: String { terminated },
+            kind: String {
+                literal,
+                terminated,
+            },
             span: SourceSpan::new(start, self.pos),
         }
     }

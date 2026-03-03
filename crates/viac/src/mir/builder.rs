@@ -7,32 +7,24 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::{Mir, block::Block};
+use super::{Mir, block::Block, env::Env};
 use crate::{
     clinic::Clinic,
     hir::Hir,
     mir::{block::BlockId, instr::Instr, term::Term},
     module::symbol::SymbolTable,
-    source::SourceBuf,
 };
 
 #[derive(Debug)]
-pub struct MirBuilder<'a> {
-    pub(super) source: &'a SourceBuf,
-    pub(super) symbols: &'a mut SymbolTable,
-    pub(super) clinic: &'a mut Clinic,
-    pub(super) hir: &'a Hir,
+pub struct MirBuilder<'cx> {
+    pub(super) symbols: &'cx mut SymbolTable,
+    pub(super) clinic: &'cx mut Clinic,
+    pub(super) hir: &'cx Hir,
 }
 
-impl<'a> MirBuilder<'a> {
-    pub fn new(
-        source: &'a SourceBuf,
-        symbols: &'a mut SymbolTable,
-        clinic: &'a mut Clinic,
-        hir: &'a Hir,
-    ) -> Self {
+impl<'cx> MirBuilder<'cx> {
+    pub fn new(symbols: &'cx mut SymbolTable, clinic: &'cx mut Clinic, hir: &'cx Hir) -> Self {
         Self {
-            source,
             symbols,
             clinic,
             hir,
@@ -46,11 +38,11 @@ impl<'a> MirBuilder<'a> {
         id
     }
 
-    pub fn terminate(&mut self, mir: &mut Mir, block: BlockId, term: Term) {
+    pub fn terminate(&mut self, mir: &'cx mut Mir, block: BlockId, term: Term) {
         mir.get_mut(block).term = term;
     }
 
-    pub fn push(&mut self, mir: &mut Mir, block: BlockId, instr: Instr) {
+    pub fn push(&mut self, mir: &'cx mut Mir, block: BlockId, instr: Instr) {
         mir.get_mut(block).instrs.push(instr);
     }
 
@@ -58,13 +50,14 @@ impl<'a> MirBuilder<'a> {
         !matches!(mir.get(block).term, Term::Halt)
     }
 
-    pub(crate) fn lower(&mut self) -> Option<Mir> {
-        let /* mut */ mir = Mir::default();
-        // let mut env = Env::new();
+    pub fn lower(&mut self) -> Option<Mir> {
+        let mut mir = Mir::default();
 
-        // let mut current = self.block(&mut mir);
-        // for stmt in &self.ast.stmts {
-        //    current = self.lower_stmt(&mut mir, &mut env, current, self.ast.get(*stmt));
+        let mut env = Env::new();
+        let mut current = self.block(&mut mir);
+
+        // for stmt in &self.hir.inner {
+        //     current = self.lower_stmt(&mut mir, &mut env, current);
         // }
 
         self.clinic.healthy().then_some(mir)

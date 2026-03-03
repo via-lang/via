@@ -7,11 +7,9 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::Ty;
-use crate::intern::Interned;
+pub mod instr;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Map<'cx> {
-    pub key: Interned<'cx, Ty<'cx>>,
-    pub value: Interned<'cx, Ty<'cx>>,
+#[derive(Debug)]
+pub struct Lir {
+    pub inner: Vec<instr::Instr>,
 }

@@ -17,16 +17,7 @@ pub mod term;
 
 use std::fmt;
 
-use crate::{
-    clinic::Clinic,
-    module::{
-        compiler::{Compiler, state::Hir},
-        symbol::SymbolTable,
-    },
-};
-
 use block::{Block, BlockId};
-use builder::MirBuilder;
 
 #[derive(Debug, Default)]
 pub struct Mir {
@@ -54,12 +45,4 @@ impl fmt::Display for Mir {
         }
         Ok(())
     }
-}
-
-pub(crate) fn lower(
-    c: &Compiler<Hir>,
-    symbols: &mut SymbolTable,
-    clinic: &mut Clinic,
-) -> Option<Mir> {
-    MirBuilder::new(c.source(), symbols, clinic, &c.stage().hir).lower()
 }

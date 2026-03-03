@@ -7,33 +7,18 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-// Stupid miette proc macro magic producing false warnings
-#![allow(unused_assignments)]
-
-use miette::Diagnostic;
-use thiserror::Error;
-
 use super::tree::ModulePath;
 use crate::clinic::PrettyVec;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Error, Diagnostic, Debug)]
+#[derive(Debug)]
 pub enum Error {
-    #[error("compilation error")]
-    #[diagnostic()]
     CompilationError,
-
-    #[error("os error: {0}")]
-    #[diagnostic(code(module::os_error))]
-    OsError(#[from] std::io::Error),
-
-    #[error("'{path}' does not correspond to any module within search parameters")]
-    #[diagnostic(code(module::not_found))]
-    ModuleNotFound { path: ModulePath },
-
-    #[error("'{path}' is ambigious between {candidates}")]
-    #[diagnostic(code(module::ambig))]
+    OsError(std::io::Error),
+    ModuleNotFound {
+        path: ModulePath,
+    },
     AmbigiousModulePath {
         path: ModulePath,
         candidates: PrettyVec<String>,

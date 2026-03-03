@@ -7,11 +7,5 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::Ty;
-use crate::intern::Interned;
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Function<'cx> {
-    pub result: Interned<'cx, Ty<'cx>>,
-    pub params: Vec<Interned<'cx, Ty<'cx>>>,
-}
+#[derive(Debug)]
+pub enum Error {}

@@ -16,14 +16,19 @@ pub mod tree;
 
 use std::fmt::Debug;
 
-use crate::{clinic::Clinic, source::SourceBuf};
-use binding::Binding;
+use crate::{
+    clinic::Clinic,
+    source::{SourceBuf, SourceSpan},
+};
 use compiler::CompilationUnit;
-use symbol::SymbolId;
 use symbol::SymbolTable;
 
 pub trait Module: Debug {
-    fn get_symbol(&self, sym: SymbolId) -> Option<&Binding>;
+    fn source(&self) -> Option<&SourceBuf> {
+        None
+    }
+
+    fn get_trace(&self, span: SourceSpan) -> String;
 }
 
 #[derive(Debug)]
@@ -35,8 +40,12 @@ pub struct SourceModule {
 }
 
 impl Module for SourceModule {
-    fn get_symbol(&self, symbol: SymbolId) -> Option<&Binding> {
-        self.unit.bindings.get(&symbol)
+    fn source(&self) -> Option<&SourceBuf> {
+        Some(&self.source)
+    }
+
+    fn get_trace(&self, _span: SourceSpan) -> String {
+        format!("{}", self.source.name())
     }
 }
 
@@ -48,9 +57,5 @@ impl SourceModule {
             source: src.clone(),
             unit,
         })
-    }
-
-    pub fn source(&self) -> &SourceBuf {
-        &self.source
     }
 }

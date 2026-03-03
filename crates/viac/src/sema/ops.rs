@@ -7,13 +7,25 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-#[repr(u8)]
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum Builtin {
-    Never,
-    None,
-    Bool,
-    Int,
-    Float,
-    String,
+#[derive(Debug)]
+pub enum UnaryOp {
+    Negate,
+    Not,
+    BitNot,
+}
+
+#[derive(Debug)]
+pub enum BinaryOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Pow,
+    Mod,
+    And,
+    Or,
+    BitAnd,
+    BitOr,
+    BitShl,
+    BitShr,
 }

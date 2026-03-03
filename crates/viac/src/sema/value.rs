@@ -7,6 +7,15 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
+/* ================================================ **
+**           The via Programming Language           **
+** ------------------------------------------------ **
+**        Copyright (C) XnLogicaL 2024-2026         **
+**           Licensed under GNU GPL v3.0            **
+** ------------------------------------------------ **
+**         https://github.com/via-lang/via          **
+** ================================================ */
+
 use std::fmt;
 
 #[derive(Debug)]
@@ -15,7 +24,6 @@ pub enum ConstValue {
     Bool(bool),
     Int(i64),
     Float(f64),
-    String(String),
 }
 
 impl fmt::Display for ConstValue {
@@ -25,7 +33,6 @@ impl fmt::Display for ConstValue {
             Self::Bool(b) => write!(f, "{b}"),
             Self::Int(i) => write!(f, "{i}"),
             Self::Float(fp) => write!(f, "{fp}"),
-            Self::String(s) => write!(f, "\"{s}\""),
         }
     }
 }

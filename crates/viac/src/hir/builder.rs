@@ -8,25 +8,18 @@
 ** ================================================ */
 
 use super::Hir;
-use crate::{ast::Tree, clinic::Clinic, module::symbol::SymbolTable, source::SourceBuf};
+use crate::{ast::Tree, clinic::Clinic, module::symbol::SymbolTable};
 
 #[derive(Debug)]
 pub struct HirBuilder<'a> {
-    pub(super) source: &'a SourceBuf,
     pub(super) symbols: &'a mut SymbolTable,
     pub(super) clinic: &'a mut Clinic,
     pub(super) ast: &'a Tree,
 }
 
 impl<'a> HirBuilder<'a> {
-    pub fn new(
-        source: &'a SourceBuf,
-        symbols: &'a mut SymbolTable,
-        clinic: &'a mut Clinic,
-        ast: &'a Tree,
-    ) -> Self {
+    pub fn new(symbols: &'a mut SymbolTable, clinic: &'a mut Clinic, ast: &'a Tree) -> Self {
         Self {
-            source,
             symbols,
             clinic,
             ast,

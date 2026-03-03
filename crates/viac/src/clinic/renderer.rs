@@ -7,11 +7,9 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::ty::Ty;
-use crate::intern::Interned;
+use super::diagnostic::Report;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Function<'cx> {
-    pub result: Interned<'cx, Ty<'cx>>,
-    pub params: Interned<'cx, Ty<'cx>>,
+pub trait Renderer {
+    type Error;
+    fn render(&mut self, report: Report) -> Result<(), Self::Error>;
 }

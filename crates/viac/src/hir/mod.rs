@@ -11,22 +11,6 @@ pub mod builder;
 pub mod expr;
 pub mod stmt;
 
-use crate::{
-    clinic::Clinic,
-    module::{
-        compiler::{Compiler, state::Parsed},
-        symbol::SymbolTable,
-    },
-};
-use builder::HirBuilder;
-
 #[derive(Debug)]
 pub struct Hir {}
-
-pub(crate) fn lower(
-    c: &Compiler<Parsed>,
-    symbols: &mut SymbolTable,
-    clinic: &mut Clinic,
-) -> Option<Hir> {
-    HirBuilder::new(c.source(), symbols, clinic, &c.stage().ast).lower()
-}
+pub mod error;

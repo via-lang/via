@@ -1,3 +1,4 @@
+header = """
 /* ================================================ **
 **           The via Programming Language           **
 ** ------------------------------------------------ **
@@ -6,11 +7,4 @@
 ** ------------------------------------------------ **
 **         https://github.com/via-lang/via          **
 ** ================================================ */
-
-use super::ty::Ty;
-use crate::intern::Interned;
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Constant<'cx> {
-    pub ty: Interned<'cx, Ty<'cx>>,
-}
+"""

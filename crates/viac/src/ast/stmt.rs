@@ -7,38 +7,18 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::{body::Body, expr::ExprId, macros::ast, param::Params, ty::TyId};
-use crate::{lexer::token::Token, source::SourceSpan};
+use crate::source::SourceSpan;
 
-#[derive(Debug, Clone)]
-pub enum Visibility {
-    Public,
-    Module { span: SourceSpan },
-    Private { span: SourceSpan },
+use super::expr::Expr;
+
+#[derive(Debug)]
+pub enum StmtKind {
+    Discard(Expr),
+    Consume(Expr),
 }
 
-ast! {
-    enum Stmt {
-        Discard {
-            expr: ExprId
-        },
-        Consume {
-            expr: ExprId
-        },
-        DefineConst {
-            name: Token,
-            ty: TyId,
-            expr: ExprId,
-        },
-        DefineFn {
-            name: Token,
-            params: Params,
-            result: Option<TyId>,
-            body: Body,
-        },
-        DefineType {
-            name: Token,
-            ty: TyId,
-        },
-    }
+#[derive(Debug)]
+pub struct Stmt {
+    pub kind: StmtKind,
+    pub span: SourceSpan,
 }

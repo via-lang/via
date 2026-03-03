@@ -7,10 +7,7 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::Trait;
-use crate::intern::Interned;
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct TraitImpl<'cx> {
-    pub class: Interned<'cx, Trait<'cx>>,
-}
+pub mod executor;
+pub mod instr;
+pub mod stack;
+pub mod value;

@@ -7,10 +7,10 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use super::Ty;
-use crate::intern::Interned;
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Array<'cx> {
-    ty: Interned<'cx, Ty<'cx>>,
+#[derive(Debug)]
+pub enum Ty {
+    None,
+    Bool,
+    Int,
+    Float,
 }

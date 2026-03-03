@@ -68,21 +68,13 @@ macro_rules! expect_one {
     ($this:expr => $kind:pat_param) => {
         match $this.consume()? {
             token if matches!(&token.kind, $kind) => Ok(token),
-            token => Err(Error::UnexpectedToken {
-                span: token.span.into(),
-                expected: vec![].into(),
-                got: $this.src.get_span(&token.span).to_owned(),
-            }),
+            token => Err(Error::UnexpectedToken(token.span)),
         }
     };
     ($this:expr, $kind:expr) => {
         match $this.consume()? {
             token if $kind == token.kind => Ok(token),
-            token => Err(Error::UnexpectedToken {
-                span: token.span.into(),
-                expected: vec![].into(),
-                got: $this.src.get_span(&token.span).to_owned(),
-            }),
+            token => Err(Error::UnexpectedToken(token.span)),
         }
     };
 }

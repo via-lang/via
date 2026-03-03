@@ -8,7 +8,6 @@
 ** ================================================ */
 
 use strum::IntoStaticStr;
-use via_macros::PrecData;
 
 use crate::source::SourceSpan;
 
@@ -20,29 +19,28 @@ pub enum Base {
     Hex = 16,
 }
 
-#[derive(PrecData, IntoStaticStr, Debug, Clone, PartialEq)]
-#[prec_data(u8)]
+type RsString = String;
+
+#[derive(via_macros::Token, IntoStaticStr, Debug, Clone, PartialEq)]
+#[token_kind(u8)]
 pub enum TokenKind {
     EndOfFile,
     Illegal,
     Int {
+        value: u128,
         base: Base,
     },
-
-    Float,
+    Float(f64),
     String {
+        literal: RsString,
         terminated: bool,
     },
-
-    Ident {
-        placeholder: bool,
-    },
+    Ident(RsString),
     KwVar,
     KwLet,
     KwMut,
     KwConst,
     KwFn,
-    KwMatch,
     KwWhile,
     KwFor,
     KwIf,
@@ -53,17 +51,8 @@ pub enum TokenKind {
     KwContinue,
     KwReturn,
     KwRaise,
-    KwAsync,
-    KwAwait,
-    KwSpawn,
-    KwYield,
     KwAs,
     KwImport,
-    KwModule,
-    KwStruct,
-    KwSelf,
-    KwEnum,
-    KwUse,
     KwType,
     KwTrue,
     KwFalse,
