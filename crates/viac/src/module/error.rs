@@ -7,8 +7,9 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
+use std::fmt;
+
 use super::tree::ModulePath;
-use crate::clinic::PrettyVec;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -16,11 +17,19 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     CompilationError,
     OsError(std::io::Error),
-    ModuleNotFound {
-        path: ModulePath,
-    },
-    AmbigiousModulePath {
-        path: ModulePath,
-        candidates: PrettyVec<String>,
-    },
+    ModuleNotFound(ModulePath),
+    AmbigiousModulePath(ModulePath),
 }
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::CompilationError => write!(f, "compilation error"),
+            Self::OsError(e) => write!(f, "{e}"),
+            Self::ModuleNotFound(path) => write!(f, "module not found: {path}"),
+            Self::AmbigiousModulePath(path) => write!(f, "ambigious module path: {path}"),
+        }
+    }
+}
+
+impl std::error::Error for Error {}

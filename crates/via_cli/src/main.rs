@@ -10,6 +10,6 @@
 mod driver;
 mod stub;
 
-fn main() -> miette::Result<()> {
+fn main() -> anyhow::Result<()> {
     driver::main()
 }

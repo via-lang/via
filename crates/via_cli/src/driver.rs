@@ -41,7 +41,7 @@ enum Command {
     Repl,
 }
 
-pub fn main() -> miette::Result<()> {
+pub fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Some(Command::Run { input }) => stub::run(input.path())?,

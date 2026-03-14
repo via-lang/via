@@ -7,22 +7,31 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-#[cfg(debug_assertions)]
-use std::any::TypeId;
-
-pub trait Marker {}
-
-impl Marker for () {}
-impl Marker for bool {}
-impl Marker for i64 {}
-impl Marker for f64 {}
+#[derive(Debug)]
+pub enum Payload {
+    None,
+    Bool(bool),
+    Int(i64),
+    Float(f64),
+}
 
 #[derive(Debug)]
 pub struct Value {
-    rc: usize,
-    inner: u64,
-    #[cfg(debug_assertions)]
-    tag: TypeId,
+    pub(super) rc: usize,
+    pub(super) inner: Payload,
+}
+
+impl Value {
+    pub fn new(payload: Payload) -> Self {
+        Self {
+            rc: 0,
+            inner: payload,
+        }
+    }
+}
+
+impl Drop for Value {
+    fn drop(&mut self) {}
 }
 
 #[derive(Debug)]
@@ -30,11 +39,22 @@ pub struct ValueRef<'a>(&'a mut Value);
 
 impl<'a> ValueRef<'a> {
     pub fn new(value: &'a mut Value) -> Self {
+        value.rc += 1;
         Self(value)
     }
+}
 
-    pub fn coerce<T: Value>(&self) -> &mut T {
-        debug_assert_eq!(self.0.tag, TypeId::of::<T>(), "erronous value coercion");
-        unsafe { &mut *(self.0 as *mut dyn Value as *mut T) }
+impl<'a> Drop for ValueRef<'a> {
+    fn drop(&mut self) {
+        debug_assert!(self.0.rc > 0, "double free on value");
+        self.0.rc -= 1;
+
+        if self.0.rc == 0 {
+            drop(*self.0);
+        }
     }
+}
+
+pub trait IntoValue {
+    fn into_value(self) -> Value;
 }

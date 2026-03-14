@@ -11,10 +11,9 @@ pub mod slot;
 
 use std::{array, mem::MaybeUninit};
 
-use crate::value::Value;
-
 use slot::Slot;
 
+#[derive(Debug)]
 pub struct Stack<const N: usize> {
     data: Box<[MaybeUninit<Slot>; N]>,
     sp: usize,
@@ -30,8 +29,10 @@ impl<const N: usize> Stack<N> {
 
     pub fn push(&mut self, value: Slot) -> *mut Slot {
         debug_assert!(self.sp < N, "stack overflow");
-        let mut data = self.data[self.sp];
+
+        let data = &mut self.data[self.sp];
         self.sp += 1;
+
         data.write(value);
         data.as_mut_ptr()
     }

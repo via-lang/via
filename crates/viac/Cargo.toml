@@ -4,14 +4,14 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-via_macros = { path = "../via_macros" }
+via_macros.path = "../via_macros"
 assert_matches.workspace = true
 bitflags.workspace = true
 itertools.workspace = true
 anyhow.workspace = true
 paste.workspace = true
 phf.workspace = true
-derive_more = { workspace = true, features = ["from"] }
+derive_more = { workspace = true, features = ["from", "add", "add_assign"] }
 enum_dispatch = "0.3.13"
 escape_string = "0.1.2"
 bimap = "0.6.3"

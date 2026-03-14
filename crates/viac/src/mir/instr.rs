@@ -12,11 +12,11 @@ use std::fmt;
 use derive_more::{Add, AddAssign, From};
 
 use super::counter::Id;
-use crate::sema::{ty::Ty, value::ConstValue};
+use crate::sema::value::ConstValue;
 
 #[repr(transparent)]
 #[derive(From, Add, AddAssign, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct TempId(usize);
+pub struct TempId(u32);
 
 impl Id for TempId {}
 
@@ -28,7 +28,7 @@ impl fmt::Display for TempId {
 
 #[repr(transparent)]
 #[derive(From, Add, AddAssign, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct LocalId(usize);
+pub struct LocalId(u32);
 
 impl Id for LocalId {}
 

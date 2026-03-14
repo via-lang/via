@@ -12,12 +12,12 @@ use super::Lexer;
 impl Lexer {
     #[inline]
     pub(crate) fn remaining(&self) -> &str {
-        self.src.get(self.pos..)
+        self.src.get(self.pos as usize..)
     }
 
     #[inline]
     pub(crate) fn eof(&self) -> bool {
-        self.pos >= self.src.as_str().len()
+        self.pos >= self.src.as_str().len() as u32
     }
 
     #[inline]
@@ -38,12 +38,12 @@ impl Lexer {
     #[inline]
     pub(crate) fn bump(&mut self) -> Option<char> {
         let ch = self.peek()?;
-        self.pos += ch.len_utf8();
+        self.pos += ch.len_utf8() as u32;
         Some(ch)
     }
 
     #[inline]
     pub(crate) fn advance(&mut self, n: usize) {
-        self.pos += n;
+        self.pos += n as u32;
     }
 }

@@ -12,16 +12,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{
-    clinic::{Clinic, PrettyVec},
-    source::SourceBuf,
-};
-
 use super::{
     Module, SourceModule,
     error::{Error, Result},
     tree::ModulePath,
 };
+use crate::{clinic::Clinic, source::SourceBuf};
 
 pub trait ModuleLoader {
     fn load_module(
@@ -63,16 +59,8 @@ impl FsLoader {
 
         match candidates.as_slice() {
             [c] => Ok(c.clone()),
-            [] => Err(Error::ModuleNotFound { path }),
-            [_, _, ..] => Err(Error::AmbigiousModulePath {
-                path,
-                candidates: PrettyVec::from(
-                    candidates
-                        .iter()
-                        .map(|c| c.to_string_lossy().to_string())
-                        .collect::<Vec<String>>(),
-                ),
-            }),
+            [] => Err(Error::ModuleNotFound(path)),
+            [_, _, ..] => Err(Error::AmbigiousModulePath(path)),
         }
     }
 }

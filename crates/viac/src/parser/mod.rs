@@ -36,11 +36,18 @@ impl<'a> Parser<'a> {
         Self { toks, pos: 0 }
     }
 
+    fn eof(&self) -> Token {
+        self.toks
+            .last()
+            .expect("all token trees must have EOF sentinel token")
+            .clone()
+    }
+
     fn peek(&self) -> Result<Token> {
         self.toks
             .get(self.pos)
             .cloned()
-            .ok_or(Error::UnexpectedEndOfFile {})
+            .ok_or(Error::UnexpectedEndOfFile(self.eof().span))
     }
 
     #[allow(dead_code)]
@@ -48,7 +55,7 @@ impl<'a> Parser<'a> {
         self.toks
             .get(self.pos + ahead as usize)
             .cloned()
-            .ok_or(Error::UnexpectedEndOfFile {})
+            .ok_or(Error::UnexpectedEndOfFile(self.eof().span))
     }
 
     fn consume(&mut self) -> Result<Token> {

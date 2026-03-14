@@ -4,8 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-viac = { path = "../viac" }
-via_macros = { path = "../via_macros" }
+viac.path = "../viac"
+via_macros.path = "../via_macros"
 paste.workspace = true
 typed-arena = "2.0.2"
 delegate = "0.13.5"

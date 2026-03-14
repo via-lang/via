@@ -7,7 +7,7 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use crate::macros::define_isa;
+use via_macros::Opcode;
 
 pub type RegId = u16;
 
@@ -20,57 +20,66 @@ pub enum InstrFormat {
     RIm,
 }
 
-#[transparent]
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct Instr(u64);
 
 impl Instr {
     #[inline]
-    pub const fn new_rx(op: Op, operands: &[impl Into<u16>]) -> Self {
+    pub fn new_rx<const N: usize>(op: Op, operands: &[u16; N]) -> Self {
+        assert!(
+            N <= 3,
+            "RxN instruction format must contain at most 3 operands"
+        );
+
         let mut word = (op as u64) << 48;
-        for (i, &val) in operands.iter().enumerate().take(3) {
+
+        for (i, val) in operands.iter().enumerate().take(3) {
+            let val: u16 = (*val).into();
             let shift = 32 - i * 16;
-            word |= (val.into() as u64) << shift;
+
+            word |= (val as u64) << shift;
         }
+
         Self(word)
     }
 
     #[inline]
-    pub const fn new_rim(op: Op, dst: impl Into<u16>, imm: impl Into<u32>) -> Self {
+    pub fn new_rim(op: Op, dst: u16, imm: u32) -> Self {
         let mut word = (op as u64) << 48;
-        word |= (dst.into() as u64) << 32;
-        word |= imm.into() as u64;
+        word |= (dst as u64) << 32;
+        word |= imm as u64;
+
         Self(word)
     }
 
     #[inline]
     pub const fn op(&self) -> Op {
-        unsafe { std::mem::transmute(self.0 & 0xFFFF) }
+        unsafe { std::mem::transmute((self.0 & 0xFFFF) as u16) }
     }
 
     #[inline]
     pub const fn a(&self) -> u16 {
-        (self.0 & u16::MAX) as u16
+        (self.0 & u16::MAX as u64) as u16
     }
 
     #[inline]
     pub const fn b(&self) -> u16 {
-        ((self.0 >> 16) & u16::MAX) as u16
+        ((self.0 >> 16) & u16::MAX as u64) as u16
     }
 
     #[inline]
     pub const fn c(&self) -> u16 {
-        ((self.0 >> 32) & u16::MAX) as u16
+        ((self.0 >> 32) & u16::MAX as u64) as u16
     }
 
     #[inline]
     pub const fn imm(&self) -> u32 {
-        ((self.0 >> 32) & u32::MAX) as u32
+        ((self.0 >> 32) & u32::MAX as u64) as u32
     }
 }
 
 #[repr(u16)]
-#[derive(via_macros::Opcode)]
+#[derive(Opcode)]
 pub enum Op {
     #[layout(Rx0)]
     Halt,
@@ -157,11 +166,9 @@ pub enum Op {
     #[layout(Rx3)]
     BEq,
     #[layout(Rx3)]
-    FLt,
+    IEq,
     #[layout(Rx3)]
-    ILtEq,
-    #[layout(Rx3)]
-    FLtEq,
+    FEq,
     #[layout(Rx3)]
     And,
     #[layout(Rx3)]

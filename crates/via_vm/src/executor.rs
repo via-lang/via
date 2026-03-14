@@ -10,12 +10,9 @@
 use std::mem::MaybeUninit;
 
 use crate::{
-    instr::{
-        Instr::{self, *},
-        Op,
-    },
+    instr::{Instr, Op},
     stack::Stack,
-    value::Value,
+    value::{Value, ValueRef},
 };
 
 pub const STACK_COUNT: usize = 1024 * 1024;
@@ -30,8 +27,8 @@ pub struct ExecError {
 }
 
 #[derive(Debug)]
-pub enum ExecResult {
-    Ok,
+pub enum Interrupt {
+    Halt,
 }
 
 #[derive(Debug)]
@@ -47,21 +44,19 @@ impl<'a> Executor<'a> {
         Self {
             code,
             pc: code.as_ptr(),
-            regs: Box::new([]),
+            regs: Box::new(std::array::from_fn(|_| MaybeUninit::uninit())),
             stack: Stack::new(),
         }
     }
 
-    pub fn run(&mut self) -> ExecResult {
+    pub fn run(&mut self) -> Interrupt {
         use Op::*;
 
         loop {
-            match unsafe { *self.pc }.op {
-                Halt => break,
+            match unsafe { *self.pc }.op() {
+                Halt => break Interrupt::Halt,
                 _ => unimplemented!(),
             }
         }
-
-        ExecResult::Ok
     }
 }

@@ -8,7 +8,7 @@
 ** ================================================ */
 
 macro_rules! yes_or_no {
-    ($vis:vis $name:ident) => {
+    ($vis:vis enum $name:ident) => {
         #[derive(Debug, Clone, Copy, Eq, PartialEq)]
         $vis enum $name {
             Yes,

@@ -11,8 +11,8 @@ use std::path::Path;
 
 use viac::module::context::ModuleContext;
 
-pub fn run(path: &Path) -> miette::Result<()> {
+pub fn run(path: &Path) -> anyhow::Result<()> {
     let mut ctxt = ModuleContext::new();
-    ctxt.load_script(path).map_err(miette::Report::new)?;
+    ctxt.load_script(path)?;
     Ok(())
 }

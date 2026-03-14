@@ -40,28 +40,28 @@ pub fn expand(input: TokenStream) -> TokenStream {
             "Rx0" => quote! {
                 impl Instr {
                     pub fn #fn_ident() -> Self {
-                        Instr::new_rx0(#enum_ident::#variant_ident)
+                        Instr::new_rx(#enum_ident::#variant_ident, &[])
                     }
                 }
             },
             "Rx1" => quote! {
                 impl Instr {
                     pub fn #fn_ident(a: u16) -> Self {
-                        Instr::new_rx1(#enum_ident::#variant_ident, a)
+                        Instr::new_rx(#enum_ident::#variant_ident, &[a])
                     }
                 }
             },
             "Rx2" => quote! {
                 impl Instr {
                     pub fn #fn_ident(a: u16, b: u16) -> Self {
-                        Instr::new_rx2(#enum_ident::#variant_ident, a, b)
+                        Instr::new_rx(#enum_ident::#variant_ident, &[a, b])
                     }
                 }
             },
             "Rx3" => quote! {
                 impl Instr {
                     pub fn #fn_ident(a: u16, b: u16, c: u16) -> Self {
-                        Instr::new_rx3(#enum_ident::#variant_ident, a, b, c)
+                        Instr::new_rx(#enum_ident::#variant_ident, &[a, b, c])
                     }
                 }
             },

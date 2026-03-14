@@ -6,10 +6,3 @@
 ** ------------------------------------------------ **
 **         https://github.com/via-lang/via          **
 ** ================================================ */
-
-use super::diagnostic::Report;
-
-pub trait Renderer {
-    type Error;
-    fn render(&mut self, report: Report) -> Result<(), Self::Error>;
-}

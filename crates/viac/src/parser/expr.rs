@@ -8,9 +8,12 @@
 ** ================================================ */
 
 use super::prelude::*;
-use crate::ast::expr::{Expr, ExprKind};
+use crate::{
+    ast::expr::{Expr, ExprKind},
+    sema::ops::{BinaryOp, UnaryOp},
+};
 
-yes_or_no!(AllowPrefix);
+yes_or_no!(enum AllowPrefix);
 
 impl Parser<'_> {
     pub(super) fn is_expr_start(&self) -> bool {
@@ -36,42 +39,45 @@ impl Parser<'_> {
         )
     }
 
-    fn parse_expr_primary(&mut self) -> Result<Expr> {
-        let token = self.peek()?;
+    fn parse_expr_primary(&mut self, allow_prefix: AllowPrefix) -> Result<Expr> {
+        let token = self.consume()?;
+        let span = token.span;
+
         match token.kind {
-            KwNone => {
-                self.consume()?;
+            KwNone => Ok(Expr {
+                kind: ExprKind::None,
+                span,
+            }),
+            KwTrue => Ok(Expr {
+                kind: ExprKind::True,
+                span,
+            }),
+            KwFalse => Ok(Expr {
+                kind: ExprKind::False,
+                span,
+            }),
+            Int { value, base: _ } => Ok(Expr {
+                kind: ExprKind::Integer(value),
+                span,
+            }),
+            Float(value) => Ok(Expr {
+                kind: ExprKind::Float(value),
+                span,
+            }),
+            Minus | Bang | Tilde if allow_prefix.into() => {
+                let expr = self.parse_expr_primary(AllowPrefix::No)?;
+
                 Ok(Expr {
-                    kind: ExprKind::None,
-                    span: token.span,
-                })
-            }
-            KwTrue => {
-                self.consume()?;
-                Ok(Expr {
-                    kind: ExprKind::True,
-                    span: token.span,
-                })
-            }
-            KwFalse => {
-                self.consume()?;
-                Ok(Expr {
-                    kind: ExprKind::False,
-                    span: token.span,
-                })
-            }
-            Int { value, base: _ } => {
-                self.consume()?;
-                Ok(Expr {
-                    kind: ExprKind::Integer(value),
-                    span: token.span,
-                })
-            }
-            Float(value) => {
-                self.consume()?;
-                Ok(Expr {
-                    kind: ExprKind::Float(value),
-                    span: token.span,
+                    kind: ExprKind::Unary {
+                        op: match token.kind {
+                            Minus => UnaryOp::Negate,
+                            Bang => UnaryOp::Not,
+                            Tilde => UnaryOp::BitNot,
+                            _ => unreachable!(),
+                        },
+                        expr: Box::new(expr),
+                    },
+                    span,
                 })
             }
             _ => Err(Error::UnexpectedToken(token.span)),
@@ -79,43 +85,46 @@ impl Parser<'_> {
     }
 
     fn parse_expr_postfix(&mut self) -> Result<Expr> {
-        let mut expr = self.parse_expr_primary()?;
-        loop {
-            expr = match self.peek().map(|t| t.kind) {
-                Ok(Dot) => {
-                    self.consume()?;
-                    let last = self.consume()?;
-                    let span = SourceSpan::merge(expr.span, last.span);
-
-                    match last.kind {
-                        _ => todo!(),
-                    }
-                }
-                _ => break Ok(expr),
-            };
-        }
+        // TODO
+        self.parse_expr_primary(AllowPrefix::Yes)
     }
 
     fn parse_expr_binary(&mut self, min_prec: u8) -> Result<Expr> {
+        use BinaryOp::*;
+
         let mut lhs = self.parse_expr_postfix()?;
+
         while let Ok(op) = self.peek() {
             let prec = match op.kind.prec() {
                 Some(prec) if prec >= min_prec => prec,
                 _ => break,
             };
 
-            self.consume()?;
+            let op = self.consume()?;
             let rhs = self.parse_expr_binary(prec + 1)?;
 
-            // lhs = Expr::Value(
-            //     expr::Binary {
-            //         span: SourceSpan::new(first.begin, last.end),
-            //         op,
-            //         lhs: tree.insert(lhs),
-            //         rhs: tree.insert(rhs),
-            //     }
-            //     .into(),
-            // );
+            lhs = Expr {
+                span: SourceSpan::new(lhs.span.begin, rhs.span.end),
+                kind: ExprKind::Binary {
+                    op: match op.kind {
+                        Plus => Add,
+                        Minus => Sub,
+                        Star => Mul,
+                        Slash => Div,
+                        Caret => Pow,
+                        Percent => Mod,
+                        Amp => BitAnd,
+                        Pipe => BitOr,
+                        LtLt => BitShl,
+                        GtGt => BitShr,
+                        AmpAmp => And,
+                        PipePipe => Or,
+                        _ => return Err(Error::UnexpectedToken(op.span)),
+                    },
+                    lhs: Box::new(lhs),
+                    rhs: Box::new(rhs),
+                },
+            };
         }
         Ok(lhs)
     }

@@ -7,7 +7,6 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-mod diagnostic;
 mod opcode;
 mod token;
 
@@ -21,9 +20,4 @@ pub fn token(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(Opcode, attributes(layout))]
 pub fn opcode(input: TokenStream) -> TokenStream {
     opcode::expand(input)
-}
-
-#[proc_macro_derive(Diagnostic, attributes(severity, message))]
-pub fn diagnostic(input: TokenStream) -> TokenStream {
-    diagnostic::expand(input)
 }

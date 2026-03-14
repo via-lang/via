@@ -22,7 +22,7 @@ use token::{Token, TokenKind};
 
 pub struct Lexer {
     src: SourceBuf,
-    pos: usize,
+    pos: u32,
 }
 
 impl Lexer {

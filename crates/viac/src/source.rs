@@ -17,10 +17,13 @@ pub struct SourceBuf {
 
 impl<'a> SourceBuf {
     pub fn new(name: impl Into<String>, code: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            inner: code.into(),
-        }
+        let name = name.into();
+        let inner = code.into();
+
+        // This should never happen as a 4 GiB file is total madness, but we still check just in case
+        assert!(inner.len() < u32::MAX as usize, "File too large");
+
+        Self { name, inner }
     }
 
     pub fn name(&'a self) -> &'a str {

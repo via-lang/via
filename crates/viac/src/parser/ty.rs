@@ -35,10 +35,6 @@ impl Parser<'_> {
             }
         };
 
-        loop {
-            lhs = match self.peek().map(|t| t.kind) {
-                _ => break Ok(lhs),
-            };
-        }
+        Ok(lhs)
     }
 }

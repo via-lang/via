@@ -11,7 +11,7 @@ use std::{collections::HashMap, hash::Hash};
 
 use typed_arena::Arena;
 
-#[derive(Debug, Clone, Eq, Hash)]
+#[derive(Debug, Clone, Eq)]
 pub struct Interned<'t, T: ?Sized> {
     ptr: &'t T,
 }
@@ -22,19 +22,25 @@ impl<'t, T: ?Sized> Interned<'t, T> {
     }
 }
 
-impl<'t, T: ?Sized> PartialEq for Interned<'t, T> {
+impl<T: ?Sized> PartialEq for Interned<'_, T> {
     fn eq(&self, other: &Self) -> bool {
         std::ptr::eq(self.ptr, other.ptr)
     }
 }
 
-impl<'t, T: ?Sized> AsRef<T> for Interned<'t, T> {
+impl<T: ?Sized> Hash for Interned<'_, T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.ptr, state);
+    }
+}
+
+impl<T: ?Sized> AsRef<T> for Interned<'_, T> {
     fn as_ref(&self) -> &T {
         self.ptr
     }
 }
 
-impl<T: ?Sized + Clone> Copy for Interned<'_, T> {}
+impl<T: Sized + Clone> Copy for Interned<'_, T> {}
 
 pub struct Interner<T>
 where
