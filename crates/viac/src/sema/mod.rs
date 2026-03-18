@@ -7,6 +7,8 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
+pub mod context;
 pub mod ops;
-pub mod value;
+pub mod traits;
 pub mod ty;
+pub mod value;

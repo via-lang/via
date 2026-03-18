@@ -7,10 +7,12 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-#[derive(Debug)]
-pub enum Ty {
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Ty<'sem> {
     None,
     Bool,
     Int,
     Float,
+    String,
+    _Marker(&'sem ()),
 }

@@ -8,9 +8,9 @@
 ** ================================================ */
 
 pub mod builder;
+pub mod error;
 pub mod expr;
 pub mod stmt;
 
 #[derive(Debug)]
 pub struct Hir {}
-pub mod error;

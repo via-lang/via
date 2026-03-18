@@ -72,7 +72,11 @@ impl ModuleContext {
         let name = format!("<main @ {}>", path.to_string_lossy());
         let source = SourceBuf::new(name, code);
 
-        let module = SourceModule::new(&source, &mut self.clinic)
+        let module = SourceModule::new(&source, &mut self.clinic);
+
+        self.clinic.emit();
+
+        let module = module
             .map(|m| -> Box<dyn Module> { Box::new(m) })
             .ok_or(Error::CompilationError)?;
 

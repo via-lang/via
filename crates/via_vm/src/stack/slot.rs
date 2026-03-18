@@ -7,7 +7,7 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use crate::value::Value;
+use crate::value::ValueRef;
 
 #[derive(Debug)]
 pub enum SlotKind {
@@ -23,7 +23,7 @@ pub struct Slot {
 }
 
 impl Slot {
-    pub fn value(ptr: *mut Value) -> Self {
+    pub fn value(ptr: *mut ValueRef) -> Self {
         Self {
             #[cfg(debug_assertions)]
             kind: SlotKind::Value,

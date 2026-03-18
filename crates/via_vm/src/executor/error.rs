@@ -7,8 +7,10 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-pub mod executor;
-pub mod instr;
-pub mod stack;
-pub mod value;
-pub mod value_arena;
+use crate::{instr::Instr, value::Value};
+
+#[derive(Debug)]
+pub struct Error {
+    pub pc: *const Instr,
+    pub err: Value,
+}

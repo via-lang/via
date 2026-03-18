@@ -57,87 +57,8 @@ impl fmt::Display for ValueId {
 
 #[derive(Debug)]
 pub enum Instr {
-    Const {
-        value: ConstValue,
-        out: ValueId,
-    },
-    Negate {
-        value: TempId,
-        out: ValueId,
-    },
-    Not {
-        in_: ValueId,
-        out: ValueId,
-    },
-    BitNot {
-        in_: ValueId,
-        out: ValueId,
-    },
-    Add {
-        lhs: TempId,
-        rhs: TempId,
-        out: ValueId,
-    },
-    Sub {
-        lhs: TempId,
-        rhs: TempId,
-        out: ValueId,
-    },
-    Mul {
-        lhs: TempId,
-        rhs: TempId,
-        out: ValueId,
-    },
-    Div {
-        lhs: TempId,
-        rhs: TempId,
-        out: ValueId,
-    },
-    Pow {
-        lhs: TempId,
-        rhs: TempId,
-        out: ValueId,
-    },
-    Mod {
-        lhs: TempId,
-        rhs: TempId,
-        out: ValueId,
-    },
-    And {
-        lhs: TempId,
-        rhs: TempId,
-        out: ValueId,
-    },
-    Or {
-        lhs: TempId,
-        rhs: TempId,
-        out: ValueId,
-    },
-    BitAnd {
-        lhs: TempId,
-        rhs: TempId,
-        out: ValueId,
-    },
-    BitOr {
-        lhs: TempId,
-        rhs: TempId,
-        out: ValueId,
-    },
-    BitXor {
-        lhs: TempId,
-        rhs: TempId,
-        out: ValueId,
-    },
-    Shl {
-        lhs: TempId,
-        rhs: TempId,
-        out: ValueId,
-    },
-    Shr {
-        lhs: TempId,
-        rhs: TempId,
-        out: ValueId,
-    },
+    Const { value: ConstValue, out: ValueId },
+    TraitCall {},
 }
 
 impl fmt::Display for Instr {
@@ -150,25 +71,10 @@ impl fmt::Display for Instr {
             }
         };
 
-        fn stringify_vec<T: Id>(vec: &[T]) -> String {
-            vec.iter()
-                .map(|v| v.to_string())
-                .collect::<Vec<_>>()
-                .join(", ")
-        }
-
         match self {
             Self::Const { value, out } => {
                 write_out(Some(*out))?;
                 writeln!(f, "{value}")
-            }
-            Self::Negate { value, out } => {
-                write_out(Some(*out))?;
-                writeln!(f, "-{value}")
-            }
-            Self::Add { lhs, rhs, out } => {
-                write_out(Some(*out))?;
-                writeln!(f, "{lhs} + {rhs}")
             }
             _ => todo!(),
         }

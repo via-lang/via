@@ -7,8 +7,7 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-pub mod executor;
-pub mod instr;
-pub mod stack;
-pub mod value;
-pub mod value_arena;
+#[derive(Debug)]
+pub enum Interrupt {
+    Halt,
+}

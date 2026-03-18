@@ -7,12 +7,16 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
+use super::{expr::Expr, ty::Ty};
 use crate::source::SourceSpan;
-
-use super::expr::Expr;
 
 #[derive(Debug)]
 pub enum StmtKind {
+    Let {
+        ident: String,
+        ty: Option<Box<Ty>>,
+        expr: Box<Expr>,
+    },
     Discard(Expr),
     Consume(Expr),
 }

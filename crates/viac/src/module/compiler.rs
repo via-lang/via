@@ -21,7 +21,7 @@ use crate::{
 pub type Result<T> = std::result::Result<T, Error>;
 
 pub mod state {
-    use crate::lir;
+    use crate::mir;
 
     use super::*;
 
@@ -46,11 +46,6 @@ pub mod state {
     #[derive(Debug)]
     pub struct Mir {
         pub mir: mir::Mir,
-    }
-
-    #[derive(Debug)]
-    pub struct Lir {
-        pub lir: lir::Lir,
     }
 
     #[derive(Debug)]
@@ -108,6 +103,8 @@ impl<'cx> Compiler<'cx, Empty> {
 
 impl<'cx> Compiler<'cx, Lexed> {
     pub fn parse(self, clinic: &mut Clinic) -> Option<Compiler<'cx, Parsed>> {
+        dbg!(&self.stage.tt);
+
         let mut parser = Parser::new(&self.stage.tt);
 
         match parser.parse() {
@@ -126,6 +123,8 @@ impl<'cx> Compiler<'cx, Parsed> {
         symbols: &mut SymbolTable,
         clinic: &mut Clinic,
     ) -> Option<Compiler<'cx, Hir>> {
+        dbg!(&self.stage.ast);
+
         let mut hir_builder = HirBuilder::new(symbols, clinic, &self.stage.ast);
 
         match hir_builder.lower() {
@@ -149,6 +148,8 @@ impl<'cx> Compiler<'cx, Hir> {
         symbols: &'cx mut SymbolTable,
         clinic: &'cx mut Clinic,
     ) -> Option<Compiler<'cx, Mir>> {
+        dbg!(&self.stage.hir);
+
         let mut mir_builder = MirBuilder::new(symbols, clinic, &self.stage.hir);
 
         match mir_builder.lower() {
@@ -163,20 +164,13 @@ impl<'cx> Compiler<'cx, Mir> {
         self
     }
 
-    pub fn lower(self) -> Option<Compiler<'cx, Lir>> {
+    pub fn lower(self) -> Option<Compiler<'cx, Bytecode>> {
+        dbg!(self.stage.mir);
+
         Some(Compiler {
-            stage: Lir { lir: todo!() },
+            stage: todo!(),
             core: self.core,
         })
-    }
-}
-
-impl<'cx> Compiler<'cx, Lir> {
-    pub fn lower(self) -> Compiler<'cx, Bytecode> {
-        Compiler {
-            stage: Bytecode {},
-            core: self.core,
-        }
     }
 }
 
@@ -208,7 +202,6 @@ pub fn compile(
             .lower(symbols, clinic)?
             .optimize()
             .lower()?
-            .lower()
             .to_unit(),
     )
 }

@@ -7,9 +7,26 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-pub mod instr;
+use delegate::delegate;
 
-#[derive(Debug)]
-pub struct Lir {
-    pub inner: Vec<instr::Instr>,
+use super::ty::Ty;
+use crate::intern::Interner;
+
+pub struct SemContext<'sem> {
+    tys: Interner<Ty<'sem>>,
+}
+
+impl<'sem> SemContext<'sem> {
+    pub fn new() -> Self {
+        Self {
+            tys: Interner::new(),
+        }
+    }
+
+    delegate! {
+        to self.tys {
+            #[call(intern)]
+            pub fn intern_ty(&mut self, ty: Ty<'sem>);
+        }
+    }
 }
