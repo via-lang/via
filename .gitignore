@@ -1,4 +1,5 @@
 local
+.direnv
 # Added by cargo
 
 /target
