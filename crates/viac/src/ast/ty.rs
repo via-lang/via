@@ -7,6 +7,8 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
+use std::marker::PhantomData;
+
 use crate::source::SourceSpan;
 
 #[derive(Debug)]

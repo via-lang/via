@@ -8,6 +8,7 @@
 ** ================================================ */
 
 pub mod context;
+pub mod func;
 pub mod ops;
 pub mod traits;
 pub mod ty;

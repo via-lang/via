@@ -7,19 +7,17 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use std::collections::HashMap;
+use super::prelude::*;
+use crate::node::{NodeId, NodeStore};
 
-use super::func::{FuncImpl, FuncSig};
-use crate::{module::symbol::SymbolId, node::NodeId};
+pub struct TypeCheck;
 
-#[derive(Debug)]
-pub struct TraitDef {
-    pub sym: SymbolId,
-    pub funcs: Vec<NodeId<FuncSig>>,
+impl TypeCheck {
+    fn check(&mut self, hir: &Hir, stmt: NodeId<Stmt>) -> Result<()> {
+        match hir.get(stmt) {}
+    }
 }
 
-#[derive(Debug)]
-pub struct TraitImpl {
-    pub proto: NodeId<TraitDef>,
-    pub impls: HashMap<NodeId<FuncSig>, FuncImpl>,
+impl Pass for TypeCheck {
+    fn run(&mut self, builder: &mut HirBuilder, hir: &Hir) -> Result<()> {}
 }

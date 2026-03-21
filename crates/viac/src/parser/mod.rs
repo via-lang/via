@@ -63,15 +63,14 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse(&mut self) -> Result<Tree> {
-        let mut tree = Vec::new();
+        let mut tree = Tree::default();
 
         while !check!(self, EndOfFile) {
-            let stmt = self.parse_stmt()?;
-            tree.push(stmt);
+            let stmt = self.parse_stmt(&mut tree)?;
+            let stmt = tree.alloc_stmt(stmt);
+            tree.roots.push(stmt);
         }
 
-        Ok(Tree {
-            inner: tree.into_boxed_slice(),
-        })
+        Ok(tree)
     }
 }

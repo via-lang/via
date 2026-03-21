@@ -8,7 +8,7 @@ Expected output (unoptimized)
 
     Let {
         name: id(x),
-        type: Infered(int),
+        type: Meta(0),
         expr: Binary {
             op: Add,
             lhs: Const(10),

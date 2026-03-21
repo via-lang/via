@@ -9,11 +9,13 @@
 
 pub mod ast;
 pub mod clinic;
+pub mod counter;
 pub mod hir;
 pub mod intern;
 pub mod lexer;
 pub mod mir;
 pub mod module;
+pub mod node;
 pub mod parser;
 pub mod sema;
 pub mod source;

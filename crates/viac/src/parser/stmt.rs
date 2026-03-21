@@ -10,11 +10,10 @@
 use super::prelude::*;
 use crate::ast::stmt::{Stmt, StmtKind};
 
-impl Parser<'_> {
-    pub(super) fn parse_stmt(&mut self) -> Result<Stmt> {
+impl<'a> Parser<'a> {
+    pub(super) fn parse_stmt(&mut self, tree: &mut Tree) -> Result<Stmt> {
         let token = self.peek()?;
-
-        match token.kind {
+        let stmt = match token.kind {
             KwLet => {
                 self.consume()?;
 
@@ -25,35 +24,37 @@ impl Parser<'_> {
                 };
 
                 let ty = optional!(self, Col)
-                    .then(|| self.parse_type())
+                    .then(|| self.parse_type(tree))
                     .transpose()?;
 
                 expect_one!(self, Eq)?;
 
-                let expr = self.parse_expr()?;
+                let expr = self.parse_expr(tree)?;
                 let semi = expect_one!(self, Semi)?;
 
-                Ok(Stmt {
+                Stmt {
                     kind: StmtKind::Let {
                         ident,
-                        ty: ty.map(Box::new),
-                        expr: Box::new(expr),
+                        ty: ty.map(|ty| tree.alloc_ty(ty)),
+                        expr: tree.alloc_expr(expr),
                     },
                     span: SourceSpan::merge(token.span, semi.span),
-                })
+                }
             }
             _ if self.is_expr_start() => {
-                let expr = self.parse_expr()?;
-                Ok(Stmt {
+                let expr = self.parse_expr(tree)?;
+                Stmt {
                     span: expr.span,
                     kind: if optional!(self, Semi) {
-                        StmtKind::Discard(expr)
+                        StmtKind::Discard(tree.alloc_expr(expr))
                     } else {
-                        StmtKind::Consume(expr)
+                        StmtKind::Consume(tree.alloc_expr(expr))
                     },
-                })
+                }
             }
-            _ => Err(Error::UnexpectedToken(token.span)),
-        }
+            _ => return Err(Error::UnexpectedToken(token.span)),
+        };
+
+        Ok(stmt)
     }
 }

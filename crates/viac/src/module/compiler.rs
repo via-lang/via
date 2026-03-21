@@ -12,9 +12,10 @@ use crate::{
     clinic::Clinic,
     hir::{self, builder::HirBuilder},
     lexer::{Lexer, token::Token},
-    mir::{self, builder::MirBuilder},
+    mir::builder::MirBuilder,
     module::{error::Error, symbol::SymbolTable},
     parser::Parser,
+    sema::context::SemContext,
     source::SourceBuf,
 };
 
@@ -54,61 +55,27 @@ pub mod state {
 
 use state::*;
 
-#[derive(Debug)]
-struct Core<'cx> {
-    source: &'cx SourceBuf,
-}
+pub struct Compiler<S>(pub S);
 
-#[derive(Debug)]
-pub struct Compiler<'cx, S> {
-    stage: S,
-    core: Core<'cx>,
-}
-
-impl<'cx, S> Compiler<'cx, S> {
-    pub fn source(&self) -> &SourceBuf {
-        self.core.source
+impl Compiler<Empty> {
+    pub fn new() -> Self {
+        Self(Empty)
     }
 
-    pub fn stage(&self) -> &S {
-        &self.stage
-    }
-
-    fn with_state<O, F>(self, f: F) -> Compiler<'cx, O>
-    where
-        F: FnOnce(S, &Core) -> O,
-    {
-        let Compiler { stage, core } = self;
-        Compiler {
-            stage: f(stage, &core),
-            core,
-        }
+    pub fn tokenize(self, source: &SourceBuf) -> Compiler<Lexed> {
+        let tt = Lexer::new(source).tokenize();
+        Compiler(Lexed { tt })
     }
 }
 
-impl<'cx> Compiler<'cx, Empty> {
-    pub fn new(source: &'cx SourceBuf) -> Self {
-        Self {
-            core: Core { source },
-            stage: Empty,
-        }
-    }
+impl Compiler<Lexed> {
+    pub fn parse(self, clinic: &mut Clinic) -> Option<Compiler<Parsed>> {
+        dbg!(&self.0.tt);
 
-    pub fn tokenize(self) -> Compiler<'cx, Lexed> {
-        self.with_state(|_, core| Lexed {
-            tt: Lexer::new(core.source).tokenize(),
-        })
-    }
-}
-
-impl<'cx> Compiler<'cx, Lexed> {
-    pub fn parse(self, clinic: &mut Clinic) -> Option<Compiler<'cx, Parsed>> {
-        dbg!(&self.stage.tt);
-
-        let mut parser = Parser::new(&self.stage.tt);
+        let mut parser = Parser::new(&self.0.tt);
 
         match parser.parse() {
-            Ok(ast) => Some(self.with_state(|_, _| Parsed { ast })),
+            Ok(ast) => Some(Compiler(Parsed { ast })),
             Err(e) => {
                 clinic.report(e);
                 None
@@ -117,24 +84,22 @@ impl<'cx> Compiler<'cx, Lexed> {
     }
 }
 
-impl<'cx> Compiler<'cx, Parsed> {
+impl Compiler<Parsed> {
     pub fn lower(
         self,
         symbols: &mut SymbolTable,
         clinic: &mut Clinic,
-    ) -> Option<Compiler<'cx, Hir>> {
-        dbg!(&self.stage.ast);
+        sema: &mut SemContext,
+    ) -> Option<Compiler<Hir>> {
+        dbg!(&self.0.ast);
 
-        let mut hir_builder = HirBuilder::new(symbols, clinic, &self.stage.ast);
-
-        match hir_builder.lower() {
-            Some(hir) => Some(self.with_state(|_, _| Hir { hir })),
-            None => None,
-        }
+        HirBuilder::new(clinic, symbols, sema, &self.0.ast)
+            .lower()
+            .map(|hir| Compiler(Hir { hir }))
     }
 }
 
-impl<'cx> Compiler<'cx, Hir> {
+impl Compiler<Hir> {
     pub fn optimize(self) -> Self {
         self
     }
@@ -143,38 +108,28 @@ impl<'cx> Compiler<'cx, Hir> {
         Some(self)
     }
 
-    pub fn lower(
-        self,
-        symbols: &'cx mut SymbolTable,
-        clinic: &'cx mut Clinic,
-    ) -> Option<Compiler<'cx, Mir>> {
-        dbg!(&self.stage.hir);
+    pub fn lower(self, symbols: &mut SymbolTable, clinic: &mut Clinic) -> Option<Compiler<Mir>> {
+        dbg!(&self.0.hir);
 
-        let mut mir_builder = MirBuilder::new(symbols, clinic, &self.stage.hir);
-
-        match mir_builder.lower() {
-            Some(mir) => Some(self.with_state(|_, _| Mir { mir })),
-            None => None,
-        }
+        MirBuilder::new(symbols, clinic, &self.0.hir)
+            .lower()
+            .map(|mir| Compiler(Mir { mir }))
     }
 }
 
-impl<'cx> Compiler<'cx, Mir> {
+impl Compiler<Mir> {
     pub fn optimize(self) -> Self {
         self
     }
 
-    pub fn lower(self) -> Option<Compiler<'cx, Bytecode>> {
-        dbg!(self.stage.mir);
+    pub fn lower(self) -> Option<Compiler<Bytecode>> {
+        dbg!(self.0.mir);
 
-        Some(Compiler {
-            stage: todo!(),
-            core: self.core,
-        })
+        Some(Compiler(Bytecode {}))
     }
 }
 
-impl<'cx> Compiler<'cx, Bytecode> {
+impl Compiler<Bytecode> {
     pub fn optimize(self) -> Self {
         self
     }
@@ -186,22 +141,3 @@ impl<'cx> Compiler<'cx, Bytecode> {
 
 #[derive(Debug)]
 pub struct CompilationUnit {}
-
-pub fn compile(
-    source: &SourceBuf,
-    symbols: &mut SymbolTable,
-    clinic: &mut Clinic,
-) -> Option<CompilationUnit> {
-    Some(
-        Compiler::new(source)
-            .tokenize()
-            .parse(clinic)?
-            .lower(symbols, clinic)?
-            .typecheck()?
-            .optimize()
-            .lower(symbols, clinic)?
-            .optimize()
-            .lower()?
-            .to_unit(),
-    )
-}

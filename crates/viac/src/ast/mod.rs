@@ -11,9 +11,21 @@ pub mod expr;
 pub mod stmt;
 pub mod ty;
 
-use stmt::Stmt;
+use via_macros::Arena;
 
-#[derive(Debug)]
+use crate::node::{NodeId, NodeStore};
+
+use expr::Expr;
+use stmt::Stmt;
+use ty::Ty;
+
+#[derive(Arena, Debug, Default)]
 pub struct Tree {
-    pub inner: Box<[Stmt]>,
+    #[arena]
+    stmt: Vec<Stmt>,
+    #[arena]
+    expr: Vec<Expr>,
+    #[arena]
+    ty: Vec<Ty>,
+    pub roots: Vec<NodeId<Stmt>>,
 }

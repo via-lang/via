@@ -18,12 +18,16 @@ use std::fmt::Debug;
 
 use crate::{
     clinic::Clinic,
+    sema::context::SemContext,
     source::{SourceBuf, SourceSpan},
 };
-use compiler::CompilationUnit;
+use compiler::{CompilationUnit, Compiler};
 use symbol::SymbolTable;
 
-pub trait Module: Debug {
+pub use context::*;
+pub use loader::*;
+
+pub trait Module {
     fn source(&self) -> Option<&SourceBuf> {
         None
     }
@@ -31,11 +35,11 @@ pub trait Module: Debug {
     fn get_trace(&self, span: SourceSpan) -> String;
 }
 
-#[derive(Debug)]
+#[allow(unused)]
 pub struct SourceModule {
-    #[allow(unused)]
-    symbols: SymbolTable,
     source: SourceBuf,
+    symbols: SymbolTable,
+    sema: SemContext,
     unit: CompilationUnit,
 }
 
@@ -50,11 +54,25 @@ impl Module for SourceModule {
 }
 
 impl SourceModule {
-    pub(crate) fn new(src: &SourceBuf, clinic: &mut Clinic) -> Option<Self> {
+    pub(crate) fn new(source: SourceBuf, clinic: &mut Clinic) -> Option<Self> {
         let mut symbols = SymbolTable::new();
-        compiler::compile(src, &mut symbols, clinic).map(|unit| Self {
+        let mut sema = SemContext::new();
+
+        let unit = Compiler::new()
+            .tokenize(&source)
+            .parse(clinic)?
+            .lower(&mut symbols, clinic, &mut sema)?
+            .typecheck()?
+            .optimize()
+            .lower(&mut symbols, clinic)?
+            .optimize()
+            .lower()?
+            .to_unit();
+
+        Some(Self {
+            source,
             symbols,
-            source: src.clone(),
+            sema,
             unit,
         })
     }

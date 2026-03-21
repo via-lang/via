@@ -8,6 +8,7 @@
 ** ================================================ */
 
 use crate::{
+    node::NodeId,
     sema::ops::{BinaryOp, UnaryOp},
     source::SourceSpan,
 };
@@ -32,12 +33,12 @@ pub enum ExprKind {
     Float(f64),
     Unary {
         op: UnaryOp,
-        expr: Box<Expr>,
+        expr: NodeId<Expr>,
     },
     Binary {
         op: BinaryOp,
-        lhs: Box<Expr>,
-        rhs: Box<Expr>,
+        lhs: NodeId<Expr>,
+        rhs: NodeId<Expr>,
     },
     Read(Place),
 }

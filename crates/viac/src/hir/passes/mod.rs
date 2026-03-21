@@ -7,12 +7,19 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use std::path::Path;
+// pub mod infer;
+// pub mod typeck;
 
-use viac::module::context::ModuleContext;
+pub mod prelude {
+    pub use super::{
+        super::{Hir, HirBuilder, error::*, expr::Expr, stmt::Stmt},
+        Pass,
+    };
+}
 
-pub fn run(path: &Path) -> anyhow::Result<()> {
-    let mut ctxt = ModuleContext::new();
-    ctxt.load_script(path)?;
-    Ok(())
+use prelude::*;
+
+pub trait Pass<'a> {
+    fn new(builder: &'a mut HirBuilder<'a, '_>, hir: &'a Hir) -> Self;
+    fn run(&mut self) -> Result<()>;
 }

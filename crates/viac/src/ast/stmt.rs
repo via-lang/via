@@ -8,17 +8,17 @@
 ** ================================================ */
 
 use super::{expr::Expr, ty::Ty};
-use crate::source::SourceSpan;
+use crate::{node::NodeId, source::SourceSpan};
 
 #[derive(Debug)]
 pub enum StmtKind {
     Let {
         ident: String,
-        ty: Option<Box<Ty>>,
-        expr: Box<Expr>,
+        ty: Option<NodeId<Ty>>,
+        expr: NodeId<Expr>,
     },
-    Discard(Expr),
-    Consume(Expr),
+    Discard(NodeId<Expr>),
+    Consume(NodeId<Expr>),
 }
 
 #[derive(Debug)]

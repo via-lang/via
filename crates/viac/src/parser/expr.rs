@@ -15,7 +15,7 @@ use crate::{
 
 yes_or_no!(enum AllowPrefix);
 
-impl Parser<'_> {
+impl<'a> Parser<'a> {
     pub(super) fn is_expr_start(&self) -> bool {
         matches!(
             self.peek().map(|t| t.kind),
@@ -39,60 +39,62 @@ impl Parser<'_> {
         )
     }
 
-    fn parse_expr_primary(&mut self, allow_prefix: AllowPrefix) -> Result<Expr> {
+    fn parse_expr_primary(&mut self, tree: &mut Tree, allow_prefix: AllowPrefix) -> Result<Expr> {
         let token = self.consume()?;
         let span = token.span;
 
-        match token.kind {
-            KwNone => Ok(Expr {
+        let expr = match token.kind {
+            KwNone => Expr {
                 kind: ExprKind::None,
                 span,
-            }),
-            KwTrue => Ok(Expr {
+            },
+            KwTrue => Expr {
                 kind: ExprKind::True,
                 span,
-            }),
-            KwFalse => Ok(Expr {
+            },
+            KwFalse => Expr {
                 kind: ExprKind::False,
                 span,
-            }),
-            Int { value, base: _ } => Ok(Expr {
+            },
+            Int { value, base: _ } => Expr {
                 kind: ExprKind::Integer(value),
                 span,
-            }),
-            Float(value) => Ok(Expr {
+            },
+            Float(value) => Expr {
                 kind: ExprKind::Float(value),
                 span,
-            }),
+            },
             Minus | Bang | Tilde if allow_prefix.into() => {
-                let expr = self.parse_expr_primary(AllowPrefix::No)?;
+                let expr = self.parse_expr_primary(tree, AllowPrefix::No)?;
 
-                Ok(Expr {
+                Expr {
                     kind: ExprKind::Unary {
                         op: match token.kind {
                             Minus => UnaryOp::Negate,
-                            Bang => UnaryOp::Not,
+                            Bang => UnaryOp::LogNot,
                             Tilde => UnaryOp::BitNot,
                             _ => unreachable!(),
                         },
-                        expr: Box::new(expr),
+                        expr: tree.alloc_expr(expr),
                     },
                     span,
-                })
+                }
             }
-            _ => Err(Error::UnexpectedToken(token.span)),
-        }
+            _ => return Err(Error::UnexpectedToken(token.span)),
+        };
+
+        Ok(expr)
     }
 
-    fn parse_expr_postfix(&mut self) -> Result<Expr> {
+    fn parse_expr_postfix(&mut self, tree: &mut Tree) -> Result<Expr> {
         // TODO
-        self.parse_expr_primary(AllowPrefix::Yes)
+        self.parse_expr_primary(tree, AllowPrefix::Yes)
     }
 
-    fn parse_expr_binary(&mut self, min_prec: u8) -> Result<Expr> {
+    fn parse_expr_binary(&mut self, tree: &mut Tree, min_prec: u8) -> Result<Expr> {
         use BinaryOp::*;
 
-        let mut lhs = self.parse_expr_postfix()?;
+        let mut lhs = self.parse_expr_postfix(tree)?;
 
         while let Ok(op) = self.peek() {
             let prec = match op.kind.prec() {
@@ -101,7 +103,7 @@ impl Parser<'_> {
             };
 
             let op = self.consume()?;
-            let rhs = self.parse_expr_binary(prec + 1)?;
+            let rhs = self.parse_expr_binary(tree, prec + 1)?;
 
             lhs = Expr {
                 span: SourceSpan::new(lhs.span.begin, rhs.span.end),
@@ -117,19 +119,19 @@ impl Parser<'_> {
                         Pipe => BitOr,
                         LtLt => BitShl,
                         GtGt => BitShr,
-                        AmpAmp => And,
-                        PipePipe => Or,
+                        AmpAmp => LogAnd,
+                        PipePipe => LogOr,
                         _ => return Err(Error::UnexpectedToken(op.span)),
                     },
-                    lhs: Box::new(lhs),
-                    rhs: Box::new(rhs),
+                    lhs: tree.alloc_expr(lhs),
+                    rhs: tree.alloc_expr(rhs),
                 },
             };
         }
         Ok(lhs)
     }
 
-    pub(crate) fn parse_expr(&mut self) -> Result<Expr> {
-        self.parse_expr_binary(0)
+    pub(crate) fn parse_expr(&mut self, tree: &mut Tree) -> Result<Expr> {
+        self.parse_expr_binary(tree, 0)
     }
 }

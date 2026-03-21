@@ -7,5 +7,17 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
+use crate::clinic::{Diagnostic, Severity};
+
+pub type Result<T> = std::result::Result<T, Error>;
+
 #[derive(Debug)]
-pub enum Error {}
+pub enum Error {
+    IntOutOfRange,
+}
+
+impl Diagnostic for Error {
+    fn severity(&self) -> Severity {
+        Severity::Error
+    }
+}

@@ -7,10 +7,12 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
+use std::path::Path;
+
 use clap::{Parser, Subcommand};
 use clio::Input;
 
-use crate::stub;
+use viac::module::ModuleContext;
 
 #[derive(Parser)]
 #[command(
@@ -41,10 +43,16 @@ enum Command {
     Repl,
 }
 
+pub fn run(path: &Path) -> anyhow::Result<()> {
+    let mut ctxt = ModuleContext::new();
+    ctxt.load_file(path)?;
+    Ok(())
+}
+
 pub fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     match cli.command {
-        Some(Command::Run { input }) => stub::run(input.path())?,
+        Some(Command::Run { input }) => run(input.path())?,
         Some(Command::Check { input: _ }) => todo!(),
         Some(Command::Format { input: _ }) => todo!(),
         Some(Command::Repl) | None => todo!(),

@@ -7,19 +7,23 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-use std::collections::HashMap;
-
-use super::func::{FuncImpl, FuncSig};
+use super::ty::Ty;
 use crate::{module::symbol::SymbolId, node::NodeId};
 
 #[derive(Debug)]
-pub struct TraitDef {
+pub struct FuncSig {
     pub sym: SymbolId,
-    pub funcs: Vec<NodeId<FuncSig>>,
+    // TODO: Represent optional self parameter
+    pub parms: Vec<NodeId<Ty>>,
+    pub ret: NodeId<Ty>,
 }
 
 #[derive(Debug)]
-pub struct TraitImpl {
-    pub proto: NodeId<TraitDef>,
-    pub impls: HashMap<NodeId<FuncSig>, FuncImpl>,
+pub enum Intrinsic {
+    Bytecode(fn()),
+}
+
+#[derive(Debug)]
+pub enum FuncImpl {
+    Intr(Intrinsic),
 }

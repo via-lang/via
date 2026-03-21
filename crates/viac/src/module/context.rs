@@ -22,14 +22,14 @@ use super::{
 };
 use crate::{clinic::Clinic, module::loader::ModuleLoader, source::SourceBuf};
 
+pub const ROOT_MODULE_NAME: &'static str = "main";
+
 bitflags! {
-    #[derive(Debug)]
     pub struct ModulePerms: u8 {
         const None = 0;
     }
 }
 
-#[derive(Debug)]
 pub struct ModuleContext {
     pub(super) tree: ModuleTree,
     pub(super) clinic: Clinic,
@@ -67,21 +67,22 @@ impl ModuleContext {
         Ok(id)
     }
 
-    pub fn load_script(&mut self, path: &Path) -> Result<ModuleId> {
+    pub fn load_file(&mut self, path: &Path) -> Result<ModuleId> {
         let code = fs::read_to_string(path).map_err(Error::OsError)?;
         let name = format!("<main @ {}>", path.to_string_lossy());
-        let source = SourceBuf::new(name, code);
 
-        let module = SourceModule::new(&source, &mut self.clinic);
+        let source = SourceBuf::new(name, code);
+        let module = SourceModule::new(source, &mut self.clinic);
 
         self.clinic.emit();
 
+        let id = self.tree.insert(&ROOT_MODULE_NAME.into());
         let module = module
             .map(|m| -> Box<dyn Module> { Box::new(m) })
             .ok_or(Error::CompilationError)?;
 
-        let id = self.tree.insert(&"main".into());
         self.modules.insert(id, module);
+
         Ok(id)
     }
 }

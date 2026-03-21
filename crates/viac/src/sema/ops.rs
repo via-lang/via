@@ -7,14 +7,14 @@
 **         https://github.com/via-lang/via          **
 ** ================================================ */
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum UnaryOp {
     Negate,
-    Not,
+    LogNot,
     BitNot,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum BinaryOp {
     Add,
     Sub,
@@ -22,8 +22,8 @@ pub enum BinaryOp {
     Div,
     Pow,
     Mod,
-    And,
-    Or,
+    LogAnd,
+    LogOr,
     BitAnd,
     BitOr,
     BitShl,

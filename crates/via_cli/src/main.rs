@@ -8,7 +8,6 @@
 ** ================================================ */
 
 mod driver;
-mod stub;
 
 fn main() -> anyhow::Result<()> {
     driver::main()

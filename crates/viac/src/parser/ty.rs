@@ -10,8 +10,8 @@
 use super::prelude::*;
 use crate::ast::ty::{Ty, TyKind};
 
-impl Parser<'_> {
-    pub(crate) fn parse_type(&mut self) -> Result<Ty> {
+impl<'a> Parser<'a> {
+    pub(crate) fn parse_type(&mut self, _tree: &mut Tree) -> Result<Ty> {
         let token = self.peek()?;
         let mut lhs = match token.kind {
             KwNone => Ty {
