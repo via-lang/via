@@ -1,24 +1,19 @@
-/* ================================================ **
-**           The via Programming Language           **
-** ------------------------------------------------ **
-**        Copyright (C) XnLogicaL 2024-2026         **
-**           Licensed under GNU GPL v3.0            **
-** ------------------------------------------------ **
-**         https://github.com/via-lang/via          **
-** ================================================ */
-
 use std::fmt;
 
-use derive_more::{Add, AddAssign, From};
+use derive_more::From;
 
-use super::counter::Id;
-use crate::sema::value::ConstValue;
+use crate::{counter::Id, sema::value::ConstValue};
 
 #[repr(transparent)]
-#[derive(From, Add, AddAssign, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TempId(u32);
 
-impl Id for TempId {}
+impl Id for TempId {
+    type Inner = u32;
+    fn new(inner: Self::Inner) -> Self {
+        Self(inner)
+    }
+}
 
 impl fmt::Display for TempId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -27,10 +22,15 @@ impl fmt::Display for TempId {
 }
 
 #[repr(transparent)]
-#[derive(From, Add, AddAssign, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct LocalId(u32);
 
-impl Id for LocalId {}
+impl Id for LocalId {
+    type Inner = u32;
+    fn new(inner: Self::Inner) -> Self {
+        Self(inner)
+    }
+}
 
 impl fmt::Display for LocalId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -57,8 +57,15 @@ impl fmt::Display for ValueId {
 
 #[derive(Debug)]
 pub enum Instr {
-    Const { value: ConstValue, out: ValueId },
-    TraitCall {},
+    Const {
+        value: ConstValue,
+        out: ValueId,
+    },
+    IAdd {
+        lhs: ValueId,
+        rhs: ValueId,
+        out: ValueId,
+    },
 }
 
 impl fmt::Display for Instr {

@@ -1,12 +1,3 @@
-/* ================================================ **
-**           The via Programming Language           **
-** ------------------------------------------------ **
-**        Copyright (C) XnLogicaL 2024-2026         **
-**           Licensed under GNU GPL v3.0            **
-** ------------------------------------------------ **
-**         https://github.com/via-lang/via          **
-** ================================================ */
-
 use std::{
     ops::{Deref, DerefMut},
     ptr::drop_in_place,
@@ -82,8 +73,8 @@ impl Value {
     }
 
     pub fn tag(&self) -> Tag {
-        let raw = self.control & (0xFFu64 >> 56);
-        unsafe { std::mem::transmute(raw as u8) }
+        let raw = (self.control >> 56) as u8;
+        unsafe { std::mem::transmute(raw) }
     }
 
     pub fn as_bool(&self) -> bool {
@@ -101,7 +92,12 @@ impl Value {
         f64::from_bits(self.payload)
     }
 
-    pub fn as_string(&self) -> &mut String {
+    pub fn as_string(&self) -> &String {
+        debug_assert_eq!(self.tag(), Tag::String, "invalid as_string");
+        unsafe { &*(self.payload as *const String) }
+    }
+
+    pub fn as_string_mut(&mut self) -> &mut String {
         debug_assert_eq!(self.tag(), Tag::String, "invalid as_string");
         unsafe { &mut *(self.payload as *mut String) }
     }
@@ -110,6 +106,7 @@ impl Value {
         debug_assert_ne!(self.tag(), Tag::Dead, "reset called on dead value");
 
         unsafe {
+            #[allow(clippy::single_match)]
             match self.tag() {
                 Tag::String => drop_in_place(self.payload as *mut String),
                 _ => {} // Primitive; do nothing

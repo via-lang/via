@@ -1,12 +1,3 @@
-/* ================================================ **
-**           The via Programming Language           **
-** ------------------------------------------------ **
-**        Copyright (C) XnLogicaL 2024-2026         **
-**           Licensed under GNU GPL v3.0            **
-** ------------------------------------------------ **
-**         https://github.com/via-lang/via          **
-** ================================================ */
-
 use std::{
     collections::{HashMap, hash_map::Entry},
     fs,
@@ -22,7 +13,7 @@ use super::{
 };
 use crate::{clinic::Clinic, module::loader::ModuleLoader, source::SourceBuf};
 
-pub const ROOT_MODULE_NAME: &'static str = "main";
+pub const ROOT_MODULE_NAME: &str = "main";
 
 bitflags! {
     pub struct ModulePerms: u8 {

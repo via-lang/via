@@ -7,7 +7,7 @@ Expected output (unoptimized)
 [HIR]:
 
     Let {
-        name: id(x),
+        name: Symbol(x),
         type: Meta(0),
         expr: Binary {
             op: Add,
@@ -20,7 +20,7 @@ Expected output (unoptimized)
 
     v0 = const 10
     v1 = const 5
-    l0 = <int as Add>::add(v0, v1)
+    l0 = iadd v0, v1
 
 [BYTECODE]:
 

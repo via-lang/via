@@ -1,19 +1,10 @@
-/* ================================================ **
-**           The via Programming Language           **
-** ------------------------------------------------ **
-**        Copyright (C) XnLogicaL 2024-2026         **
-**           Licensed under GNU GPL v3.0            **
-** ------------------------------------------------ **
-**         https://github.com/via-lang/via          **
-** ================================================ */
-
 use super::prelude::*;
 use crate::ast::ty::{Ty, TyKind};
 
 impl<'a> Parser<'a> {
     pub(crate) fn parse_type(&mut self, _tree: &mut Tree) -> Result<Ty> {
         let token = self.peek()?;
-        let mut lhs = match token.kind {
+        let lhs = match token.kind {
             KwNone => Ty {
                 kind: TyKind::None,
                 span: token.span,

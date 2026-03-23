@@ -1,12 +1,3 @@
-/* ================================================ **
-**           The via Programming Language           **
-** ------------------------------------------------ **
-**        Copyright (C) XnLogicaL 2024-2026         **
-**           Licensed under GNU GPL v3.0            **
-** ------------------------------------------------ **
-**         https://github.com/via-lang/via          **
-** ================================================ */
-
 use std::{hash::Hash, ops::AddAssign};
 
 pub trait Id
@@ -29,7 +20,7 @@ impl<T: Id> Counter<T> {
         Self(T::new_inner())
     }
 
-    pub fn next(&mut self) -> T {
+    pub fn bump(&mut self) -> T {
         let id = T::new(self.0);
         self.0 += 1;
         id

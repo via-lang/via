@@ -1,12 +1,3 @@
-/* ================================================ **
-**           The via Programming Language           **
-** ------------------------------------------------ **
-**        Copyright (C) XnLogicaL 2024-2026         **
-**           Licensed under GNU GPL v3.0            **
-** ------------------------------------------------ **
-**         https://github.com/via-lang/via          **
-** ================================================ */
-
 use std::fmt::Debug;
 
 pub enum Severity {
@@ -46,5 +37,11 @@ impl Clinic {
         for diag in self.diags.drain(..) {
             println!("{diag:?}")
         }
+    }
+}
+
+impl Default for Clinic {
+    fn default() -> Self {
+        Self::new()
     }
 }

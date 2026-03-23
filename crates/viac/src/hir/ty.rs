@@ -1,12 +1,3 @@
-/* ================================================ **
-**           The via Programming Language           **
-** ------------------------------------------------ **
-**        Copyright (C) XnLogicaL 2024-2026         **
-**           Licensed under GNU GPL v3.0            **
-** ------------------------------------------------ **
-**         https://github.com/via-lang/via          **
-** ================================================ */
-
 use super::{Hir, HirBuilder};
 use crate::{
     ast::ty::{Ty as AstTy, TyKind as AstTyKind},
@@ -22,9 +13,8 @@ impl HirBuilder<'_, '_> {
             AstTyKind::Bool => Ty::Bool,
             AstTyKind::Int => Ty::Int,
             AstTyKind::Float => Ty::Float,
-            _ => todo!(),
         };
 
-        Some(self.sema.alloc_ty(ty))
+        Some(self.sema.intern_ty(ty))
     }
 }

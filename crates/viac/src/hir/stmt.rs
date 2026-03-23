@@ -1,13 +1,4 @@
-/* ================================================ **
-**           The via Programming Language           **
-** ------------------------------------------------ **
-**        Copyright (C) XnLogicaL 2024-2026         **
-**           Licensed under GNU GPL v3.0            **
-** ------------------------------------------------ **
-**         https://github.com/via-lang/via          **
-** ================================================ */
-
-use super::{Hir, HirBuilder, error::*, expr::Expr};
+use super::{Hir, HirBuilder, expr::Expr};
 use crate::{
     ast::stmt::{Stmt as AstStmt, StmtKind as AstStmtKind},
     module::symbol::SymbolId,
@@ -15,7 +6,7 @@ use crate::{
     sema::ty::Ty,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Stmt {
     Let {
         ident: SymbolId,
@@ -37,8 +28,7 @@ impl HirBuilder<'_, '_> {
                     .flatten()
                     .unwrap_or_else(|| {
                         let meta = self.sema.next_meta();
-                        let ty = self.sema.alloc_ty(Ty::Meta(meta));
-                        ty
+                        self.sema.intern_ty(Ty::Meta(meta))
                     });
 
                 Stmt::Let {

@@ -1,19 +1,11 @@
-/* ================================================ **
-**           The via Programming Language           **
-** ------------------------------------------------ **
-**        Copyright (C) XnLogicaL 2024-2026         **
-**           Licensed under GNU GPL v3.0            **
-** ------------------------------------------------ **
-**         https://github.com/via-lang/via          **
-** ================================================ */
-
 use bimap::BiHashMap;
 
-use super::{
-    counter::Counter,
-    instr::{LocalId, TempId},
+use super::instr::{LocalId, TempId};
+use crate::{
+    counter::{Counter, Id},
+    mir::block::BlockId,
+    module::symbol::SymbolId,
 };
-use crate::{mir::block::BlockId, module::symbol::SymbolId};
 
 #[derive(Debug)]
 pub(super) struct LoopEnv {
@@ -52,12 +44,8 @@ impl Env {
     }
 
     pub fn push(&mut self, id: SymbolId) -> LocalId {
-        let local = *self.counter.bump::<1>().first().unwrap();
+        let local = self.counter.bump();
         self.map.insert(local, id);
         local
-    }
-
-    pub fn set_loop_env(&mut self, loop_env: Option<LoopEnv>) {
-        self.loop_env = loop_env;
     }
 }

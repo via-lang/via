@@ -1,12 +1,3 @@
-/* ================================================ **
-**           The via Programming Language           **
-** ------------------------------------------------ **
-**        Copyright (C) XnLogicaL 2024-2026         **
-**           Licensed under GNU GPL v3.0            **
-** ------------------------------------------------ **
-**         https://github.com/via-lang/via          **
-** ================================================ */
-
 use crate::{
     ast::Tree,
     clinic::Clinic,
@@ -68,10 +59,14 @@ impl Compiler<Empty> {
     }
 }
 
+impl Default for Compiler<Empty> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Compiler<Lexed> {
     pub fn parse(self, clinic: &mut Clinic) -> Option<Compiler<Parsed>> {
-        dbg!(&self.0.tt);
-
         let mut parser = Parser::new(&self.0.tt);
 
         match parser.parse() {
@@ -91,8 +86,6 @@ impl Compiler<Parsed> {
         clinic: &mut Clinic,
         sema: &mut SemContext,
     ) -> Option<Compiler<Hir>> {
-        dbg!(&self.0.ast);
-
         HirBuilder::new(clinic, symbols, sema, &self.0.ast)
             .lower()
             .map(|hir| Compiler(Hir { hir }))

@@ -1,30 +1,9 @@
-/* ================================================ **
-**           The via Programming Language           **
-** ------------------------------------------------ **
-**        Copyright (C) XnLogicaL 2024-2026         **
-**           Licensed under GNU GPL v3.0            **
-** ------------------------------------------------ **
-**         https://github.com/via-lang/via          **
-** ================================================ */
+use std::{fmt, hash::Hash, marker::PhantomData};
 
-use std::marker::PhantomData;
-
-#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct NodeId<T> {
     index: u32,
     _marker: PhantomData<*const T>,
 }
-
-impl<T> Clone for NodeId<T> {
-    fn clone(&self) -> Self {
-        Self {
-            index: self.index,
-            _marker: PhantomData,
-        }
-    }
-}
-
-impl<T> Copy for NodeId<T> {}
 
 impl<T> NodeId<T> {
     pub fn new(index: u32) -> Self {
@@ -39,8 +18,32 @@ impl<T> NodeId<T> {
     }
 }
 
-pub trait NodeStore<T> {
-    fn get(&self, id: NodeId<T>) -> &T;
+impl<T> fmt::Debug for NodeId<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "NodeId<{}>({})", std::any::type_name::<T>(), self.index)
+    }
+}
+
+impl<T> Clone for NodeId<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T> Copy for NodeId<T> {}
+
+impl<T> PartialEq for NodeId<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.index == other.index
+    }
+}
+
+impl<T> Eq for NodeId<T> {}
+
+impl<T> Hash for NodeId<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.index.hash(state);
+    }
 }
 
 pub trait Visitor {

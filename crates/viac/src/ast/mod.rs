@@ -1,19 +1,10 @@
-/* ================================================ **
-**           The via Programming Language           **
-** ------------------------------------------------ **
-**        Copyright (C) XnLogicaL 2024-2026         **
-**           Licensed under GNU GPL v3.0            **
-** ------------------------------------------------ **
-**         https://github.com/via-lang/via          **
-** ================================================ */
-
 pub mod expr;
 pub mod stmt;
 pub mod ty;
 
 use via_macros::Arena;
 
-use crate::node::{NodeId, NodeStore};
+use crate::node::NodeId;
 
 use expr::Expr;
 use stmt::Stmt;
@@ -21,11 +12,11 @@ use ty::Ty;
 
 #[derive(Arena, Debug, Default)]
 pub struct Tree {
-    #[arena]
+    #[allocator]
     stmt: Vec<Stmt>,
-    #[arena]
+    #[allocator]
     expr: Vec<Expr>,
-    #[arena]
+    #[allocator]
     ty: Vec<Ty>,
     pub roots: Vec<NodeId<Stmt>>,
 }

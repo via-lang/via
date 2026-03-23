@@ -1,13 +1,7 @@
-/* ================================================ **
-**           The via Programming Language           **
-** ------------------------------------------------ **
-**        Copyright (C) XnLogicaL 2024-2026         **
-**           Licensed under GNU GPL v3.0            **
-** ------------------------------------------------ **
-**         https://github.com/via-lang/via          **
-** ================================================ */
-
-use super::Hir;
+use super::{
+    Hir,
+    pass::{Pass, typeck::TypeckPass},
+};
 use crate::{ast::Tree, clinic::Clinic, module::symbol::SymbolTable, sema::context::SemContext};
 
 pub struct HirBuilder<'cx, 'tree> {
@@ -32,6 +26,12 @@ impl<'cx, 'tree> HirBuilder<'cx, 'tree> {
         }
     }
 
+    fn run_pass(&mut self, hir: &mut Hir, pass: &mut impl Pass) -> Option<()> {
+        pass.run(self.sema, hir)
+            .map_err(|e| self.clinic.report(e))
+            .ok()
+    }
+
     pub fn lower(&mut self) -> Option<Hir> {
         let mut hir = Hir::default();
 
@@ -40,6 +40,8 @@ impl<'cx, 'tree> HirBuilder<'cx, 'tree> {
             let stmt = hir.alloc_stmt(stmt);
             hir.roots.push(stmt);
         }
+
+        self.run_pass(&mut hir, &mut TypeckPass)?;
 
         Some(hir)
     }
