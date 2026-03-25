@@ -41,7 +41,7 @@ A fair way to compared it to Lua would be: _via is to Lua what Rust is to C_.
 
 ### But what are invariants?
 
-An **invariant** is a guarantee by the compiler that a **contract within the program will never be breached**. That is still quite vague, so it is demonstrated in the following points paragraphs.
+An **invariant** is a guarantee by the compiler that a **contract within the program will never be breached**. That is still quite vague, so it is demonstrated by comparison to [Lua](https://lua.org)/[Luau](https://luau.org) in the following points paragraphs.
 
 ### No compile-time checks
 
@@ -74,20 +74,15 @@ None of which can be truly validated without explicit runtime checks.
 Now the same function in via:
 
 ```rust
-fn foo(
-    n: float + !0,          // `n` is a float that is not equal to 0
-    f: fn(float) -> float   // `f` is a function that takes no arguments and returns a float
-) -> float {
-    f(n) / n
+fn foo(n: float, f: fn(float) -> float) -> float {
+    assert n != 0; // this is technically a runtime check, but it is explicit and has intent
+    f(n) / n // since we asserted that `n != 0`, the type solver can safely assume division by zero is impossible
 }
 ```
 
-> [!NOTE]
-> The bound `!0` seen here is experimental and may or may not end up in the language.
-
 ### Dangers of catch-all data structures
 
-In Lua, a **table** (the primary structurization mechanism of the language) can store absolutely _anything_. Even itself. They can also mutate their type as the program unfolds. This makes it _practically impossible_ to statically analyze, and out sources type-safety into the language runtime once again:
+In Lua, a **table** (the primary structurization mechanism of the language) can store absolutely _anything_. Even itself. They can also mutate their type as the program unfolds. This makes it **practically impossible** to properly statically analyze, and outsources type-safety into the language runtime once again:
 
 ```lua
 local t = { 10 }            -- type: {number}
@@ -200,15 +195,15 @@ _Yes, you absolutely can._ But there are **expensive tradeoffs**:
 - **Surprise errors**: Would you rather your script not compile or die in production? via is in favor of the **former**.
 - **Code duplication**: End up sprinkling `assert` to check the type of every parameter, making your code cluttered, repetitive, and fragile.
 - **Performance**: Runtime type-safety is **expensive**. Enforcing this invariant during compile-time completely eliminates this overhead.
-- **Developer experience**: Dynamic type systems often produce confusing, opaque errors that are hard to trace, and tooling struggles to provide reliable feedback. via eliminates this chaos by providing first class tooling and enforcing correctness at compile-time, letting tools actually help you instead of fighting you.
-- **Human nature**: Even the most careful programmer **will make mistakes**. The compiler is capable of catching invariant violations we can't even conceptualize.
+- **Developer experience**: Dynamic type systems often produce verbose, confusing, and opaque diagnostics that are hard to trace, and tooling struggles to provide reliable feedback. via eliminates this chaos by providing first class tooling and enforcing correctness at compile-time, letting tools actually help you instead of fighting you.
+- **Human nature**: Even the most careful programmer **will inevitably make mistakes**. The compiler is capable of catching invariant violations we can't even conceptualize.
 
-**In short**; via shifts the burden of correctness from **runtime** to **compile time**, letting you focus on the logic, not the bugs.
+In short; via shifts the burden of correctness from **runtime** to **compile time**, letting you focus on the logic, not the bugs.
 
 ## Features
 
 > [!NOTE]
-> via is constantly evolving, therefore putting a full list of features here would be foolish. It should be noted that this is a list of **core features**.
+> via is constantly evolving, therefore putting a full list of features here would be foolish. It should be noted that this is only a list of **core features**.
 
 - [**Compile-time invariance:**](#but-what-are-invariants)
     - No more debugging `expected number, got nil` in prod
@@ -217,26 +212,22 @@ _Yes, you absolutely can._ But there are **expensive tradeoffs**:
 - **Powerful type system and metaprogramming**
     - via comes with a powerful set of builtin types, a [type-trait system](https://en.wikipedia.org/wiki/Trait_(computer_programming)), and [hygenic macros](https://en.wikipedia.org/wiki/Hygienic_macro) inspired by Rust.
 - **Multi-paradigm design:**
-    - via supports your favorite programming paradigm, whether it be object-oriented or functional programming.
+    - via supports multiple programming paradigms, including object-oriented and functional programming.
 - **High performance:**
     - Static typing opens the door for a multitude of non-trivial optimizations that dynamic languages simply cannot implement.
 - **Platform independence:**
-    - via uses Rust as the compatability layer, if your device can run Rust, it can run via.
+    - via uses Rust as the compatibility layer, if your device can run Rust, it can run via.
 - **No garbage collection:**
     - via uses a combination of [RC](https://en.wikipedia.org/wiki/Reference_counting) and fully manual [garbage collection](https://en.wikipedia.org/wiki/Garbage_collection_(computer_science)) to ensure proper resource management.
 
 ## Installation
 
-### Cargo (recommended)
+via currently doesn't have a release, therefore you must build it from source:
 
-```sh
-cargo install via
-```
-
-Or to add as dependency:
-
-```sh
-cargo add via
+```bash
+git clone https://github.com/via-lang/via.git
+cd via
+cargo build --release
 ```
 
 ## Credits
