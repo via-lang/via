@@ -10,23 +10,29 @@ pub struct Singletons {
 }
 
 #[derive(Debug)]
-pub struct ValueArena<'a, const S: usize> {
+pub struct ValueArena<'a> {
     sing: Singletons,
-    inner: Box<[Value; S]>,
+    size: usize,
+    inner: Box<[Value]>,
     _marker: PhantomData<&'a ()>,
 }
 
-impl<'a, const S: usize> ValueArena<'a, S> {
-    pub fn new() -> Self {
+impl<'a> ValueArena<'a> {
+    pub fn new(size: usize) -> Self {
         Self {
             sing: Singletons {
                 none: Value::owned(Value::none()),
                 true_: Value::owned(Value::bool(true)),
                 false_: Value::owned(Value::bool(false)),
             },
-            inner: Box::new(std::array::from_fn(|_| Value::dead())),
-            _marker: PhantomData::default(),
+            size,
+            inner: (0..size).map(|_| Value::dead()).collect(),
+            _marker: PhantomData,
         }
+    }
+
+    pub fn size(&self) -> usize {
+        self.size
     }
 
     pub fn clone(&'a mut self, mut value: ValueRef<'a>) -> ValueRef<'a> {

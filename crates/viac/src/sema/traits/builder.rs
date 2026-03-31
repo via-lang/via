@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, hash_map::Entry};
 
 use super::{
     super::{
@@ -18,7 +18,7 @@ pub struct TraitBuilder<'a> {
     st: &'a mut SymbolTable,
     sem: &'a mut SemContext,
     sym: SymbolId,
-    methods: Vec<NodeId<FuncSig>>,
+    methods: HashMap<SymbolId, NodeId<FuncSig>>,
 }
 
 impl<'a> TraitBuilder<'a> {
@@ -28,28 +28,31 @@ impl<'a> TraitBuilder<'a> {
             st,
             sem,
             sym,
-            methods: Vec::new(),
+            methods: HashMap::new(),
         }
     }
 
-    pub fn method(&mut self, sym: &str, parms: &[NodeId<Ty>], ret: NodeId<Ty>) -> &mut Self {
-        let sig = self.sem.intern_fnsig(FuncSig {
-            sym: self.st.intern(sym),
-            parms: Vec::from(parms),
-            ret,
-        });
+    pub fn method(
+        &mut self,
+        sym: &str,
+        parms: &[NodeId<Ty>],
+        ret: NodeId<Ty>,
+    ) -> Result<&mut Self> {
+        let sym = self.st.intern(sym);
+        let parms = Vec::from(parms);
 
-        self.methods.push(sig);
-        self
+        let sig = self.sem.intern_fnsig(FuncSig { sym, parms, ret });
+
+        match self.methods.entry(sym) {
+            Entry::Vacant(e) => {
+                e.insert(sig);
+                Ok(self)
+            }
+            Entry::Occupied(_) => Err(Error::DuplicateTraitMethod(sig)),
+        }
     }
 
     pub fn finish(&self) -> Result<TraitDef> {
-        let unique: HashSet<_> = self.methods.iter().map(|id| self.sem[*id].sym).collect();
-
-        (unique.len() == self.methods.len())
-            .then_some(self)
-            .ok_or(Error::DuplicateTraitMethod)?;
-
         Ok(TraitDef {
             sym: self.sym,
             funcs: self.methods.clone(),
@@ -67,31 +70,32 @@ impl<'a> ImplBuilder<'a> {
         Self { st, sem }
     }
 
-    pub fn register(
+    pub fn register_basic_intr(
         &mut self,
         trait_name: &str,
         method_name: &str,
-        parms: Vec<NodeId<Ty>>,
-        ret: NodeId<Ty>,
+        ty: NodeId<Ty>,
         intrin: Intrinsic,
     ) -> Result<&mut Self> {
         let this = self.sem.intern_ty(Ty::This);
         let proto = TraitBuilder::new(self.st, self.sem, trait_name)
-            .method(method_name, &[this, this], this)
+            .method(method_name, &[this, this], this)?
             .finish()?;
 
         let proto = self.sem.register_trait(proto)?;
+
+        let sym = self.st.intern(method_name);
         let sig = self.sem.intern_fnsig(FuncSig {
-            sym: self.st.intern(method_name),
-            parms,
-            ret,
+            sym,
+            parms: vec![this, this],
+            ret: this,
         });
 
         self.sem.impl_trait(
-            ret,
+            ty,
             TraitImpl {
                 proto,
-                impls: HashMap::from([(sig, FuncImpl::Intrin(intrin))]),
+                impls: HashMap::from([(sym, (sig, FuncImpl::Intrin(intrin)))]),
             },
         )?;
 

@@ -10,7 +10,7 @@ use super::{
 };
 use crate::{counter::Counter, module::symbol::SymbolId, node::NodeId};
 
-#[derive(Arena)]
+#[derive(Arena, Default)]
 pub struct SemContext {
     #[interner(map = "ty_map")]
     ty: Vec<Ty>,
@@ -28,21 +28,31 @@ pub struct SemContext {
 
 impl SemContext {
     pub fn new() -> Self {
-        Self {
-            ty: Vec::new(),
-            ty_map: HashMap::new(),
-            fnsig: Vec::new(),
-            fnsig_map: HashMap::new(),
-            trait_def: Vec::new(),
-            trait_map: HashMap::new(),
-            trait_impls: HashMap::new(),
-            metas: Counter::new(),
-            meta_solutions: HashMap::new(),
+        Self::default()
+    }
+
+    fn subst_this(&self, this: NodeId<Ty>, ty: NodeId<Ty>) -> NodeId<Ty> {
+        match &self[ty] {
+            Ty::This => this,
+            _ => ty,
         }
+    }
+
+    fn subst_this_in_fnsig(&mut self, this: NodeId<Ty>, sig: NodeId<FuncSig>) {
+        todo!()
+    }
+
+    fn subst_this_in_impl(&mut self, this: NodeId<Ty>, imp: &mut TraitImpl) {
+        todo!()
     }
 
     pub(super) fn register_trait(&mut self, def: TraitDef) -> Result<NodeId<TraitDef>> {
         let sym = def.sym;
+
+        if self.trait_map.contains_key(&sym) {
+            return Err(Error::DuplicateTrait(sym));
+        }
+
         let id = self.alloc_trait_def(def);
         self.trait_map.insert(sym, id);
         Ok(id)
@@ -56,14 +66,24 @@ impl SemContext {
         self.trait_impls.get(&ty)
     }
 
-    pub fn impl_trait(&mut self, ty: NodeId<Ty>, imp: TraitImpl) -> Result<()> {
-        match self.trait_impls.entry(ty) {
-            Entry::Occupied(_) => Err(Error::DuplicateTrait),
-            Entry::Vacant(e) => {
-                e.insert(imp);
-                Ok(())
+    pub fn impl_trait(&mut self, ty: NodeId<Ty>, mut imp: TraitImpl) -> Result<()> {
+        if self.trait_impls.contains_key(&ty) {
+            return Err(Error::DuplicateTraitImpl(ty, imp.proto));
+        }
+
+        self.subst_this_in_impl(ty, &mut imp);
+
+        let proto = &self[imp.proto];
+
+        for (sym, sig) in &proto.funcs {
+            match imp.impls.entry(*sym) {
+                Entry::Occupied(e) if e.get().0 == *sig => {}
+                Entry::Occupied(_) | Entry::Vacant(_) => return Err(Error::BadTraitImpl),
             }
         }
+
+        self.trait_impls.insert(ty, imp);
+        Ok(())
     }
 
     pub fn next_meta(&mut self) -> MetaId {
@@ -85,11 +105,5 @@ impl SemContext {
             Entry::Occupied(_) => panic!("placeholder '{id:#?}' solved twice"),
             Entry::Vacant(e) => e.insert(ty),
         };
-    }
-}
-
-impl Default for SemContext {
-    fn default() -> Self {
-        Self::new()
     }
 }

@@ -1,32 +1,37 @@
-use super::{
-    Executor,
-    interrupt::Interrupt,
-    macros::{a, r},
-};
+use std::mem::MaybeUninit;
+
+use super::{Executor, interrupt::Interrupt, macros::launder_mut};
 use crate::{
+    arena::ValueArena,
     instr::{Instr, Op},
-    value_arena::ValueArena,
+    value::ValueRef,
 };
 
-impl<'a, const A: usize, const S: usize, const R: usize> Executor<'a, A, S, R> {
+impl<'a> Executor<'a> {
+    #[inline]
+    fn gr(&mut self, regs: *mut MaybeUninit<ValueRef<'a>>, r: u16) -> &'a mut ValueRef<'a> {
+        debug_assert!((r as usize) < self.reg_count);
+        unsafe { (*regs.add(r as usize)).assume_init_mut() }
+    }
+
     pub fn run(&'a mut self) -> Interrupt {
         use Op::*;
 
         loop {
             let instr = *self.pc;
             let regs = self.regs.as_mut_ptr();
-            let arena = &mut self.arena as *mut ValueArena<'a, _>;
+            let arena: &mut ValueArena = launder_mut!(&mut self.arena);
 
             match instr.op() {
                 Halt => break Interrupt::Halt,
                 Copy => {
-                    let src = r!(regs, instr.b()).clone();
-                    let copy = a!(arena).clone(src);
+                    let src = self.gr(regs, instr.b()).clone();
+                    let copy = arena.clone(src);
 
-                    r!(regs, instr.a()).replace(copy);
+                    self.gr(regs, instr.a()).replace(copy);
                 }
                 Free1 => {
-                    let a = r!(regs, instr.a()).clone();
+                    let a = self.gr(regs, instr.a()).clone();
                     drop(a);
                 }
                 ExtraArg1 | ExtraArg2 | ExtraArg3 => panic!("reserved opcode"),

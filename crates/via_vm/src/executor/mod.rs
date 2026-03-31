@@ -5,32 +5,43 @@ mod run;
 
 use std::mem::MaybeUninit;
 
-use crate::{instr::Instr, stack::Stack, value::ValueRef, value_arena::ValueArena};
+use crate::{arena::ValueArena, instr::Instr, stack::Stack, value::ValueRef};
 
-pub const ARENA_SIZE: usize = 1024 * 512;
-pub const STACK_SIZE: usize = 1024 * 1024;
-pub const REGISTER_SIZE: usize = 256;
-
-#[derive(Debug)]
-pub struct Executor<
-    'a,
-    const A: usize = ARENA_SIZE,
-    const S: usize = STACK_SIZE,
-    const R: usize = REGISTER_SIZE,
-> {
-    pc: &'a Instr,
-    regs: Box<[MaybeUninit<ValueRef<'a>>; R]>,
-    stack: Stack<S>,
-    arena: ValueArena<'a, A>,
+pub struct Config {
+    pub reg_count: usize,
+    pub stack_size: usize,
+    pub arena_size: usize,
 }
 
-impl<'a, const A: usize, const S: usize, const R: usize> Executor<'a, A, S, R> {
-    pub fn new(code: &'a [Instr]) -> Self {
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            reg_count: 256,
+            stack_size: 1024 * 1024,
+            arena_size: 1024 * 512,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Executor<'a> {
+    pc: &'a Instr,
+    regs: Box<[MaybeUninit<ValueRef<'a>>]>,
+    reg_count: usize,
+    stack: Stack,
+    arena: ValueArena<'a>,
+}
+
+impl<'a> Executor<'a> {
+    pub fn new(code: &'a [Instr], cfg: Option<Config>) -> Self {
+        let cfg = cfg.unwrap_or_default();
+
         Self {
             pc: code.first().expect("bytecode cannot be empty"),
-            regs: Box::new(std::array::from_fn(|_| MaybeUninit::uninit())),
-            stack: Stack::new(),
-            arena: ValueArena::new(),
+            regs: Box::new_uninit_slice(cfg.reg_count),
+            reg_count: cfg.reg_count,
+            stack: Stack::new(cfg.stack_size),
+            arena: ValueArena::new(cfg.arena_size),
         }
     }
 }

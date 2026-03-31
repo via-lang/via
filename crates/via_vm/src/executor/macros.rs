@@ -1,15 +1,14 @@
-macro_rules! r {
-    ($regs:ident, $id:expr) => {{
-        debug_assert!(($id as usize) < R);
-        unsafe { (*$regs.add($id as usize)).assume_init_mut() }
-    }};
-}
-
-macro_rules! a {
-    ($arena:ident) => {
-        unsafe { &mut *$arena }
+macro_rules! launder {
+    ($thing:expr) => {
+        unsafe { &*($thing as *const _) }
     };
 }
 
-pub(super) use a;
-pub(super) use r;
+macro_rules! launder_mut {
+    ($thing:expr) => {
+        unsafe { &mut *($thing as *mut _) }
+    };
+}
+
+pub(super) use launder;
+pub(super) use launder_mut;

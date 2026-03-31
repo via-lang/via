@@ -1,25 +1,27 @@
 pub mod slot;
 
-use std::{array, mem::MaybeUninit};
+use std::mem::MaybeUninit;
 
 use slot::Slot;
 
 #[derive(Debug)]
-pub struct Stack<const N: usize> {
-    data: Box<[MaybeUninit<Slot>; N]>,
+pub struct Stack {
     sp: usize,
+    size: usize,
+    data: Box<[MaybeUninit<Slot>]>,
 }
 
-impl<const N: usize> Stack<N> {
-    pub fn new() -> Self {
+impl Stack {
+    pub fn new(size: usize) -> Self {
         Self {
-            data: Box::new(array::from_fn(|_| MaybeUninit::uninit())),
             sp: 0,
+            size,
+            data: Box::new_uninit_slice(size),
         }
     }
 
     pub fn push(&mut self, value: Slot) -> *mut Slot {
-        debug_assert!(self.sp < N, "stack overflow");
+        debug_assert!(self.sp < self.size, "stack overflow");
 
         let data = &mut self.data[self.sp];
         self.sp += 1;
