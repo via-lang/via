@@ -1,9 +1,22 @@
-use super::{Hir, HirBuilder};
+use super::{
+    Hir, HirBuilder,
+    error::{Error, Result},
+};
 use crate::{
     ast::ty::{Ty as AstTy, TyKind as AstTyKind},
     node::NodeId,
-    sema::ty::Ty,
+    sema::{context::SemContext, ty::Ty},
 };
+
+pub fn unify(sem: &mut SemContext, lty: NodeId<Ty>, rty: NodeId<Ty>) -> Result<NodeId<Ty>> {
+    match (&sem[lty], &sem[rty]) {
+        (Ty::Meta(m), _) => sem.solve_meta(*m, rty),
+        (_, Ty::Meta(m)) => sem.solve_meta(*m, lty),
+        (_, _) if lty == rty => {}
+        (_, _) => return Err(Error::TypeMismatch(lty, rty)),
+    }
+    Ok(lty)
+}
 
 impl HirBuilder<'_, '_> {
     pub(super) fn lower_ty(&mut self, _hir: &mut Hir, ty: NodeId<AstTy>) -> Option<NodeId<Ty>> {

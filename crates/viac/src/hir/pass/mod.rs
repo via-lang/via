@@ -1,4 +1,4 @@
-pub mod typeck;
+pub mod zonk;
 
 pub mod prelude {
     pub use super::{

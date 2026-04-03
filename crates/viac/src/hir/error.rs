@@ -6,7 +6,7 @@ use crate::{
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Error {
     IntOutOfRange,
     TypeMismatch(NodeId<Ty>, NodeId<Ty>),

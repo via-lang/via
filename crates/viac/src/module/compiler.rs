@@ -6,7 +6,7 @@ use crate::{
     mir::builder::MirBuilder,
     module::{error::Error, symbol::SymbolTable},
     parser::Parser,
-    sema::context::SemContext,
+    sema::{context::SemContext, traits},
     source::SourceBuf,
 };
 
@@ -86,6 +86,10 @@ impl Compiler<Parsed> {
         clinic: &mut Clinic,
         sema: &mut SemContext,
     ) -> Option<Compiler<Hir>> {
+        traits::register_builtin(sema, symbols)
+            .inspect_err(|e| clinic.report(*e))
+            .ok()?;
+
         HirBuilder::new(clinic, symbols, sema, &self.0.ast)
             .lower()
             .map(|hir| Compiler(Hir { hir }))

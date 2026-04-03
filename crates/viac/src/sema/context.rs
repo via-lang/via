@@ -21,7 +21,7 @@ pub struct SemContext {
     #[allocator]
     trait_def: Vec<TraitDef>,
     trait_map: HashMap<SymbolId, NodeId<TraitDef>>,
-    trait_impls: HashMap<NodeId<Ty>, TraitImpl>,
+    trait_impls: HashMap<NodeId<TraitDef>, HashMap<NodeId<Ty>, TraitImpl>>,
     metas: Counter<MetaId>,
     meta_solutions: HashMap<MetaId, NodeId<Ty>>,
 }
@@ -29,21 +29,6 @@ pub struct SemContext {
 impl SemContext {
     pub fn new() -> Self {
         Self::default()
-    }
-
-    fn subst_this(&self, this: NodeId<Ty>, ty: NodeId<Ty>) -> NodeId<Ty> {
-        match &self[ty] {
-            Ty::This => this,
-            _ => ty,
-        }
-    }
-
-    fn subst_this_in_fnsig(&mut self, this: NodeId<Ty>, sig: NodeId<FuncSig>) {
-        todo!()
-    }
-
-    fn subst_this_in_impl(&mut self, this: NodeId<Ty>, imp: &mut TraitImpl) {
-        todo!()
     }
 
     pub(super) fn register_trait(&mut self, def: TraitDef) -> Result<NodeId<TraitDef>> {
@@ -62,27 +47,47 @@ impl SemContext {
         self.trait_map.get(&sym).copied()
     }
 
-    pub fn get_trait_impl(&self, ty: NodeId<Ty>) -> Option<&TraitImpl> {
-        self.trait_impls.get(&ty)
+    pub fn get_trait_impl(&self, proto: NodeId<TraitDef>, ty: NodeId<Ty>) -> Option<&TraitImpl> {
+        self.trait_impls.get(&proto)?.get(&ty)
     }
 
     pub fn impl_trait(&mut self, ty: NodeId<Ty>, mut imp: TraitImpl) -> Result<()> {
-        if self.trait_impls.contains_key(&ty) {
+        if self.get_trait_impl(imp.proto, ty).is_some() {
             return Err(Error::DuplicateTraitImpl(ty, imp.proto));
         }
 
-        self.subst_this_in_impl(ty, &mut imp);
-
         let proto = &self[imp.proto];
+        let cmp_sig =
+            |lhs: NodeId<FuncSig>, rhs: NodeId<FuncSig>, this_sub: Option<NodeId<Ty>>| -> bool {
+                let resolve = |ty: NodeId<Ty>| match self[ty] {
+                    Ty::This => this_sub.unwrap_or(ty),
+                    _ => ty,
+                };
+
+                let lsig = &self[lhs];
+                let rsig = &self[rhs];
+
+                lsig.parms.len() == rsig.parms.len()
+                    && lsig
+                        .parms
+                        .iter()
+                        .zip(&rsig.parms)
+                        .all(|(&l, &r)| self[resolve(l)] == self[resolve(r)])
+                    && self[resolve(lsig.ret)] == self[resolve(rsig.ret)]
+            };
 
         for (sym, sig) in &proto.funcs {
             match imp.impls.entry(*sym) {
-                Entry::Occupied(e) if e.get().0 == *sig => {}
+                Entry::Occupied(e) if cmp_sig(e.get().0, *sig, Some(ty)) => {}
                 Entry::Occupied(_) | Entry::Vacant(_) => return Err(Error::BadTraitImpl),
             }
         }
 
-        self.trait_impls.insert(ty, imp);
+        self.trait_impls
+            .entry(imp.proto)
+            .or_default()
+            .insert(ty, imp);
+
         Ok(())
     }
 

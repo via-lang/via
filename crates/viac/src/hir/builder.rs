@@ -1,6 +1,6 @@
 use super::{
     Hir,
-    pass::{Pass, typeck::TypeckPass},
+    pass::{Pass, zonk::ZonkPass},
 };
 use crate::{ast::Tree, clinic::Clinic, module::symbol::SymbolTable, sema::context::SemContext};
 
@@ -36,12 +36,16 @@ impl<'cx, 'tree> HirBuilder<'cx, 'tree> {
         let mut hir = Hir::default();
 
         for root in &self.ast.roots {
-            let stmt = self.lower_stmt(&mut hir, *root)?;
-            let stmt = hir.alloc_stmt(stmt);
+            let stmt = self
+                .lower_stmt(&mut hir, *root)
+                .inspect_err(|e| self.clinic.report(*e))
+                .map(|stmt| hir.alloc_stmt(stmt))
+                .ok()?;
+
             hir.roots.push(stmt);
         }
 
-        self.run_pass(&mut hir, &mut TypeckPass)?;
+        self.run_pass(&mut hir, &mut ZonkPass)?;
 
         Some(hir)
     }

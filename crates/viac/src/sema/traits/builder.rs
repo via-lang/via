@@ -70,25 +70,18 @@ impl<'a> ImplBuilder<'a> {
         Self { st, sem }
     }
 
-    pub fn register_basic_intr(
+    pub fn impl_intr(
         &mut self,
-        trait_name: &str,
+        proto: NodeId<TraitDef>,
         method_name: &str,
         ty: NodeId<Ty>,
         intrin: Intrinsic,
     ) -> Result<&mut Self> {
-        let this = self.sem.intern_ty(Ty::This);
-        let proto = TraitBuilder::new(self.st, self.sem, trait_name)
-            .method(method_name, &[this, this], this)?
-            .finish()?;
-
-        let proto = self.sem.register_trait(proto)?;
-
         let sym = self.st.intern(method_name);
         let sig = self.sem.intern_fnsig(FuncSig {
             sym,
-            parms: vec![this, this],
-            ret: this,
+            parms: vec![ty, ty], // concrete type, not This
+            ret: ty,
         });
 
         self.sem.impl_trait(

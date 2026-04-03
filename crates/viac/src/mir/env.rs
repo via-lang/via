@@ -1,11 +1,7 @@
 use bimap::BiHashMap;
 
 use super::instr::{LocalId, TempId};
-use crate::{
-    counter::{Counter, Id},
-    mir::block::BlockId,
-    module::symbol::SymbolId,
-};
+use crate::{counter::Counter, mir::block::BlockId, module::symbol::SymbolId};
 
 #[derive(Debug)]
 pub(super) struct LoopEnv {

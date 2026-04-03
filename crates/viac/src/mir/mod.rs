@@ -3,6 +3,7 @@ pub mod builder;
 pub mod env;
 pub mod error;
 pub mod instr;
+pub mod stmt;
 pub mod term;
 
 use std::fmt;

@@ -47,9 +47,9 @@ impl<'cx> MirBuilder<'cx> {
         let mut env = Env::new();
         let mut current = self.block(&mut mir);
 
-        // for stmt in &self.hir.inner {
-        //     current = self.lower_stmt(&mut mir, &mut env, current);
-        // }
+        for stmt in &self.hir.roots {
+            current = self.lower_stmt(&mut mir, &mut env, current, *stmt);
+        }
 
         self.clinic.healthy().then_some(mir)
     }
