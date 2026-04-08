@@ -1,5 +1,7 @@
 use std::{ops::Range, slice::SliceIndex};
 
+use crate::macros::ice_assert;
+
 #[derive(Debug, Clone)]
 pub struct SourceBuf {
     name: String,
@@ -12,7 +14,7 @@ impl<'a> SourceBuf {
         let inner = code.into();
 
         // This should never happen as a 4 GiB file is total madness, but we still check just in case
-        assert!(inner.len() < u32::MAX as usize, "File too large");
+        ice_assert!(inner.len() < u32::MAX as usize, "File too large");
 
         Self { name, inner }
     }
@@ -39,7 +41,7 @@ impl<'a> SourceBuf {
     }
 
     pub fn get_line_col(&self, offset: u32) -> (u32, u32) {
-        assert!(offset <= self.inner.len() as u32, "offset out of bounds");
+        ice_assert!(offset <= self.inner.len() as u32, "offset out of bounds");
 
         let mut line = 1;
         let mut col = 1;

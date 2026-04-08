@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::tree::ModulePath;
+use super::ModulePath;
 
 pub type Result<T> = std::result::Result<T, Error>;
 

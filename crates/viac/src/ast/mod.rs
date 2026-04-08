@@ -1,14 +1,12 @@
-pub mod expr;
-pub mod stmt;
-pub mod ty;
+mod expr;
+mod stmt;
+mod ty;
 
 use via_macros::Arena;
 
 use crate::node::NodeId;
 
-use expr::Expr;
-use stmt::Stmt;
-use ty::Ty;
+pub use {expr::*, stmt::*, ty::*};
 
 #[derive(Arena, Debug, Default)]
 pub struct Tree {

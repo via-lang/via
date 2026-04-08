@@ -2,9 +2,13 @@ use crate::source::SourceSpan;
 
 #[derive(Debug)]
 pub enum TyKind {
-    None,
+    // ()
+    Unit,
+    // bool
     Bool,
+    // int
     Int,
+    // float
     Float,
 }
 

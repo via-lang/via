@@ -4,9 +4,8 @@ use std::{
 };
 
 use super::{
-    Module, SourceModule,
+    Module, ModulePath, SourceModule,
     error::{Error, Result},
-    tree::ModulePath,
 };
 use crate::{clinic::Clinic, source::SourceBuf};
 

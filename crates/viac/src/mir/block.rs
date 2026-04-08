@@ -1,47 +1,46 @@
-use std::fmt;
+use crate::node::NodeId;
 
 use super::{instr::Instr, term::Term};
-use derive_more::From;
+use pretty::RcDoc;
 
-#[derive(From, Debug, Clone, Copy, PartialEq, Eq)]
-pub struct BlockId(u32);
-
-impl BlockId {
-    pub(super) fn inner(self) -> u32 {
-        self.0
-    }
-}
-
-impl fmt::Display for BlockId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "#{}", self.0)
+impl NodeId<Block> {
+    pub fn to_doc(&self) -> RcDoc<'_> {
+        RcDoc::text(format!("#{}", self.index()))
     }
 }
 
 #[derive(Debug)]
 pub struct Block {
-    pub id: BlockId,
+    pub id: NodeId<Block>,
     pub instrs: Vec<Instr>,
     pub term: Term,
 }
 
 impl Block {
-    pub fn new(id: BlockId) -> Self {
+    pub fn new() -> Self {
         Self {
-            id,
+            id: NodeId::new(0),
             instrs: vec![],
             term: Term::Halt,
         }
     }
+
+    pub fn to_doc(&self) -> RcDoc<'_> {
+        let label = self.id.to_doc().append(":");
+        let instrs = RcDoc::intersperse(self.instrs.iter().map(|i| i.to_doc()), RcDoc::hardline());
+
+        let body = RcDoc::hardline()
+            .append(instrs)
+            .append(RcDoc::hardline())
+            .append(self.term.to_doc())
+            .nest(2);
+
+        label.append(RcDoc::hardline()).append(body)
+    }
 }
 
-impl fmt::Display for Block {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "{}:", self.id)?;
-        for instr in &self.instrs {
-            write!(f, "  {instr}")?;
-        }
-        write!(f, "  {}", self.term)?;
-        Ok(())
+impl Default for Block {
+    fn default() -> Self {
+        Self::new()
     }
 }

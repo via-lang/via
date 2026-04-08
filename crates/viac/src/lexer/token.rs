@@ -10,134 +10,253 @@ pub enum Base {
     Hex = 16,
 }
 
-type RsString = String;
-
 #[derive(via_macros::Token, IntoStaticStr, Debug, Clone, PartialEq)]
 #[token_kind(u8)]
 pub enum TokenKind {
     EndOfFile,
     Illegal,
-    Int {
+
+    IntLit {
         value: u128,
         base: Base,
     },
-    Float(f64),
-    String {
-        literal: RsString,
+
+    NumLit(f64),
+
+    StrLit {
+        literal: String,
         terminated: bool,
     },
-    Ident(RsString),
+
+    Ident(String),
+
+    #[keyword("_")]
+    KwPlaceholder,
+
+    #[keyword("var")]
     KwVar,
+
+    #[keyword("let")]
     KwLet,
+
+    #[keyword("mut")]
     KwMut,
+
+    #[keyword("const")]
     KwConst,
+
+    #[keyword("fn")]
     KwFn,
-    KwWhile,
+
+    #[keyword("for")]
     KwFor,
+
+    #[keyword("if")]
     KwIf,
+
+    #[keyword("in")]
     KwIn,
+
+    #[keyword("else")]
     KwElse,
+
+    #[keyword("do")]
     KwDo,
+
+    #[keyword("break")]
     KwBreak,
+
+    #[keyword("continue")]
     KwContinue,
+
+    #[keyword("return")]
     KwReturn,
+
+    #[keyword("raise")]
     KwRaise,
+
+    #[keyword("as")]
     KwAs,
+
+    #[keyword("import")]
     KwImport,
+
+    #[keyword("type")]
     KwType,
+
+    #[keyword("true")]
     KwTrue,
+
+    #[keyword("false")]
     KwFalse,
-    KwNone,
-    KwBool,
-    KwInt,
-    KwFloat,
-    KwString,
+
+    #[operator(".")]
     Dot,
+
+    #[operator(",")]
     Comma,
+
+    #[operator(";")]
     Semi,
-    Col,
-    ColCol,
+
+    #[operator(":")]
+    Colon,
+
+    #[operator("::")]
+    ColonColon,
+
+    #[operator("->")]
     Arrow,
-    Quest,
+
+    #[operator("?")]
+    Question,
+
+    #[operator("(")]
     LParen,
+
+    #[operator(")")]
     RParen,
+
+    #[operator("[")]
     LBracket,
+
+    #[operator("]")]
     RBracket,
+
+    #[operator("{")]
     LBrace,
+
+    #[operator("}")]
     RBrace,
 
     #[prec(7)]
+    #[operator("+")]
     Plus,
 
     #[prec(7)]
+    #[operator("-")]
     Minus,
 
     #[prec(8)]
+    #[operator("*")]
     Star,
 
     #[prec(8)]
+    #[operator("/")]
     Slash,
 
     #[prec(9)]
+    #[operator("**")]
     StarStar,
 
     #[prec(8)]
+    #[operator("%")]
     Percent,
 
     #[prec(3)]
+    #[operator("&")]
     Amp,
+
+    #[operator("~")]
     Tilde,
 
     #[prec(4)]
+    #[operator("^")]
     Caret,
 
     #[prec(5)]
+    #[operator("|")]
     Pipe,
 
     #[prec(6)]
+    #[operator("<<")]
     LtLt,
 
     #[prec(6)]
+    #[operator(">>")]
     GtGt,
+
+    #[operator("#")]
     Hash,
+
+    #[operator("!")]
     Bang,
+
+    #[operator("\"")]
     Quote,
 
     #[prec(2)]
+    #[operator("<")]
     Lt,
 
     #[prec(2)]
+    #[operator(">")]
     Gt,
+
+    #[operator("..")]
     DotDot,
 
+    #[operator("..=")]
+    DotDotEq,
+
     #[prec(1)]
+    #[operator("&&")]
     AmpAmp,
 
     #[prec(0)]
+    #[operator("||")]
     PipePipe,
+
+    #[operator("=")]
     Eq,
 
     #[prec(2)]
+    #[operator("==")]
     EqEq,
+
+    #[operator("+=")]
     PlusEq,
+
+    #[operator("-=")]
     MinusEq,
+
+    #[operator("*=")]
     StarEq,
+
+    #[operator("/=")]
     SlashEq,
+
+    #[operator("**=")]
     StarStarEq,
+
+    #[operator("%=")]
     PercentEq,
+
+    #[operator("&=")]
     AmpEq,
+
+    #[operator("^=")]
     CaretEq,
+
+    #[operator("|=")]
     PipeEq,
+
+    #[operator("<<=")]
     LtLtEq,
+
+    #[operator(">>=")]
     GtGtEq,
 
     #[prec(2)]
+    #[operator("!=")]
     BangEq,
 
     #[prec(2)]
+    #[operator("<=")]
     LtEq,
 
     #[prec(2)]
+    #[operator(">=")]
     GtEq,
 }
 

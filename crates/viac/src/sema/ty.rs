@@ -10,14 +10,18 @@ impl Id for MetaId {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TySubst {
+    This,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Ty {
-    None,
+    Unit,
     Bool,
     Int,
     Float,
     String,
-    This,
-    Never,
     Meta(MetaId),
+    Subst(TySubst),
 }

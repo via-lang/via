@@ -1,7 +1,8 @@
 use super::prelude::*;
 use crate::{
-    ast::expr::{Expr, ExprKind},
-    sema::ops::{BinaryOp, UnaryOp},
+    ast::{Expr, ExprKind},
+    macros::ice_unreachable,
+    sema::{BinaryOp, UnaryOp},
 };
 
 yes_or_no!(enum AllowPrefix);
@@ -12,13 +13,12 @@ impl<'a> Parser<'a> {
             self.peek().map(|t| t.kind),
             Ok(
                 Ident { .. }
+                | IntLit { .. }
+                | NumLit(_)
+                | StrLit { .. }
                 | KwTrue // literal
                 | KwFalse
-                | KwNone
                 | KwFn
-                | Int { .. }
-                | Float(_)
-                | String { .. }
                 | Minus // unary
                 | Amp
                 | Tilde
@@ -35,9 +35,19 @@ impl<'a> Parser<'a> {
         let span = token.span;
 
         let expr = match token.kind {
-            KwNone => Expr {
-                kind: ExprKind::None,
-                span,
+            LParen => match self.peek()?.kind {
+                RParen => {
+                    self.consume()?;
+                    Expr {
+                        kind: ExprKind::Unit,
+                        span,
+                    }
+                }
+                _ => {
+                    let expr = self.parse_expr(tree)?;
+                    expect_one!(self, RParen)?;
+                    expr
+                }
             },
             KwTrue => Expr {
                 kind: ExprKind::True,
@@ -47,11 +57,11 @@ impl<'a> Parser<'a> {
                 kind: ExprKind::False,
                 span,
             },
-            Int { value, base: _ } => Expr {
+            IntLit { value, base: _ } => Expr {
                 kind: ExprKind::Integer(value),
                 span,
             },
-            Float(value) => Expr {
+            NumLit(value) => Expr {
                 kind: ExprKind::Float(value),
                 span,
             },
@@ -64,7 +74,7 @@ impl<'a> Parser<'a> {
                             Minus => UnaryOp::Negate,
                             Bang => UnaryOp::LogNot,
                             Tilde => UnaryOp::BitNot,
-                            _ => unreachable!(),
+                            _ => ice_unreachable!(),
                         },
                         expr: tree.alloc_expr(expr),
                     },

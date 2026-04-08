@@ -1,41 +1,35 @@
+use super::{
+    def::{DefContext, traits},
+    symbol::SymbolTable,
+};
 use crate::{
     ast::Tree,
     clinic::Clinic,
-    hir::{self, builder::HirBuilder},
-    lexer::{Lexer, token::Token},
-    mir::builder::MirBuilder,
-    module::{error::Error, symbol::SymbolTable},
+    hir::{self, HirBuilder},
+    lexer::{Lexer, Token},
+    mir::{self, MirBuilder},
     parser::Parser,
-    sema::{context::SemContext, traits},
+    sema::SemContext,
     source::SourceBuf,
 };
 
-pub type Result<T> = std::result::Result<T, Error>;
-
 pub mod state {
-    use crate::mir;
-
     use super::*;
 
-    #[derive(Debug)]
     pub struct Empty;
 
-    #[derive(Debug)]
     pub struct Lexed {
         pub tt: Box<[Token]>,
     }
 
-    #[derive(Debug)]
     pub struct Parsed {
         pub ast: Tree,
     }
 
-    #[derive(Debug)]
     pub struct Hir {
         pub hir: hir::Hir,
     }
 
-    #[derive(Debug)]
     pub struct Mir {
         pub mir: mir::Mir,
     }
@@ -82,15 +76,16 @@ impl Compiler<Lexed> {
 impl Compiler<Parsed> {
     pub fn lower(
         self,
-        symbols: &mut SymbolTable,
-        clinic: &mut Clinic,
+        st: &mut SymbolTable,
         sema: &mut SemContext,
+        def: &mut DefContext,
+        clinic: &mut Clinic,
     ) -> Option<Compiler<Hir>> {
-        traits::register_builtin(sema, symbols)
+        traits::register_builtin(st, sema, def)
             .inspect_err(|e| clinic.report(*e))
             .ok()?;
 
-        HirBuilder::new(clinic, symbols, sema, &self.0.ast)
+        HirBuilder::new(clinic, st, sema, def, &self.0.ast)
             .lower()
             .map(|hir| Compiler(Hir { hir }))
     }
@@ -105,10 +100,16 @@ impl Compiler<Hir> {
         Some(self)
     }
 
-    pub fn lower(self, symbols: &mut SymbolTable, clinic: &mut Clinic) -> Option<Compiler<Mir>> {
+    pub fn lower(
+        self,
+        st: &mut SymbolTable,
+        sem: &mut SemContext,
+        def: &mut DefContext,
+        clinic: &mut Clinic,
+    ) -> Option<Compiler<Mir>> {
         dbg!(&self.0.hir);
 
-        MirBuilder::new(symbols, clinic, &self.0.hir)
+        MirBuilder::new(st, sem, def, clinic, &self.0.hir)
             .lower()
             .map(|mir| Compiler(Mir { mir }))
     }
@@ -120,8 +121,7 @@ impl Compiler<Mir> {
     }
 
     pub fn lower(self) -> Option<Compiler<Bytecode>> {
-        dbg!(self.0.mir);
-
+        self.0.mir.print();
         Some(Compiler(Bytecode {}))
     }
 }
@@ -131,10 +131,10 @@ impl Compiler<Bytecode> {
         self
     }
 
-    pub fn to_unit(self) -> CompilationUnit {
-        CompilationUnit {}
+    pub fn to_executable(self) -> Executable {
+        Executable {}
     }
 }
 
 #[derive(Debug)]
-pub struct CompilationUnit {}
+pub struct Executable {}

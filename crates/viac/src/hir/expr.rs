@@ -1,48 +1,52 @@
 use super::{
     Hir, HirBuilder,
     error::{Error, Result},
-    ty::unify,
 };
 use crate::{
-    ast::expr::{Expr as AstExpr, ExprKind as AstExprKind},
+    ast::{Expr as AstExpr, ExprKind as AstExprKind},
+    macros::ice_unimplemented,
+    module::FnDef,
     node::NodeId,
-    sema::{context::SemContext, func::FuncSig, ops::BinaryOp, traits::TraitDef, ty::Ty},
+    sema::{BinaryOp, Ty},
 };
 
 #[derive(Debug, Clone)]
 pub enum Expr {
-    None,
+    Unit,
     Bool(bool),
     Int(i64),
     Float(f64),
     String(String),
-    TraitCall {
-        proto: NodeId<TraitDef>,
-        method: NodeId<FuncSig>,
+    Call {
+        callee: NodeId<FnDef>,
         args: Vec<NodeId<Expr>>,
     },
 }
 
-pub fn infer(sem: &mut SemContext, hir: &Hir, expr: NodeId<Expr>) -> Result<NodeId<Ty>> {
-    let ty = match &hir[expr] {
-        Expr::None => Ty::None,
-        Expr::Bool(_) => Ty::Bool,
-        Expr::Int(_) => Ty::Int,
-        Expr::Float(_) => Ty::Float,
-        Expr::String(_) => Ty::String,
-        Expr::TraitCall { method, .. } => return Ok(sem[*method].ret),
-    };
-
-    Ok(sem.intern_ty(ty))
-}
-
 impl HirBuilder<'_, '_> {
+    pub(super) fn infer(&mut self, hir: &Hir, expr: NodeId<Expr>) -> Result<NodeId<Ty>> {
+        let ty = match &hir[expr] {
+            Expr::Unit => Ty::Unit,
+            Expr::Bool(_) => Ty::Bool,
+            Expr::Int(_) => Ty::Int,
+            Expr::Float(_) => Ty::Float,
+            Expr::String(_) => Ty::String,
+            Expr::Call { callee, .. } => {
+                let fn_def = &self.def[*callee];
+                let sig = &self.def[fn_def.sig];
+                return Ok(sig.ret);
+            }
+        };
+
+        Ok(self.sem.intern_ty(ty))
+    }
+
     pub(super) fn lower_expr(&mut self, hir: &mut Hir, expr: NodeId<AstExpr>) -> Result<Expr> {
         use AstExprKind::*;
 
         let expr = &self.ast[expr];
         let expr = match &expr.kind {
-            None => Expr::None,
+            Unit => Expr::Unit,
             True => Expr::Bool(true),
             False => Expr::Bool(false),
             Integer(int) => {
@@ -56,50 +60,50 @@ impl HirBuilder<'_, '_> {
                 let lhs = hir.alloc_expr(lhs);
                 let rhs = hir.alloc_expr(rhs);
 
-                let lty = infer(self.sema, hir, lhs)?;
-                let rty = infer(self.sema, hir, rhs)?;
-
-                let ty = unify(self.sema, lty, rty)?;
+                let lty = self.infer(hir, lhs)?;
+                let rty = self.infer(hir, rhs)?;
+                let ty = self.unify(lty, rty)?;
 
                 let trait_name = match op {
                     BinaryOp::Add => "Add",
                     BinaryOp::Sub => "Sub",
                     BinaryOp::Mul => "Mul",
                     BinaryOp::Div => "Div",
-                    _ => todo!(),
+                    _ => ice_unimplemented!(),
                 };
 
                 // TODO: This is a hack that will probably break when we have more complex trait resolution.
                 // We should have a better way to resolve trait methods.
                 let method_name = trait_name.to_string().to_lowercase();
 
-                let trait_sym = self.symbols.intern(trait_name);
-                let method_sym = self.symbols.intern(method_name);
+                let trait_sym = self.st.intern(trait_name);
+                let method_sym = self.st.intern(method_name);
 
-                let proto = self
-                    .sema
+                let class = self
+                    .def
                     .get_trait(trait_sym)
                     .ok_or(Error::InvalidBinaryOp)?;
 
                 let imp = self
-                    .sema
-                    .get_trait_impl(proto, ty)
+                    .def
+                    .get_trait_impl(class, ty)
                     .ok_or(Error::InvalidBinaryOp)?;
 
-                let (sig_id, _) = imp.impls.get(&method_sym).ok_or(Error::InvalidBinaryOp)?;
-                let sig = &self.sema[*sig_id];
+                let fn_def_id = imp.impls.get(&method_sym).ok_or(Error::InvalidBinaryOp)?;
+                let fn_def = &self.def[*fn_def_id];
+
+                let sig = &self.def[fn_def.sig];
 
                 (sig.parms.len() == 2 && sig.parms[0] == ty && sig.parms[1] == ty)
                     .then_some(())
                     .ok_or(Error::InvalidBinaryOp)?;
 
-                Expr::TraitCall {
-                    proto,
-                    method: *sig_id,
+                Expr::Call {
+                    callee: *fn_def_id,
                     args: vec![lhs, rhs],
                 }
             }
-            _ => todo!(),
+            _ => ice_unimplemented!(),
         };
 
         Ok(expr)

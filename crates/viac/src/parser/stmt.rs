@@ -1,5 +1,5 @@
 use super::prelude::*;
-use crate::ast::stmt::{Stmt, StmtKind};
+use crate::ast::{Stmt, StmtKind};
 
 impl<'a> Parser<'a> {
     pub(super) fn parse_stmt(&mut self, tree: &mut Tree) -> Result<Stmt> {
@@ -14,7 +14,7 @@ impl<'a> Parser<'a> {
                     _ => return Err(Error::UnexpectedToken(ident.span)),
                 };
 
-                let ty = optional!(self, Col)
+                let ty = optional!(self, Colon)
                     .then(|| self.parse_type(tree))
                     .transpose()?;
 

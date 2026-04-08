@@ -1,7 +1,7 @@
 use crate::{
     clinic::{Diagnostic, Severity},
     node::NodeId,
-    sema::ty::{MetaId, Ty},
+    sema::{MetaId, Ty},
 };
 
 pub type Result<T> = std::result::Result<T, Error>;

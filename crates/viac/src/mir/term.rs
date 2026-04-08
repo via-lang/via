@@ -1,6 +1,7 @@
-use std::fmt;
+use pretty::RcDoc;
 
-use super::{block::BlockId, instr::TempId};
+use super::{Block, instr::TempId};
+use crate::{macros::ice_unimplemented, node::NodeId};
 
 #[derive(Debug)]
 pub enum Term {
@@ -12,37 +13,39 @@ pub enum Term {
         value: Option<TempId>,
     },
     Jump {
-        block: BlockId,
+        block: NodeId<Block>,
     },
     Branch {
         cond: TempId,
-        iftrue: BlockId,
-        iffalse: BlockId,
+        iftrue: NodeId<Block>,
+        iffalse: NodeId<Block>,
     },
 }
 
-impl fmt::Display for Term {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Term {
+    pub fn to_doc(&self) -> RcDoc<'_> {
         match self {
-            Self::Halt => writeln!(f, "halt"),
+            Self::Halt => RcDoc::text("halt"),
             Self::Return { value } => {
+                let mut base = RcDoc::text("ret");
                 if let Some(value) = value {
-                    writeln!(f, "ret {value}")
-                } else {
-                    writeln!(f, "ret")
+                    base = base.append(value.to_doc());
                 }
+                base
             }
-            Self::Jump { block } => {
-                writeln!(f, "jmp {block}")
-            }
+            Self::Jump { block } => RcDoc::text("jmp").append(" ").append(block.to_doc()),
             Self::Branch {
                 cond,
                 iftrue,
                 iffalse,
-            } => {
-                writeln!(f, "br {cond}, {iftrue}, {iffalse}")
-            }
-            _ => todo!(),
+            } => RcDoc::text("br")
+                .append(" ")
+                .append(cond.to_doc())
+                .append(" ? ")
+                .append(iftrue.to_doc())
+                .append(" ")
+                .append(iffalse.to_doc()),
+            _ => ice_unimplemented!(),
         }
     }
 }

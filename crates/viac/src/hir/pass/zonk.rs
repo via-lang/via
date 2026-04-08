@@ -1,7 +1,7 @@
 use super::prelude::*;
 use crate::{
     node::NodeId,
-    sema::{context::SemContext, ty::Ty},
+    sema::{SemContext, Ty},
 };
 
 pub struct ZonkPass;
@@ -17,7 +17,7 @@ fn zonk_ty(sem: &mut SemContext, ty: NodeId<Ty>) -> Result<NodeId<Ty>> {
 fn zonk_expr(sem: &mut SemContext, hir: &mut Hir, expr: NodeId<Expr>) -> Result<NodeId<Expr>> {
     #[allow(clippy::single_match)]
     match &hir[expr] {
-        Expr::TraitCall { args, .. } => {
+        Expr::Call { args, .. } => {
             for arg in args.clone() {
                 zonk_expr(sem, hir, arg)?;
             }

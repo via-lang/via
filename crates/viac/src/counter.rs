@@ -32,3 +32,44 @@ impl<T: Id> Default for Counter<T> {
         Self::new()
     }
 }
+
+#[derive(Debug)]
+pub struct SnapCounter<T: Id> {
+    inner: T::Inner,
+    snapshots: Vec<T::Inner>,
+}
+
+impl<T: Id> Default for SnapCounter<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T: Id> SnapCounter<T> {
+    pub fn new() -> Self {
+        Self {
+            inner: T::new_inner(),
+            snapshots: Vec::new(),
+        }
+    }
+
+    pub fn bump(&mut self) -> T {
+        let id = T::new(self.inner);
+        self.inner += 1;
+        id
+    }
+
+    pub fn save(&mut self) {
+        self.snapshots.push(self.inner);
+    }
+
+    pub fn restore(&mut self) {
+        if let Some(snapshot) = self.snapshots.pop() {
+            self.inner = snapshot;
+        }
+    }
+
+    pub fn discard(&mut self) {
+        self.snapshots.pop();
+    }
+}

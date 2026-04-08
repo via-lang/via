@@ -11,6 +11,24 @@ fn parse_prec(variant: &syn::Variant) -> Result<Option<syn::Expr>, syn::Error> {
     Ok(None)
 }
 
+fn parse_keyword(variant: &syn::Variant) -> Result<Option<syn::LitStr>, syn::Error> {
+    for attr in &variant.attrs {
+        if attr.path().is_ident("keyword") {
+            return Ok(Some(attr.parse_args::<syn::LitStr>()?));
+        }
+    }
+    Ok(None)
+}
+
+fn parse_operator(variant: &syn::Variant) -> Result<Option<syn::LitStr>, syn::Error> {
+    for attr in &variant.attrs {
+        if attr.path().is_ident("operator") {
+            return Ok(Some(attr.parse_args::<syn::LitStr>()?));
+        }
+    }
+    Ok(None)
+}
+
 fn parse_prec_type(input: &DeriveInput) -> Result<syn::Type, syn::Error> {
     for attr in &input.attrs {
         if attr.path().is_ident("token_kind") {
@@ -18,6 +36,19 @@ fn parse_prec_type(input: &DeriveInput) -> Result<syn::Type, syn::Error> {
         }
     }
     Ok(syn::parse_quote!(u32))
+}
+
+fn make_arm(variant: &syn::Variant, body: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
+    let name = &variant.ident;
+    match &variant.fields {
+        syn::Fields::Unit => quote! { Self::#name => #body },
+        _ => quote! { Self::#name { .. } => #body },
+    }
+}
+
+// Only unit variants can be used as map values (no data to construct)
+fn is_unit(variant: &syn::Variant) -> bool {
+    matches!(variant.fields, syn::Fields::Unit)
 }
 
 pub fn expand(input: TokenStream) -> TokenStream {
@@ -37,39 +68,105 @@ pub fn expand(input: TokenStream) -> TokenStream {
         }
     };
 
-    let mut arms = Vec::new();
+    let mut prec_arms = Vec::new();
+    let mut keyword_arms = Vec::new();
+    let mut operator_arms = Vec::new();
+
+    // For reverse maps: (literal, variant ident) pairs
+    let mut keyword_map_entries: Vec<(syn::LitStr, syn::Ident)> = Vec::new();
+    let mut operator_map_entries: Vec<(syn::LitStr, syn::Ident)> = Vec::new();
 
     for variant in &enum_data.variants {
         let name = &variant.ident;
 
-        let value = match parse_prec(variant) {
+        // --- prec ---
+        let prec_val = match parse_prec(variant) {
             Ok(v) => v,
             Err(e) => return e.to_compile_error().into(),
         };
-
-        let arm = match (&variant.fields, value) {
-            (syn::Fields::Unit, Some(expr)) => {
-                quote! { Self::#name => Some(#expr) }
-            }
-            (syn::Fields::Unit, None) => {
-                quote! { Self::#name => None }
-            }
-            (_, Some(expr)) => {
-                quote! { Self::#name { .. } => Some(#expr) }
-            }
-            (_, None) => {
-                quote! { Self::#name { .. } => None }
-            }
+        let prec_body = match prec_val {
+            Some(expr) => quote! { Some(#expr) },
+            None => quote! { None },
         };
+        prec_arms.push(make_arm(variant, prec_body));
 
-        arms.push(arm);
+        // --- keyword ---
+        let kw_val = match parse_keyword(variant) {
+            Ok(v) => v,
+            Err(e) => return e.to_compile_error().into(),
+        };
+        let kw_body = match &kw_val {
+            Some(lit) => quote! { Some(#lit) },
+            None => quote! { None },
+        };
+        keyword_arms.push(make_arm(variant, kw_body));
+
+        if let Some(lit) = kw_val
+            && is_unit(variant)
+        {
+            keyword_map_entries.push((lit, name.clone()));
+        }
+
+        // --- operator ---
+        let op_val = match parse_operator(variant) {
+            Ok(v) => v,
+            Err(e) => return e.to_compile_error().into(),
+        };
+        let op_body = match &op_val {
+            Some(lit) => quote! { Some(#lit) },
+            None => quote! { None },
+        };
+        operator_arms.push(make_arm(variant, op_body));
+
+        if let Some(lit) = op_val
+            && is_unit(variant)
+        {
+            operator_map_entries.push((lit, name.clone()));
+        }
     }
+
+    keyword_map_entries.sort_by_key(|(lit, _)| std::cmp::Reverse(lit.value().len()));
+    operator_map_entries.sort_by_key(|(lit, _)| std::cmp::Reverse(lit.value().len()));
+
+    let kw_match_tokens = keyword_map_entries.iter().map(|(lit, ident)| {
+        quote! { #lit => Some(#enum_name::#ident) }
+    });
+
+    let op_match_tokens = operator_map_entries.iter().map(|(lit, ident)| {
+        quote! { #lit => Some(#enum_name::#ident) }
+    });
 
     quote! {
         impl #enum_name {
             pub fn prec(&self) -> Option<#ret_ty> {
                 match self {
-                    #(#arms),*
+                    #(#prec_arms),*
+                }
+            }
+
+            pub fn keyword(&self) -> Option<&'static str> {
+                match self {
+                    #(#keyword_arms),*
+                }
+            }
+
+            pub fn operator(&self) -> Option<&'static str> {
+                match self {
+                    #(#operator_arms),*
+                }
+            }
+
+            pub fn from_keyword(s: &str) -> Option<Self> {
+                match s {
+                    #(#kw_match_tokens,)*
+                    _ => None,
+                }
+            }
+
+            pub fn from_operator(s: &str) -> Option<Self> {
+                match s {
+                    #(#op_match_tokens,)*
+                    _ => None,
                 }
             }
         }

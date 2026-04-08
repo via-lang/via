@@ -1,21 +1,26 @@
-pub mod error;
+mod error;
 mod expr;
 mod macros;
 mod stmt;
 mod ty;
 
 pub(super) mod prelude {
-    pub(super) use super::{
-        Parser,
-        error::{Error, Result},
-        macros::*,
+    #[allow(unused_imports)]
+    pub use {
+        super::{
+            Parser,
+            error::{Error, Result},
+            macros::*,
+        },
+        crate::{ast::Tree, lexer::TokenKind::*, source::SourceSpan},
     };
-    pub(super) use crate::{ast::Tree, lexer::token::TokenKind::*, source::SourceSpan};
 }
+
+pub use error::*;
 
 use prelude::*;
 
-use crate::lexer::token::Token;
+use crate::lexer::Token;
 
 pub struct Parser<'a> {
     toks: &'a [Token],

@@ -1,14 +1,10 @@
-use super::{
-    Hir, HirBuilder,
-    error::Result,
-    expr::{Expr, infer},
-    ty::unify,
-};
+use super::{Hir, HirBuilder, error::Result, expr::Expr};
 use crate::{
-    ast::stmt::{Stmt as AstStmt, StmtKind as AstStmtKind},
-    module::symbol::SymbolId,
+    ast::{Stmt as AstStmt, StmtKind as AstStmtKind},
+    macros::ice_unimplemented,
+    module::SymbolId,
     node::NodeId,
-    sema::ty::Ty,
+    sema::Ty,
 };
 
 #[derive(Debug, Clone)]
@@ -30,20 +26,20 @@ impl HirBuilder<'_, '_> {
                 let expr = self.lower_expr(hir, *expr)?;
                 let expr = hir.alloc_expr(expr);
 
-                let rty = infer(self.sema, hir, expr)?;
+                let rty = self.infer(hir, expr)?;
                 let lty = ty.and_then(|ty| self.lower_ty(hir, ty));
 
                 if let Some(lty) = lty {
-                    unify(self.sema, lty, rty)?;
+                    self.unify(lty, rty)?;
                 }
 
                 Stmt::Let {
-                    ident: self.symbols.intern(ident),
+                    ident: self.st.intern(ident),
                     ty: lty.unwrap_or(rty),
                     expr,
                 }
             }
-            _ => todo!(),
+            _ => ice_unimplemented!(),
         };
 
         Ok(stmt)

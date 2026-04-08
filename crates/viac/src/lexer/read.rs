@@ -2,8 +2,6 @@ use unicode_ident::*;
 
 use super::{
     Lexer,
-    keyword::KEYWORD_LIST,
-    operator::OPERATOR_LIST,
     token::{
         Base, Token,
         TokenKind::{self, *},
@@ -19,10 +17,7 @@ impl Lexer {
 
         let span = SourceSpan::new(start, self.pos);
         let text = self.src.read_span(&span);
-        let kind = KEYWORD_LIST
-            .get(text)
-            .cloned()
-            .unwrap_or(Ident(text.to_owned()));
+        let kind = TokenKind::from_keyword(text).unwrap_or(Ident(text.to_owned()));
 
         Token { kind, span }
     }
@@ -58,10 +53,10 @@ impl Lexer {
         let text = self.src.read_span(&span);
 
         let kind = if is_float {
-            text.parse::<f64>().map(Float).unwrap_or(Illegal)
+            text.parse::<f64>().map(NumLit).unwrap_or(Illegal)
         } else {
             text.parse::<u128>()
-                .map(|value| Int { value, base })
+                .map(|value| IntLit { value, base })
                 .unwrap_or(Illegal)
         };
 
@@ -81,7 +76,7 @@ impl Lexer {
         let terminated = self.eat('"');
 
         Token {
-            kind: String {
+            kind: StrLit {
                 literal,
                 terminated,
             },
@@ -93,21 +88,14 @@ impl Lexer {
         let start = self.pos;
         let rest = self.remaining();
 
-        let mut best: Option<(&str, TokenKind)> = None;
-
-        for (lexeme, kind) in OPERATOR_LIST.entries() {
-            if rest.starts_with(lexeme) && best.as_ref().is_none_or(|(b, _)| lexeme.len() > b.len())
-            {
-                best = Some((lexeme, kind.clone()));
+        for len in (1..=rest.len()).rev() {
+            if let Some(kind) = TokenKind::from_operator(&rest[..len]) {
+                self.advance(len);
+                return Token {
+                    kind,
+                    span: SourceSpan::new(start, self.pos),
+                };
             }
-        }
-
-        if let Some((lexeme, kind)) = best {
-            self.advance(lexeme.len());
-            return Token {
-                kind,
-                span: SourceSpan::new(start, self.pos),
-            };
         }
 
         self.bump();

@@ -1,8 +1,11 @@
-use super::{func::FuncSig, traits::TraitDef, ty::Ty};
 use crate::{
     clinic::{Diagnostic, Severity},
-    module::symbol::SymbolId,
+    module::{
+        def::{FnSig, traits::TraitDef},
+        symbol::SymbolId,
+    },
     node::NodeId,
+    sema::Ty,
 };
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -11,7 +14,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     DuplicateTrait(SymbolId),
     DuplicateTraitImpl(NodeId<Ty>, NodeId<TraitDef>),
-    DuplicateTraitMethod(NodeId<FuncSig>),
+    DuplicateTraitMethod(NodeId<FnSig>),
     // TODO: This is way too generic
     BadTraitImpl,
 }

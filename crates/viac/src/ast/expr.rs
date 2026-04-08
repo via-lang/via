@@ -1,6 +1,6 @@
 use crate::{
     node::NodeId,
-    sema::ops::{BinaryOp, UnaryOp},
+    sema::{BinaryOp, UnaryOp},
     source::SourceSpan,
 };
 
@@ -17,7 +17,7 @@ pub struct Place {
 
 #[derive(Debug)]
 pub enum ExprKind {
-    None,
+    Unit,
     True,
     False,
     Integer(u128),

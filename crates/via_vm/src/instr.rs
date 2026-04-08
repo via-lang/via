@@ -25,10 +25,8 @@ impl Instr {
         let mut word = (op as u64) << 48;
 
         for (i, val) in operands.iter().enumerate().take(3) {
-            let val: u16 = (*val).into();
             let shift = 32 - i * 16;
-
-            word |= (val as u64) << shift;
+            word |= (*val as u64) << shift;
         }
 
         Self(word)

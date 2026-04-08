@@ -1,15 +1,14 @@
 mod cursor;
 mod helpers;
-pub mod keyword;
-pub mod operator;
 mod read;
-pub mod token;
+mod token;
 mod trivia;
 
 use unicode_ident::*;
 
+pub use token::*;
+
 use crate::source::{SourceBuf, SourceSpan};
-use token::{Token, TokenKind};
 
 pub struct Lexer {
     src: SourceBuf,

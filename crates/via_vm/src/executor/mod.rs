@@ -5,6 +5,8 @@ mod run;
 
 use std::mem::MaybeUninit;
 
+pub use {error::*, interrupt::*};
+
 use crate::{arena::ValueArena, instr::Instr, stack::Stack, value::ValueRef};
 
 pub struct Config {

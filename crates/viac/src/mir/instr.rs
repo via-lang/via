@@ -1,12 +1,17 @@
-use std::fmt;
-
 use derive_more::From;
+use pretty::RcDoc;
 
-use crate::{counter::Id, sema::value::ConstValue};
+use crate::{counter::Id, sema::ConstValue};
 
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TempId(u32);
+
+impl TempId {
+    pub fn to_doc(&self) -> RcDoc<'_> {
+        RcDoc::text(format!("v{}", self.0))
+    }
+}
 
 impl Id for TempId {
     type Inner = u32;
@@ -15,15 +20,15 @@ impl Id for TempId {
     }
 }
 
-impl fmt::Display for TempId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "v{}", self.0)
-    }
-}
-
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct LocalId(u32);
+
+impl LocalId {
+    pub fn to_doc(&self) -> RcDoc<'_> {
+        RcDoc::text(format!("l{}", self.0))
+    }
+}
 
 impl Id for LocalId {
     type Inner = u32;
@@ -32,58 +37,51 @@ impl Id for LocalId {
     }
 }
 
-impl fmt::Display for LocalId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "l{}", self.0)
-    }
-}
-
 #[derive(From, Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ValueId {
+pub enum Operand {
     Discard,
     Temp(TempId),
     Local(LocalId),
 }
 
-impl fmt::Display for ValueId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl Operand {
+    pub fn to_doc(&self) -> RcDoc<'_> {
         match self {
-            Self::Discard => write!(f, "_"),
-            Self::Temp(tmp) => write!(f, "{tmp}"),
-            Self::Local(loc) => write!(f, "{loc}"),
+            Self::Discard => RcDoc::text("_"),
+            Self::Temp(temp) => temp.to_doc(),
+            Self::Local(local) => local.to_doc(),
         }
     }
 }
 
 #[derive(Debug)]
 pub enum Instr {
+    Local {
+        id: Operand,
+        out: LocalId,
+    },
     Const {
         value: ConstValue,
-        out: ValueId,
+        out: Operand,
     },
     IAdd {
-        lhs: ValueId,
-        rhs: ValueId,
-        out: ValueId,
+        lhs: Operand,
+        rhs: Operand,
+        out: Operand,
     },
 }
 
-impl fmt::Display for Instr {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut write_out = |out: Option<ValueId>| {
-            if let Some(out) = out {
-                write!(f, "{out} = ")
-            } else {
-                Ok(())
-            }
-        };
-
+impl Instr {
+    pub fn to_doc(&self) -> RcDoc<'_> {
         match self {
-            Self::Const { value, out } => {
-                write_out(Some(*out))?;
-                writeln!(f, "{value}")
-            }
-            _ => todo!(),
+            Self::Local { id, out } => out.to_doc().append(" = ").append(id.to_doc()),
+            Self::Const { value, out } => out.to_doc().append(" = const ").append(value.to_doc()),
+            Self::IAdd { lhs, rhs, out } => out
+                .to_doc()
+                .append(" = iadd ")
+                .append(lhs.to_doc())
+                .append(", ")
+                .append(rhs.to_doc()),
         }
     }
 }
