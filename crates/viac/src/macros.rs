@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 macro_rules! ice_panic {
     ($($arg:tt)*) => {{
         eprintln!("internal compiler error: {}", format_args!($($arg)*));

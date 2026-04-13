@@ -1,9 +1,15 @@
 mod access;
 mod arena;
+mod id;
 mod opcode;
 mod token;
 
 use proc_macro::TokenStream;
+
+#[proc_macro_derive(Id, attributes(id))]
+pub fn id(input: TokenStream) -> TokenStream {
+    id::expand(input)
+}
 
 #[proc_macro_derive(Arena, attributes(allocator, interner))]
 pub fn arena(input: TokenStream) -> TokenStream {

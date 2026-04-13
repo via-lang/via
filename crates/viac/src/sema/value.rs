@@ -9,7 +9,7 @@ pub enum ConstValue {
 }
 
 impl ConstValue {
-    pub fn to_doc(&self) -> RcDoc {
+    pub fn to_doc(&self) -> RcDoc<'_> {
         match self {
             Self::Unit => RcDoc::text("()"),
             Self::Bool(b) => RcDoc::text(format!("{b}")),

@@ -5,6 +5,7 @@ use super::{
 use crate::{
     ast::Tree,
     clinic::Clinic,
+    exe::ExeBuilder,
     hir::{self, HirBuilder},
     lexer::{Lexer, Token},
     mir::{self, MirBuilder},
@@ -14,6 +15,8 @@ use crate::{
 };
 
 pub mod state {
+    use crate::exe::Executable;
+
     use super::*;
 
     pub struct Empty;
@@ -35,7 +38,9 @@ pub mod state {
     }
 
     #[derive(Debug)]
-    pub struct Bytecode;
+    pub struct Exe {
+        pub exe: Executable,
+    }
 }
 
 use state::*;
@@ -120,21 +125,10 @@ impl Compiler<Mir> {
         self
     }
 
-    pub fn lower(self) -> Option<Compiler<Bytecode>> {
+    pub fn lower(self) -> Option<Compiler<Exe>> {
         self.0.mir.print();
-        Some(Compiler(Bytecode {}))
+        Some(Compiler(Exe {
+            exe: ExeBuilder::new(&self.0.mir).build(),
+        }))
     }
 }
-
-impl Compiler<Bytecode> {
-    pub fn optimize(self) -> Self {
-        self
-    }
-
-    pub fn to_executable(self) -> Executable {
-        Executable {}
-    }
-}
-
-#[derive(Debug)]
-pub struct Executable {}

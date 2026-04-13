@@ -6,7 +6,6 @@ mod instr;
 mod stmt;
 mod term;
 
-use block::Block;
 use pretty::RcDoc;
 use via_macros::Arena;
 
@@ -20,12 +19,12 @@ use crate::{
 
 use env::Env;
 
-pub use {block::*, expr::*, instr::*, stmt::*, term::*};
+pub use {block::*, instr::*, term::*};
 
 #[derive(Arena, Default)]
 pub struct Mir {
     #[allocator]
-    blocks: Vec<Block>,
+    pub blocks: Vec<Block>,
 }
 
 impl Mir {

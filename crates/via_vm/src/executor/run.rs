@@ -4,6 +4,7 @@ use super::{Executor, interrupt::Interrupt, macros::launder_mut};
 use crate::{
     arena::ValueArena,
     instr::{Instr, Op},
+    stack::slot::{Slot, SlotKind},
     value::ValueRef,
 };
 
@@ -33,6 +34,13 @@ impl<'a> Executor<'a> {
                 Free1 => {
                     let a = self.gr(regs, instr.a()).clone();
                     drop(a);
+                }
+                Push => {
+                    let mut a = self.gr(regs, instr.a()).clone();
+                    self.stack.push(Slot {
+                        kind: SlotKind::Value,
+                        ptr: a.as_ptr_mut() as usize,
+                    });
                 }
                 ExtraArg1 | ExtraArg2 | ExtraArg3 => panic!("reserved opcode"),
                 _ => unimplemented!("unimplemented opcode"),

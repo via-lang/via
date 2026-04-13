@@ -1,33 +1,34 @@
 use std::{hash::Hash, ops::AddAssign};
 
-pub trait Id
-where
-    Self: Clone + Copy + PartialEq + Eq + Hash,
-{
-    type Inner: Clone + Copy + AddAssign<u32> + From<u32>;
+pub trait Id: Copy + Clone + PartialEq + Eq + Hash {
+    type Inner: Copy + Clone + PartialEq + Eq + Hash;
 
-    fn new(inner: Self::Inner) -> Self;
-    fn new_inner() -> Self::Inner {
-        0u32.into()
-    }
+    fn from_inner(inner: Self::Inner) -> Self;
+    fn inner(self) -> Self::Inner;
 }
 
 #[derive(Debug)]
 pub struct Counter<T: Id>(T::Inner);
 
-impl<T: Id> Counter<T> {
+impl<T: Id> Counter<T>
+where
+    T::Inner: Default + AddAssign<u32>,
+{
     pub fn new() -> Self {
-        Self(T::new_inner())
+        Self(T::Inner::default())
     }
 
     pub fn bump(&mut self) -> T {
-        let id = T::new(self.0);
+        let id = T::from_inner(self.0);
         self.0 += 1;
         id
     }
 }
 
-impl<T: Id> Default for Counter<T> {
+impl<T: Id> Default for Counter<T>
+where
+    T::Inner: Default + AddAssign<u32>,
+{
     fn default() -> Self {
         Self::new()
     }
@@ -39,22 +40,28 @@ pub struct SnapCounter<T: Id> {
     snapshots: Vec<T::Inner>,
 }
 
-impl<T: Id> Default for SnapCounter<T> {
+impl<T: Id> Default for SnapCounter<T>
+where
+    T::Inner: Default + AddAssign<u32>,
+{
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<T: Id> SnapCounter<T> {
+impl<T: Id> SnapCounter<T>
+where
+    T::Inner: Default + AddAssign<u32>,
+{
     pub fn new() -> Self {
         Self {
-            inner: T::new_inner(),
+            inner: T::Inner::default(),
             snapshots: Vec::new(),
         }
     }
 
     pub fn bump(&mut self) -> T {
-        let id = T::new(self.inner);
+        let id = T::from_inner(self.inner);
         self.inner += 1;
         id
     }

@@ -1,9 +1,9 @@
 use via_macros::Access;
 
-use super::{Compiler, Executable, Module, SymbolTable, def::DefContext};
+use super::{Compiler, Module, SymbolTable, def::DefContext};
 use crate::{
     clinic::Clinic,
-    macros::ice_panic,
+    exe::Executable,
     sema::SemContext,
     source::{SourceBuf, SourceSpan},
     traits::Access,
@@ -44,8 +44,10 @@ impl SourceModule {
             .lower(&mut st, &mut sem, &mut def, clinic)?
             .optimize()
             .lower()?
-            .to_executable();
+            .0
+            .exe;
 
+        dbg!(&exe);
         // dbg!(&st);
         // dbg!(&sem);
         // dbg!(&def);

@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 // SAFETY: `launder!` and `launder_mut!` exist to bypass the borrow checker's
 // covariance restrictions where aliasing is statically impossible by construction
 // (e.g. distinct fields of a struct) even when it is sound.
@@ -20,5 +22,4 @@ macro_rules! launder_mut {
     };
 }
 
-pub(super) use launder;
-pub(super) use launder_mut;
+pub(super) use {launder, launder_mut};

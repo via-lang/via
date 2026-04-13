@@ -1,14 +1,8 @@
-use crate::counter::Id;
+use via_macros::Id;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Id)]
+#[id(inner = u32)]
 pub struct MetaId(u32);
-
-impl Id for MetaId {
-    type Inner = u32;
-    fn new(inner: Self::Inner) -> Self {
-        Self(inner)
-    }
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TySubst {

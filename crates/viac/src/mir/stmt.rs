@@ -1,4 +1,4 @@
-use super::{Block, Instr, Mir, MirBuilder, Operand, env::Env};
+use super::{Block, Instr, Mir, MirBuilder, env::Env};
 use crate::{hir::Stmt, macros::ice_unimplemented, node::NodeId};
 
 impl MirBuilder<'_> {

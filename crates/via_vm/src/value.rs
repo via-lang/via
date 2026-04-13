@@ -6,11 +6,18 @@ use std::{
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Tag {
+    /// Sentinel tombstone value state that signals
+    /// the value arena that the slot is unoccupied.
     Dead = 0,
+    /// Represents a unit value.
     None,
+    /// Represents a boolean value.
     Bool,
+    /// Represents a signed 64-bit integer value.
     Int,
+    /// Represents an IEEE-754 double precision floating point value.
     Float,
+    /// Represents a mutable heap-allocated string value.
     String,
 }
 
@@ -20,49 +27,55 @@ pub struct Value {
     payload: u64,
 }
 
-impl Value {
-    fn make_control_block(rc: u64, tag: Tag) -> u64 {
-        (rc & !(0xFFu64 << 56)) | ((tag as u64) << 56)
-    }
+/// Packs the value tag (8 bits) and reference counter (56 bits) into a
+/// control block, an 8-byte memory region which allows for 16-byte wide values.
+///
+/// 0b  00000000000000000000000000000000000000000000000000000000  00000000
+///     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^
+///     reference counter                                         tag
+fn control_block(rc: u64, tag: Tag) -> u64 {
+    (rc & !(0xFFu64 << 56)) | ((tag as u64) << 56)
+}
 
+impl Value {
     pub(crate) fn dead() -> Self {
         Self {
-            control: Self::make_control_block(1, Tag::Dead),
+            control: control_block(1, Tag::Dead),
             payload: 0,
         }
     }
 
     pub(crate) fn none() -> Self {
         Self {
-            control: Self::make_control_block(1, Tag::None),
+            control: control_block(1, Tag::None),
             payload: 0,
         }
     }
 
     pub(crate) fn bool(value: bool) -> Self {
         Self {
-            control: Self::make_control_block(1, Tag::Bool),
+            control: control_block(1, Tag::Bool),
             payload: value as u64,
         }
     }
 
     pub(crate) fn int(value: i64) -> Self {
         Self {
-            control: Self::make_control_block(0, Tag::Int),
+            control: control_block(0, Tag::Int),
             payload: value.cast_unsigned(),
         }
     }
 
     pub(crate) fn float(value: f64) -> Self {
         Self {
-            control: Self::make_control_block(0, Tag::Float),
+            control: control_block(0, Tag::Float),
             payload: value.to_bits(),
         }
     }
 
     pub(crate) fn string(value: &str) -> Self {
         Self {
-            control: Self::make_control_block(0, Tag::String),
+            control: control_block(0, Tag::String),
             payload: Box::into_raw(Box::new(value.to_string())) as u64,
         }
     }
@@ -105,6 +118,7 @@ impl Value {
     unsafe fn reset(&mut self) {
         debug_assert_ne!(self.tag(), Tag::Dead, "reset called on dead value");
 
+        // Non-primitive types require manual destruction
         unsafe {
             #[allow(clippy::single_match)]
             match self.tag() {
@@ -113,7 +127,7 @@ impl Value {
             }
         }
 
-        self.control = Self::make_control_block(self.control, Tag::Dead);
+        self.control = control_block(self.control, Tag::Dead);
     }
 
     fn inc_ref(&mut self) {
@@ -148,6 +162,16 @@ impl<'a> ValueRef<'a> {
 
     pub fn clone(&mut self) -> ValueRef<'a> {
         Self::new(unsafe { (&mut *self.0 as *mut Value).as_mut().unwrap_unchecked() })
+    }
+
+    pub(crate) fn as_ptr(&mut self) -> *const Value {
+        self.inc_ref();
+        self.0
+    }
+
+    pub(crate) fn as_ptr_mut(&mut self) -> *mut Value {
+        self.inc_ref();
+        self.0
     }
 
     pub(crate) fn replace(&'a mut self, other: Self) {

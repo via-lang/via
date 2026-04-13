@@ -1,7 +1,7 @@
 pub mod ast;
-pub mod bytecode;
 pub mod clinic;
 pub mod counter;
+pub mod exe;
 pub mod hir;
 pub mod intern;
 pub mod lexer;

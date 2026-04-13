@@ -1,10 +1,11 @@
 use derive_more::From;
 use pretty::RcDoc;
+use via_macros::Id;
 
-use crate::{counter::Id, sema::ConstValue};
+use crate::sema::ConstValue;
 
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Id)]
+#[id(inner = u32)]
 pub struct TempId(u32);
 
 impl TempId {
@@ -13,15 +14,8 @@ impl TempId {
     }
 }
 
-impl Id for TempId {
-    type Inner = u32;
-    fn new(inner: Self::Inner) -> Self {
-        Self(inner)
-    }
-}
-
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Id)]
+#[id(inner = u32)]
 pub struct LocalId(u32);
 
 impl LocalId {
@@ -30,16 +24,8 @@ impl LocalId {
     }
 }
 
-impl Id for LocalId {
-    type Inner = u32;
-    fn new(inner: Self::Inner) -> Self {
-        Self(inner)
-    }
-}
-
 #[derive(From, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Operand {
-    Discard,
     Temp(TempId),
     Local(LocalId),
 }
@@ -47,7 +33,6 @@ pub enum Operand {
 impl Operand {
     pub fn to_doc(&self) -> RcDoc<'_> {
         match self {
-            Self::Discard => RcDoc::text("_"),
             Self::Temp(temp) => temp.to_doc(),
             Self::Local(local) => local.to_doc(),
         }

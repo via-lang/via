@@ -27,15 +27,17 @@ impl Block {
 
     pub fn to_doc(&self) -> RcDoc<'_> {
         let label = self.id.to_doc().append(":");
-        let instrs = RcDoc::intersperse(self.instrs.iter().map(|i| i.to_doc()), RcDoc::hardline());
+        let instrs = RcDoc::hardline().append(RcDoc::intersperse(
+            self.instrs.iter().map(|i| i.to_doc()),
+            RcDoc::hardline(),
+        ));
 
-        let body = RcDoc::hardline()
-            .append(instrs)
+        let body = instrs
             .append(RcDoc::hardline())
             .append(self.term.to_doc())
             .nest(2);
 
-        label.append(RcDoc::hardline()).append(body)
+        label.append(body)
     }
 }
 

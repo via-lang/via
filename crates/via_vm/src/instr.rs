@@ -1,3 +1,5 @@
+use std::fmt;
+
 use via_macros::Opcode;
 
 pub type RegId = u16;
@@ -11,7 +13,7 @@ pub enum InstrFormat {
     RIm,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct Instr(u64);
 
 impl Instr {
@@ -23,7 +25,6 @@ impl Instr {
         );
 
         let mut word = (op as u64) << 48;
-
         for (i, val) in operands.iter().enumerate().take(3) {
             let shift = 32 - i * 16;
             word |= (*val as u64) << shift;
@@ -43,22 +44,19 @@ impl Instr {
 
     #[inline]
     pub const fn op(&self) -> Op {
-        unsafe { std::mem::transmute((self.0 & 0xFFFF) as u16) }
+        unsafe { std::mem::transmute(((self.0 >> 48) & u16::MAX as u64) as u16) }
     }
 
-    #[inline]
     pub const fn a(&self) -> u16 {
-        (self.0 & u16::MAX as u64) as u16
+        ((self.0 >> 32) & u16::MAX as u64) as u16
     }
 
-    #[inline]
     pub const fn b(&self) -> u16 {
         ((self.0 >> 16) & u16::MAX as u64) as u16
     }
 
-    #[inline]
     pub const fn c(&self) -> u16 {
-        ((self.0 >> 32) & u16::MAX as u64) as u16
+        (self.0 & u16::MAX as u64) as u16
     }
 
     #[inline]
@@ -67,8 +65,21 @@ impl Instr {
     }
 }
 
+impl fmt::Debug for Instr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "[{:?} {} {} {}]",
+            self.op(),
+            self.a(),
+            self.b(),
+            self.c()
+        )
+    }
+}
+
 #[repr(u16)]
-#[derive(Opcode)]
+#[derive(Opcode, Debug)]
 pub enum Op {
     #[layout(Rx0)]
     Halt,
@@ -80,6 +91,12 @@ pub enum Op {
     Free2,
     #[layout(Rx3)]
     Free3,
+    #[layout(Rx1)]
+    Push,
+    #[layout(RIm)]
+    SetLocal,
+    #[layout(RIm)]
+    GetLocal,
     #[layout(Rx1)]
     ExtraArg1,
     #[layout(Rx2)]
@@ -96,10 +113,6 @@ pub enum Op {
     LoadI32,
     #[layout(RIm)]
     LoadI64,
-    #[layout(RIm)]
-    LoadU32,
-    #[layout(RIm)]
-    LoadU64,
     #[layout(RIm)]
     LoadF32,
     #[layout(RIm)]
