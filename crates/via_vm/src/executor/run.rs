@@ -1,53 +1,97 @@
-use std::mem::MaybeUninit;
-
 use super::{Executor, interrupt::Interrupt, macros::launder_mut};
 use crate::{
-    arena::ValueArena,
+    arena::{FALSE, NONE, TRUE, ValueArena},
     instr::{Instr, Op},
     stack::slot::{Slot, SlotKind},
-    value::ValueRef,
 };
 
-impl<'a> Executor<'a> {
-    #[inline]
-    fn gr(&mut self, regs: *mut MaybeUninit<ValueRef<'a>>, r: u16) -> &'a mut ValueRef<'a> {
-        debug_assert!((r as usize) < self.reg_count);
-        unsafe { (*regs.add(r as usize)).assume_init_mut() }
+macro_rules! copy {
+    ($a:expr, $regs:expr, $pc:expr) => {{
+        let src = unsafe { $regs[$pc.a() as usize].assume_init_read() };
+        let copy = $a.clone(src);
+        $regs[$pc.a() as usize].write(copy);
+    }};
+}
+
+macro_rules! free {
+    ($a:expr, $regs:expr, $pc:expr, $($arg:ident),+) => {{
+        $(
+            $a.dec_ref(unsafe { $regs[$pc.$arg() as usize].assume_init_read() });
+        )+
+    }};
+}
+
+macro_rules! ibin {
+    ($self:expr, $a:expr, $regs:expr, $pc:expr, $op:tt) => {{
+        let lhs = $a.get(unsafe { $regs[$pc.b() as usize].assume_init_read() });
+        let rhs = $a.get(unsafe { $regs[$pc.c() as usize].assume_init_read() });
+
+        let result = lhs.as_int() $op rhs.as_int();
+        let value = $a.int(result);
+
+        $regs[$pc.a() as usize].write(value);
+    }};
+}
+
+impl Executor<'_> {
+    pub fn run(&mut self) -> Interrupt {
+        dbg!(dbg!(self).__run())
     }
 
-    pub fn run(&'a mut self) -> Interrupt {
+    fn __run(&mut self) -> Interrupt {
         use Op::*;
 
         loop {
-            let instr = *self.pc;
-            let regs = self.regs.as_mut_ptr();
-            let arena: &mut ValueArena = launder_mut!(&mut self.arena);
+            let pc = *self.pc;
+            let r = &mut self.regs;
+            let s = &mut self.stack;
+            let a: &mut ValueArena = launder_mut!(&mut self.arena);
 
-            match instr.op() {
+            let op = pc.op();
+            match op {
                 Halt => break Interrupt::Halt,
-                Copy => {
-                    let src = self.gr(regs, instr.b()).clone();
-                    let copy = arena.clone(src);
 
-                    self.gr(regs, instr.a()).replace(copy);
-                }
-                Free1 => {
-                    let a = self.gr(regs, instr.a()).clone();
-                    drop(a);
-                }
+                Copy => copy!(a, r, pc),
+                Free1 => free!(a, r, pc, a),
+                Free2 => free!(a, r, pc, a, b),
+                Free3 => free!(a, r, pc, a, b, c),
+
                 Push => {
-                    let mut a = self.gr(regs, instr.a()).clone();
-                    self.stack.push(Slot {
+                    let id = unsafe { r[pc.a() as usize].assume_init_read() };
+                    a.inc_ref(id);
+                    s.push(Slot {
                         kind: SlotKind::Value,
-                        ptr: a.as_ptr_mut() as usize,
+                        word: id.0 as usize,
                     });
                 }
-                ExtraArg1 | ExtraArg2 | ExtraArg3 => panic!("reserved opcode"),
-                _ => unimplemented!("unimplemented opcode"),
+
+                LoadNone => {
+                    r[pc.a() as usize].write(NONE);
+                }
+                LoadTrue => {
+                    r[pc.a() as usize].write(TRUE);
+                }
+                LoadFalse => {
+                    r[pc.a() as usize].write(FALSE);
+                }
+                LoadI32 => {
+                    let hi = pc.b() as u32;
+                    let lo = pc.c() as u32;
+
+                    let lit = ((hi << 16) | lo) as i32 as i64;
+                    let id = a.int(lit);
+
+                    a.inc_ref(id);
+                    r[pc.a() as usize].write(id);
+                }
+
+                IAdd => ibin!(self, a, r, pc, +),
+
+                ExtraArg1 | ExtraArg2 | ExtraArg3 => panic!("reserved opcode: {:?}", op),
+                _ => unimplemented!("unimplemented opcode: {:?}", op),
             }
 
-            let ptr = self.pc as *const Instr;
-            self.pc = unsafe { &*ptr.add(1) };
+            self.pc = unsafe { &*(self.pc as *const Instr).add(1) };
         }
     }
 }

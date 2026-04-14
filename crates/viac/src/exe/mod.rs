@@ -1,28 +1,17 @@
 use std::collections::HashMap;
 
-use via_vm::instr::Instr;
+use via_vm::{Executable, instr::Instr};
 
 use crate::{
     mir::{Block, Instr as MirInstr, Mir, Operand, TempId, Term},
     sema::ConstValue,
 };
 
-use self::register::RegisterAlloc;
+use register::RegisterAlloc;
 
 mod register;
 
 type Reg = u16;
-
-#[derive(Default, Debug)]
-pub struct Executable {
-    pub instrs: Vec<Instr>,
-}
-
-impl Executable {
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
 
 pub struct ExeBuilder<'cx> {
     mir: &'cx Mir,
@@ -150,8 +139,6 @@ impl<'cx> ExeBuilder<'cx> {
 
                 self.push(exe, Instr::iadd(dst, l, r));
                 self.write_back(exe, *out, dst);
-
-                println!("lfree: {l_free} rfree: {r_free}");
 
                 if l_free && r_free {
                     self.free2(exe, l, r);

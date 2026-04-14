@@ -1,84 +1,88 @@
-use std::marker::PhantomData;
+use crate::value::Value;
 
-use crate::value::{Tag, Value, ValueRef};
+type Index = u32;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ValueId(pub(crate) Index);
+
+const NONE_INDEX: usize = 0;
+const TRUE_INDEX: usize = 1;
+const FALSE_INDEX: usize = 2;
+
+pub const NONE: ValueId = ValueId(NONE_INDEX as u32);
+pub const TRUE: ValueId = ValueId(TRUE_INDEX as u32);
+pub const FALSE: ValueId = ValueId(FALSE_INDEX as u32);
 
 #[derive(Debug)]
-pub struct Singletons {
-    none: Value,
-    true_: Value,
-    false_: Value,
+pub struct ValueArena {
+    inner: Vec<Value>,
+    free_list: Vec<usize>,
 }
 
-#[derive(Debug)]
-pub struct ValueArena<'a> {
-    sing: Singletons,
-    size: usize,
-    inner: Box<[Value]>,
-    _marker: PhantomData<&'a ()>,
-}
+impl ValueArena {
+    pub fn new(initial_capacity: usize) -> Self {
+        let mut inner = Vec::with_capacity(initial_capacity);
 
-impl<'a> ValueArena<'a> {
-    pub fn new(size: usize) -> Self {
+        inner.insert(NONE_INDEX, Value::none());
+        inner.insert(TRUE_INDEX, Value::bool(true));
+        inner.insert(FALSE_INDEX, Value::bool(false));
+
         Self {
-            sing: Singletons {
-                none: Value::owned(Value::none()),
-                true_: Value::owned(Value::bool(true)),
-                false_: Value::owned(Value::bool(false)),
-            },
-            size,
-            inner: (0..size).map(|_| Value::dead()).collect(),
-            _marker: PhantomData,
+            inner,
+            free_list: Vec::new(),
         }
     }
 
-    pub fn size(&self) -> usize {
-        self.size
-    }
-
-    pub fn clone(&'a mut self, mut value: ValueRef<'a>) -> ValueRef<'a> {
-        match value.tag() {
-            Tag::None | Tag::Bool | Tag::Int | Tag::Float => value.clone(),
-            Tag::String => self.get_string(value.as_string().as_str()),
-            Tag::Dead => panic!("attempt to clone dead value"),
+    fn alloc(&mut self, value: Value) -> ValueId {
+        if let Some(i) = self.free_list.pop() {
+            self.inner[i] = value;
+            return ValueId(i as u32);
         }
+
+        let i = self.inner.len();
+        self.inner.push(value);
+        ValueId(i as u32)
     }
 
-    pub fn get_none(&'a mut self) -> ValueRef<'a> {
-        ValueRef::new(&mut self.sing.none)
+    pub fn free(&mut self, id: ValueId) {
+        let i = id.0 as usize;
+
+        debug_assert_ne!(i, 0);
+
+        self.inner[i] = Value::dead();
+        self.free_list.push(i);
     }
 
-    pub fn get_true(&'a mut self) -> ValueRef<'a> {
-        ValueRef::new(&mut self.sing.true_)
+    pub fn inc_ref(&mut self, id: ValueId) {
+        self.get_mut(id).inc_ref();
     }
 
-    pub fn get_false(&'a mut self) -> ValueRef<'a> {
-        ValueRef::new(&mut self.sing.false_)
+    pub fn dec_ref(&mut self, id: ValueId) {
+        self.get_mut(id).dec_ref().then(|| self.free(id));
     }
 
-    fn find_empty_slot(&mut self) -> &mut Value {
-        for slot in self.inner.iter_mut() {
-            if slot.tag() == Tag::Dead {
-                return slot;
-            }
-        }
-        panic!("out of arena space")
+    pub fn clone(&mut self, value: ValueId) -> ValueId {
+        let value = self.inner[value.0 as usize].clone();
+        self.alloc(value)
     }
 
-    pub fn get_int(&'a mut self, value: i64) -> ValueRef<'a> {
-        let slot = self.find_empty_slot();
-        *slot = Value::int(value);
-        ValueRef::new(slot)
+    pub fn get(&self, id: ValueId) -> &Value {
+        &self.inner[id.0 as usize]
     }
 
-    pub fn get_float(&'a mut self, value: f64) -> ValueRef<'a> {
-        let slot = self.find_empty_slot();
-        *slot = Value::float(value);
-        ValueRef::new(slot)
+    pub fn get_mut(&mut self, id: ValueId) -> &mut Value {
+        &mut self.inner[id.0 as usize]
     }
 
-    pub fn get_string(&'a mut self, value: &str) -> ValueRef<'a> {
-        let slot = self.find_empty_slot();
-        *slot = Value::string(value);
-        ValueRef::new(slot)
+    pub fn int(&mut self, v: i64) -> ValueId {
+        self.alloc(Value::int(v))
+    }
+
+    pub fn float(&mut self, v: f64) -> ValueId {
+        self.alloc(Value::float(v))
+    }
+
+    pub fn string(&mut self, v: &str) -> ValueId {
+        self.alloc(Value::string(v))
     }
 }

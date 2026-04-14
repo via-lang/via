@@ -6,33 +6,33 @@ use slot::Slot;
 
 #[derive(Debug)]
 pub struct Stack {
-    sp: usize,
-    size: usize,
-    data: Box<[MaybeUninit<Slot>]>,
+    inner: Box<[MaybeUninit<Slot>]>,
+    capacity: usize,
+    pos: usize,
 }
 
 impl Stack {
-    pub fn new(size: usize) -> Self {
+    pub fn new(capacity: usize) -> Self {
         Self {
-            sp: 0,
-            size,
-            data: Box::new_uninit_slice(size),
+            inner: Box::new_uninit_slice(capacity),
+            capacity,
+            pos: 0,
         }
     }
 
     pub fn push(&mut self, value: Slot) -> *mut Slot {
-        debug_assert!(self.sp < self.size, "stack overflow");
+        debug_assert!(self.pos < self.capacity, "stack overflow");
 
-        let data = &mut self.data[self.sp];
-        self.sp += 1;
+        let inner = &mut self.inner[self.pos];
+        self.pos += 1;
 
-        data.write(value);
-        data.as_mut_ptr()
+        inner.write(value);
+        inner.as_mut_ptr()
     }
 
     pub fn pop(&mut self) -> Slot {
-        debug_assert_ne!(self.sp, 0, "stack underflow");
-        self.sp -= 1;
-        unsafe { self.data[self.sp].assume_init_read() }
+        debug_assert_ne!(self.pos, 0, "stack underflow");
+        self.pos -= 1;
+        unsafe { self.inner[self.pos].assume_init_read() }
     }
 }

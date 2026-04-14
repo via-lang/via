@@ -1,7 +1,4 @@
-use std::{
-    ops::{Deref, DerefMut},
-    ptr::drop_in_place,
-};
+use std::ptr::drop_in_place;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -27,14 +24,14 @@ pub struct Value {
     payload: u64,
 }
 
+const TAG_MASK: u64 = 0xFF00_0000_0000_0000;
+const RC_MASK: u64 = 0x00FF_FFFF_FFFF_FFFF;
+
 /// Packs the value tag (8 bits) and reference counter (56 bits) into a
 /// control block, an 8-byte memory region which allows for 16-byte wide values.
-///
-/// 0b  00000000000000000000000000000000000000000000000000000000  00000000
-///     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^
-///     reference counter                                         tag
+#[inline]
 fn control_block(rc: u64, tag: Tag) -> u64 {
-    (rc & !(0xFFu64 << 56)) | ((tag as u64) << 56)
+    (rc & RC_MASK) | ((tag as u64) << 56)
 }
 
 impl Value {
@@ -80,11 +77,6 @@ impl Value {
         }
     }
 
-    pub(crate) fn owned(mut value: Self) -> Self {
-        value.inc_ref();
-        value
-    }
-
     pub fn tag(&self) -> Tag {
         let raw = (self.control >> 56) as u8;
         unsafe { std::mem::transmute(raw) }
@@ -127,77 +119,43 @@ impl Value {
             }
         }
 
-        self.control = control_block(self.control, Tag::Dead);
+        self.control = control_block(0, Tag::Dead);
     }
 
-    fn inc_ref(&mut self) {
-        debug_assert!(self.control < (1u64 << 56), "control block overflow");
-        self.control += 1;
+    pub(crate) fn inc_ref(&mut self) {
+        let rc = self.control & RC_MASK;
+        let tag = self.control & TAG_MASK;
+
+        let new_rc = rc + 1;
+        debug_assert!(new_rc <= RC_MASK, "RC overflow");
+
+        self.control = new_rc | tag;
     }
 
-    fn dec_ref(&mut self) {
-        debug_assert!(self.control > 0, "control block underflow");
-        self.control -= 1;
+    pub(crate) fn dec_ref(&mut self) -> bool {
+        let rc = self.control & RC_MASK;
+        let tag = self.control & TAG_MASK;
 
-        if self.control == 0 {
-            unsafe { self.reset() };
+        debug_assert!(rc > 0, "RC underflow");
+
+        let new_rc = rc - 1;
+        let destruct = new_rc == 0;
+
+        self.control = new_rc | tag;
+
+        destruct
+    }
+}
+
+impl Clone for Value {
+    fn clone(&self) -> Self {
+        match self.tag() {
+            Tag::Dead => panic!("clone called on dead value"),
+            Tag::None => Value::none(),
+            Tag::Bool => Value::bool(self.as_bool()),
+            Tag::Int => Value::int(self.as_int()),
+            Tag::Float => Value::float(self.as_float()),
+            Tag::String => Value::string(self.as_string().as_str()),
         }
-    }
-}
-
-impl Drop for Value {
-    fn drop(&mut self) {
-        unsafe { self.reset() };
-    }
-}
-
-#[derive(Debug)]
-pub struct ValueRef<'a>(&'a mut Value);
-
-impl<'a> ValueRef<'a> {
-    pub fn new(value: &'a mut Value) -> Self {
-        value.inc_ref();
-        Self(value)
-    }
-
-    pub fn clone(&mut self) -> ValueRef<'a> {
-        Self::new(unsafe { (&mut *self.0 as *mut Value).as_mut().unwrap_unchecked() })
-    }
-
-    pub(crate) fn as_ptr(&mut self) -> *const Value {
-        self.inc_ref();
-        self.0
-    }
-
-    pub(crate) fn as_ptr_mut(&mut self) -> *mut Value {
-        self.inc_ref();
-        self.0
-    }
-
-    pub(crate) fn replace(&'a mut self, other: Self) {
-        other.0.inc_ref();
-        self.0.dec_ref();
-        // This references the same memory when other is being dropped
-        // It is sound though because it only takes the pointer
-        self.0 = unsafe { &mut *(other.0 as *mut Value) };
-    }
-}
-
-impl Deref for ValueRef<'_> {
-    type Target = Value;
-    fn deref(&self) -> &Self::Target {
-        self.0
-    }
-}
-
-impl DerefMut for ValueRef<'_> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.0
-    }
-}
-
-impl Drop for ValueRef<'_> {
-    fn drop(&mut self) {
-        self.0.dec_ref();
     }
 }

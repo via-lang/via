@@ -1,32 +1,23 @@
-use crate::value::ValueRef;
+use crate::arena::ValueId;
 
 #[derive(Debug)]
 pub enum SlotKind {
     Value,
-    Frame,
 }
 
 #[derive(Debug)]
 pub struct Slot {
     #[cfg(debug_assertions)]
     pub kind: SlotKind,
-    pub ptr: usize,
+    pub word: usize,
 }
 
 impl Slot {
-    pub fn value(ptr: *mut ValueRef) -> Self {
+    pub fn value(id: ValueId) -> Self {
         Self {
             #[cfg(debug_assertions)]
             kind: SlotKind::Value,
-            ptr: ptr as usize,
-        }
-    }
-
-    pub fn frame(ptr: *mut ()) -> Self {
-        Self {
-            #[cfg(debug_assertions)]
-            kind: SlotKind::Frame,
-            ptr: ptr as usize,
+            word: id.0 as usize,
         }
     }
 }

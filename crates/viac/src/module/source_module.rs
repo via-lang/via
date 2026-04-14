@@ -1,9 +1,9 @@
 use via_macros::Access;
+use via_vm::{Executable, executor::Executor};
 
 use super::{Compiler, Module, SymbolTable, def::DefContext};
 use crate::{
     clinic::Clinic,
-    exe::Executable,
     sema::SemContext,
     source::{SourceBuf, SourceSpan},
     traits::Access,
@@ -47,10 +47,8 @@ impl SourceModule {
             .0
             .exe;
 
-        dbg!(&exe);
-        // dbg!(&st);
-        // dbg!(&sem);
-        // dbg!(&def);
+        let int = Executor::new(&exe, None).run();
+        dbg!(&int);
 
         Some(Self {
             source,

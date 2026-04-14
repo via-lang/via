@@ -15,7 +15,7 @@ use crate::{
 };
 
 pub mod state {
-    use crate::exe::Executable;
+    use via_vm::Executable;
 
     use super::*;
 
@@ -112,8 +112,6 @@ impl Compiler<Hir> {
         def: &mut DefContext,
         clinic: &mut Clinic,
     ) -> Option<Compiler<Mir>> {
-        dbg!(&self.0.hir);
-
         MirBuilder::new(st, sem, def, clinic, &self.0.hir)
             .lower()
             .map(|mir| Compiler(Mir { mir }))
@@ -126,7 +124,6 @@ impl Compiler<Mir> {
     }
 
     pub fn lower(self) -> Option<Compiler<Exe>> {
-        self.0.mir.print();
         Some(Compiler(Exe {
             exe: ExeBuilder::new(&self.0.mir).build(),
         }))
