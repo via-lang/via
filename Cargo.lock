@@ -408,13 +408,38 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
 
 [[package]]
+name = "via"
+version = "0.1.0"
+dependencies = [
+ "bitflags",
+ "via_compiler",
+ "via_macros",
+ "via_vm",
+]
+
+[[package]]
 name = "via_cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
  "clio",
- "viac",
+ "via",
+]
+
+[[package]]
+name = "via_compiler"
+version = "0.1.0"
+dependencies = [
+ "bimap",
+ "derive_more",
+ "itertools",
+ "pretty",
+ "strum",
+ "typed-arena",
+ "unicode-ident",
+ "via_macros",
+ "via_vm",
 ]
 
 [[package]]
@@ -431,22 +456,6 @@ name = "via_vm"
 version = "0.1.0"
 dependencies = [
  "via_macros",
-]
-
-[[package]]
-name = "viac"
-version = "0.1.0"
-dependencies = [
- "bimap",
- "bitflags",
- "derive_more",
- "itertools",
- "pretty",
- "strum",
- "typed-arena",
- "unicode-ident",
- "via_macros",
- "via_vm",
 ]
 
 [[package]]

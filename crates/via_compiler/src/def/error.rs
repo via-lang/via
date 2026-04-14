@@ -1,11 +1,9 @@
 use crate::{
     clinic::{Diagnostic, Severity},
-    module::{
-        def::{FnSig, traits::TraitDef},
-        symbol::SymbolId,
-    },
+    def::{FnSig, traits::TraitDef},
     node::NodeId,
     sema::Ty,
+    symbol::SymbolId,
 };
 
 pub type Result<T> = std::result::Result<T, Error>;

@@ -2,9 +2,9 @@ use itertools::Itertools;
 
 use super::{Block, Instr, Mir, MirBuilder, Operand, env::Env};
 use crate::{
+    def::{FnImpl, Intrin},
     hir::Expr,
     macros::ice_unimplemented,
-    module::{FnImpl, Intrin},
     node::NodeId,
     sema::ConstValue,
 };

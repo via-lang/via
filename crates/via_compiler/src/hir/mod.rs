@@ -21,12 +21,7 @@ pub struct Hir {
     pub roots: Vec<NodeId<Stmt>>,
 }
 
-use crate::{
-    ast::Tree,
-    clinic::Clinic,
-    module::{DefContext, SymbolTable},
-    sema::SemContext,
-};
+use crate::{ast::Tree, clinic::Clinic, def::DefContext, sema::SemContext, symbol::SymbolTable};
 
 pub struct HirBuilder<'cx, 'tree> {
     pub(super) clinic: &'cx mut Clinic,

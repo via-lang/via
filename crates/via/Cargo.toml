@@ -1,0 +1,11 @@
+[package]
+name = "via"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+via_macros.path = "../via_macros"
+via_compiler.path = "../via_compiler"
+via_vm.path = "../via_vm"
+bitflags.workspace = true
+

@@ -1,12 +1,11 @@
 [package]
-name = "viac"
+name = "via_compiler"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 via_vm.path = "../via_vm"
 via_macros.path = "../via_macros"
-bitflags.workspace = true
 itertools.workspace = true
 derive_more = { workspace = true, features = ["from", "add", "add_assign"] }
 bimap = "0.6.3"

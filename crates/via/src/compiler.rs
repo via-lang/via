@@ -1,10 +1,7 @@
-use super::{
-    def::{DefContext, traits},
-    symbol::SymbolTable,
-};
-use crate::{
+use via_compiler::{
     ast::Tree,
     clinic::Clinic,
+    def::{DefContext, traits},
     exe::ExeBuilder,
     hir::{self, HirBuilder},
     lexer::{Lexer, Token},
@@ -12,6 +9,7 @@ use crate::{
     parser::Parser,
     sema::SemContext,
     source::SourceBuf,
+    symbol::SymbolTable,
 };
 
 pub mod state {
@@ -53,8 +51,9 @@ impl Compiler<Empty> {
     }
 
     pub fn tokenize(self, source: &SourceBuf) -> Compiler<Lexed> {
-        let tt = Lexer::new(source).tokenize();
-        Compiler(Lexed { tt })
+        Compiler(Lexed {
+            tt: Lexer::new(source).tokenize(),
+        })
     }
 }
 

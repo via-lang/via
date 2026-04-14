@@ -2,8 +2,7 @@ use std::path::Path;
 
 use clap::{Parser, Subcommand};
 use clio::Input;
-
-use viac::module::ModuleContext;
+use via::ModuleContext;
 
 #[derive(Parser)]
 #[command(

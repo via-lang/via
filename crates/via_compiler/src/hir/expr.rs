@@ -4,8 +4,8 @@ use super::{
 };
 use crate::{
     ast::{Expr as AstExpr, ExprKind as AstExprKind},
+    def::FnDef,
     macros::ice_unimplemented,
-    module::FnDef,
     node::NodeId,
     sema::{BinaryOp, Ty},
 };

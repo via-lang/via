@@ -1,10 +1,8 @@
 use super::{ImplBuilder, TraitBuilder};
 use crate::{
-    module::{
-        def::{DefContext, Intrin, error::Result},
-        symbol::SymbolTable,
-    },
+    def::{DefContext, Intrin, error::Result},
     sema::{SemContext, Ty, TySubst},
+    symbol::SymbolTable,
 };
 
 pub fn register_builtin_arith(

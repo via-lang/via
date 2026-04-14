@@ -39,7 +39,7 @@ impl Lexer {
         }
     }
 
-    pub(crate) fn tokenize(&mut self) -> Box<[Token]> {
+    pub fn tokenize(&mut self) -> Box<[Token]> {
         let mut tokens = Vec::new();
         loop {
             let tok = self.next_token();

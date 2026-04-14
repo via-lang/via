@@ -5,7 +5,7 @@ use bimap::BiHashMap;
 use super::instr::{LocalId, TempId};
 use crate::{
     counter::{Counter, SnapCounter},
-    module::SymbolId,
+    symbol::SymbolId,
 };
 
 #[derive(Debug)]

@@ -10,11 +10,7 @@ use pretty::RcDoc;
 use via_macros::Arena;
 
 use crate::{
-    clinic::Clinic,
-    hir::Hir,
-    module::{DefContext, SymbolTable},
-    node::NodeId,
-    sema::SemContext,
+    clinic::Clinic, def::DefContext, hir::Hir, node::NodeId, sema::SemContext, symbol::SymbolTable,
 };
 
 use env::Env;

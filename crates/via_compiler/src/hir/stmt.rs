@@ -2,9 +2,9 @@ use super::{Hir, HirBuilder, error::Result, expr::Expr};
 use crate::{
     ast::{Stmt as AstStmt, StmtKind as AstStmtKind},
     macros::ice_unimplemented,
-    module::SymbolId,
     node::NodeId,
     sema::Ty,
+    symbol::SymbolId,
 };
 
 #[derive(Debug, Clone)]

@@ -1,4 +1,5 @@
-use super::{super::symbol::SymbolId, DefId};
+use super::DefId;
+use crate::symbol::SymbolId;
 
 #[derive(Debug)]
 pub struct ModDef {

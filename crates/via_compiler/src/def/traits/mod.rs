@@ -4,12 +4,10 @@ use std::collections::{HashMap, hash_map::Entry};
 
 use super::{DefId, FnImpl, Intrin, error::*, func::FnSig};
 use crate::{
-    module::{
-        def::{DefContext, FnDef},
-        symbol::{SymbolId, SymbolTable},
-    },
+    def::{DefContext, FnDef},
     node::NodeId,
     sema::{SemContext, Ty},
+    symbol::{SymbolId, SymbolTable},
 };
 
 use arith::register_builtin_arith;

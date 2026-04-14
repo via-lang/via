@@ -1,13 +1,15 @@
+use via_compiler::{
+    clinic::Clinic,
+    def::DefContext,
+    sema::SemContext,
+    source::{SourceBuf, SourceSpan},
+    symbol::SymbolTable,
+    traits::Access,
+};
 use via_macros::Access;
 use via_vm::{Executable, executor::Executor};
 
-use super::{Compiler, Module, SymbolTable, def::DefContext};
-use crate::{
-    clinic::Clinic,
-    sema::SemContext,
-    source::{SourceBuf, SourceSpan},
-    traits::Access,
-};
+use super::{Compiler, Module};
 
 #[allow(unused)]
 #[derive(Access)]
@@ -47,8 +49,7 @@ impl SourceModule {
             .0
             .exe;
 
-        let int = Executor::new(&exe, None).run();
-        dbg!(&int);
+        let _int = Executor::new(&exe, None).run();
 
         Some(Self {
             source,

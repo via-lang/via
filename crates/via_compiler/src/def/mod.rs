@@ -7,10 +7,10 @@ use std::collections::{HashMap, hash_map::Entry};
 
 use via_macros::Arena;
 
-use super::SymbolId;
 use crate::{
     node::NodeId,
     sema::{SemContext, Ty, TySubst},
+    symbol::SymbolId,
 };
 
 use error::*;

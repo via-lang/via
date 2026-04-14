@@ -1,35 +1,28 @@
 mod compiler;
-mod def;
 pub mod error;
 mod loader;
 mod source_module;
-mod symbol;
 
-use std::fmt;
+use std::{
+    collections::{HashMap, hash_map::Entry},
+    fmt, fs,
+    path::Path,
+};
 
 use bitflags::bitflags;
 
-use crate::{
+use via_compiler::{
     clinic::Clinic,
+    def::DefContext,
     source::{SourceBuf, SourceSpan},
     traits::Access,
 };
 
-use error::*;
-
-pub use {compiler::*, def::*, loader::*, source_module::*, symbol::*};
+pub use {compiler::*, error::*, loader::*, source_module::*};
 
 pub trait Module: Access<DefContext> {
     fn trace(&self, span: SourceSpan) -> String;
 }
-
-use std::{
-    collections::{HashMap, hash_map::Entry},
-    fs,
-    path::Path,
-};
-
-pub const ROOT_MODULE_NAME: &str = "main";
 
 bitflags! {
     pub struct ModulePerms: u8 {
@@ -37,10 +30,12 @@ bitflags! {
     }
 }
 
+pub const ROOT_MODULE_NAME: &str = "main";
+
 pub struct ModuleContext {
-    pub(super) tree: ModuleTree,
-    pub(super) clinic: Clinic,
-    pub(super) modules: HashMap<ModuleId, Box<dyn Module>>,
+    tree: ModuleTree,
+    clinic: Clinic,
+    modules: HashMap<ModuleId, Box<dyn Module>>,
 }
 
 impl ModuleContext {

@@ -3,11 +3,12 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use via_compiler::{clinic::Clinic, source::SourceBuf};
+
 use super::{
     Module, ModulePath, SourceModule,
     error::{Error, Result},
 };
-use crate::{clinic::Clinic, source::SourceBuf};
 
 pub trait ModuleLoader {
     fn load_module(
