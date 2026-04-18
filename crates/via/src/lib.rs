@@ -1,4 +1,3 @@
-mod compiler;
 pub mod error;
 mod loader;
 mod source_module;
@@ -15,10 +14,14 @@ use via_compiler::{
     clinic::Clinic,
     def::DefContext,
     source::{SourceBuf, SourceSpan},
-    traits::Access,
 };
 
-pub use {compiler::*, error::*, loader::*, source_module::*};
+pub use {error::*, loader::*, source_module::*};
+
+pub trait Access<T> {
+    fn get(&self) -> &T;
+    fn get_mut(&mut self) -> &mut T;
+}
 
 pub trait Module: Access<DefContext> {
     fn trace(&self, span: SourceSpan) -> String;

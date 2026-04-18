@@ -1,8 +1,8 @@
 use super::{Executor, interrupt::Interrupt, macros::launder_mut};
 use crate::{
-    arena::{FALSE, NONE, TRUE, ValueArena},
+    heap::{Alloc, Heap},
     instr::{Instr, Op},
-    stack::slot::{Slot, SlotKind},
+    stack::{Slot, SlotKind},
 };
 
 macro_rules! copy {
@@ -27,7 +27,7 @@ macro_rules! ibin {
         let rhs = $a.get(unsafe { $regs[$pc.c() as usize].assume_init_read() });
 
         let result = lhs.as_int() $op rhs.as_int();
-        let value = $a.int(result);
+        let value = $a.alloc(result);
 
         $regs[$pc.a() as usize].write(value);
     }};
@@ -35,57 +35,56 @@ macro_rules! ibin {
 
 impl Executor<'_> {
     pub fn run(&mut self) -> Interrupt {
-        dbg!(dbg!(self).__run())
-    }
-
-    fn __run(&mut self) -> Interrupt {
         use Op::*;
 
         loop {
             let pc = *self.pc;
-            let r = &mut self.regs;
-            let s = &mut self.stack;
-            let a: &mut ValueArena = launder_mut!(&mut self.arena);
+
+            dbg!(&pc);
+
+            let rg = &mut self.regs;
+            let stk = &mut self.stack;
+            let heap: &mut Heap = launder_mut!(&mut self.heap);
 
             let op = pc.op();
             match op {
                 Halt => break Interrupt::Halt,
 
-                Copy => copy!(a, r, pc),
-                Free1 => free!(a, r, pc, a),
-                Free2 => free!(a, r, pc, a, b),
-                Free3 => free!(a, r, pc, a, b, c),
+                Copy => copy!(heap, rg, pc),
+                Free1 => free!(heap, rg, pc, a),
+                Free2 => free!(heap, rg, pc, a, b),
+                Free3 => free!(heap, rg, pc, a, b, c),
 
                 Push => {
-                    let id = unsafe { r[pc.a() as usize].assume_init_read() };
-                    a.inc_ref(id);
-                    s.push(Slot {
+                    let id = unsafe { rg[pc.a() as usize].assume_init_read() };
+                    heap.inc_ref(id);
+                    stk.push(Slot {
                         kind: SlotKind::Value,
                         word: id.0 as usize,
                     });
                 }
 
                 LoadNone => {
-                    r[pc.a() as usize].write(NONE);
+                    rg[pc.a() as usize].write(heap.alloc(()));
                 }
                 LoadTrue => {
-                    r[pc.a() as usize].write(TRUE);
+                    rg[pc.a() as usize].write(heap.alloc(true));
                 }
                 LoadFalse => {
-                    r[pc.a() as usize].write(FALSE);
+                    rg[pc.a() as usize].write(heap.alloc(false));
                 }
                 LoadI32 => {
                     let hi = pc.b() as u32;
                     let lo = pc.c() as u32;
 
                     let lit = ((hi << 16) | lo) as i32 as i64;
-                    let id = a.int(lit);
+                    let id = heap.alloc(lit);
 
-                    a.inc_ref(id);
-                    r[pc.a() as usize].write(id);
+                    heap.inc_ref(id);
+                    rg[pc.a() as usize].write(id);
                 }
 
-                IAdd => ibin!(self, a, r, pc, +),
+                IAdd => ibin!(self, heap, rg, pc, +),
 
                 ExtraArg1 | ExtraArg2 | ExtraArg3 => panic!("reserved opcode: {:?}", op),
                 _ => unimplemented!("unimplemented opcode: {:?}", op),

@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use std::{hash::Hash, ops::AddAssign};
 
 pub trait Id: Copy + Clone + PartialEq + Eq + Hash {

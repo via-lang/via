@@ -8,4 +8,3 @@ via_macros.path = "../via_macros"
 via_compiler.path = "../via_compiler"
 via_vm.path = "../via_vm"
 bitflags.workspace = true
-

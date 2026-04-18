@@ -1,10 +1,12 @@
-mod arena;
-pub mod executor;
-pub mod instr;
-pub mod stack;
-pub mod value;
+mod closure;
+mod executor;
+mod heap;
+mod instr;
+mod stack;
+mod traits;
+mod value;
 
-use instr::Instr;
+pub use {closure::*, executor::*, heap::*, instr::*, value::*};
 
 #[derive(Default, Debug)]
 pub struct Executable {

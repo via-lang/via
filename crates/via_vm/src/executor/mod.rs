@@ -9,9 +9,10 @@ pub use {error::*, interrupt::*};
 
 use crate::{
     Executable,
-    arena::{ValueArena, ValueId},
+    heap::{Heap, ValueId},
     instr::Instr,
     stack::Stack,
+    traits::Stats,
 };
 
 pub struct Config {
@@ -36,7 +37,7 @@ pub struct Executor<'a> {
     pc: &'a Instr,
     regs: Box<[MaybeUninit<ValueId>]>,
     stack: Stack,
-    arena: ValueArena,
+    heap: Heap,
 }
 
 impl<'a> Executor<'a> {
@@ -46,7 +47,33 @@ impl<'a> Executor<'a> {
             pc: exe.instrs.first().expect("empty bytecode"),
             regs: Box::new_uninit_slice(cfg.reg_count),
             stack: Stack::new(cfg.stack_capacity),
-            arena: ValueArena::new(cfg.arena_capacity),
+            heap: Heap::new(cfg.arena_capacity),
         }
+    }
+
+    pub fn heap(&mut self) -> &mut Heap {
+        &mut self.heap
+    }
+}
+
+impl Stats for Executor<'_> {
+    fn reserved_bytes(&self) -> memsizes::Bytes {
+        let heap_use = self.heap.reserved_bytes().count();
+        let stk_use = self.stack.reserved_bytes().count();
+        (heap_use + stk_use).into()
+    }
+
+    fn total_bytes(&self) -> memsizes::Bytes {
+        let heap_use = self.heap.total_bytes().count();
+        let stk_use = self.stack.total_bytes().count();
+        let reg_use = (self.regs.len() * size_of::<MaybeUninit<ValueId>>()) as u64;
+        ((heap_use + stk_use + reg_use) as u64).into()
+    }
+
+    fn used_bytes(&self) -> memsizes::Bytes {
+        let heap_use = self.heap.used_bytes().count();
+        let stk_use = self.stack.used_bytes().count();
+        let reg_use = (self.regs.len() * size_of::<MaybeUninit<ValueId>>()) as u64;
+        ((heap_use + stk_use + reg_use) as u64).into()
     }
 }

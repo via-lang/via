@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use via_vm::{Executable, instr::Instr};
+use via_vm::{Executable, Instr};
 
 use crate::{
     mir::{Block, Instr as MirInstr, Mir, Operand, TempId, Term},

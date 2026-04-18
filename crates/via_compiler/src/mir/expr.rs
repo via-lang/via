@@ -41,6 +41,7 @@ impl MirBuilder<'_> {
 
                         self.push(mir, block_id, instr);
                     }
+                    FnImpl::Native(native) => {}
                 }
 
                 return out;

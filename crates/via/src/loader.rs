@@ -65,13 +65,19 @@ impl ModuleLoader for FsLoader {
         let path = path.into();
         let fs_path = self.resolve(path.clone())?;
 
-        let code = fs::read_to_string(&fs_path).map_err(Error::OsError)?;
-        let name = format!("<{path} @ {}>", fs_path.to_string_lossy());
+        match fs_path.extension().and_then(|s| s.to_str()) {
+            Some("via") => {
+                let code = fs::read_to_string(&fs_path).map_err(Error::OsError)?;
+                let name = format!("<{path} @ {}>", fs_path.to_string_lossy());
 
-        let source = SourceBuf::new(name, code);
+                let source = SourceBuf::new(name, code);
 
-        SourceModule::new(source, clinic)
-            .map(|m| -> Box<dyn Module> { Box::new(m) })
-            .ok_or(Error::CompilationError)
+                SourceModule::new(source, clinic)
+                    .map(|m| -> Box<dyn Module> { Box::new(m) })
+                    .ok_or(Error::CompilationError)
+            }
+            Some("dll") | Some("so") | Some("dylib") => todo!(),
+            _ => Err(Error::UnrecognizedExtension),
+        }
     }
 }

@@ -10,7 +10,7 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Error {
-    DuplicateTrait(SymbolId),
+    DuplicateDef(SymbolId),
     DuplicateTraitImpl(NodeId<Ty>, NodeId<TraitDef>),
     DuplicateTraitMethod(NodeId<FnSig>),
     // TODO: This is way too generic

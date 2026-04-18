@@ -1,10 +1,12 @@
 use std::ptr::drop_in_place;
 
+use crate::{Alloc, Heap, ValueId};
+
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Tag {
     /// Sentinel tombstone value state that signals
-    /// the value arena that the slot is unoccupied.
+    /// the value heap that the slot is unoccupied.
     Dead = 0,
     /// Represents a unit value.
     None,
@@ -24,6 +26,13 @@ pub struct Value {
     payload: u64,
 }
 
+pub trait IntoVia {
+    fn into_via(self, a: &mut Heap) -> ValueId;
+}
+
+pub trait Cached: IntoVia {}
+pub trait Allocated: IntoVia {}
+
 const TAG_MASK: u64 = 0xFF00_0000_0000_0000;
 const RC_MASK: u64 = 0x00FF_FFFF_FFFF_FFFF;
 
@@ -35,48 +44,6 @@ fn control_block(rc: u64, tag: Tag) -> u64 {
 }
 
 impl Value {
-    pub(crate) fn dead() -> Self {
-        Self {
-            control: control_block(1, Tag::Dead),
-            payload: 0,
-        }
-    }
-
-    pub(crate) fn none() -> Self {
-        Self {
-            control: control_block(1, Tag::None),
-            payload: 0,
-        }
-    }
-
-    pub(crate) fn bool(value: bool) -> Self {
-        Self {
-            control: control_block(1, Tag::Bool),
-            payload: value as u64,
-        }
-    }
-
-    pub(crate) fn int(value: i64) -> Self {
-        Self {
-            control: control_block(0, Tag::Int),
-            payload: value.cast_unsigned(),
-        }
-    }
-
-    pub(crate) fn float(value: f64) -> Self {
-        Self {
-            control: control_block(0, Tag::Float),
-            payload: value.to_bits(),
-        }
-    }
-
-    pub(crate) fn string(value: &str) -> Self {
-        Self {
-            control: control_block(0, Tag::String),
-            payload: Box::into_raw(Box::new(value.to_string())) as u64,
-        }
-    }
-
     pub fn tag(&self) -> Tag {
         let raw = (self.control >> 56) as u8;
         unsafe { std::mem::transmute(raw) }
@@ -107,8 +74,19 @@ impl Value {
         unsafe { &mut *(self.payload as *mut String) }
     }
 
-    unsafe fn reset(&mut self) {
-        debug_assert_ne!(self.tag(), Tag::Dead, "reset called on dead value");
+    pub fn deep_clone(&self) -> Self {
+        match self.tag() {
+            Tag::Dead => panic!("clone called on dead value"),
+            Tag::None => ().into(),
+            Tag::Bool => self.as_bool().into(),
+            Tag::Int => self.as_int().into(),
+            Tag::Float => self.as_float().into(),
+            Tag::String => self.as_string().as_str().into(),
+        }
+    }
+
+    pub(crate) unsafe fn reset(&mut self) {
+        debug_assert_ne!(self.tag(), Tag::Dead, "reset(): called on dead value");
 
         // Non-primitive types require manual destruction
         unsafe {
@@ -147,15 +125,82 @@ impl Value {
     }
 }
 
-impl Clone for Value {
-    fn clone(&self) -> Self {
-        match self.tag() {
-            Tag::Dead => panic!("clone called on dead value"),
-            Tag::None => Value::none(),
-            Tag::Bool => Value::bool(self.as_bool()),
-            Tag::Int => Value::int(self.as_int()),
-            Tag::Float => Value::float(self.as_float()),
-            Tag::String => Value::string(self.as_string().as_str()),
+impl Default for Value {
+    fn default() -> Self {
+        Self {
+            control: control_block(0, Tag::Dead),
+            payload: 0,
         }
+    }
+}
+
+impl From<()> for Value {
+    fn from(_: ()) -> Self {
+        Self {
+            control: control_block(0, Tag::None),
+            payload: 0,
+        }
+    }
+}
+
+impl From<bool> for Value {
+    fn from(value: bool) -> Self {
+        Self {
+            control: control_block(0, Tag::Bool),
+            payload: value as u64,
+        }
+    }
+}
+
+impl From<i64> for Value {
+    fn from(value: i64) -> Self {
+        Self {
+            control: control_block(0, Tag::Int),
+            payload: value.cast_unsigned(),
+        }
+    }
+}
+
+impl From<f64> for Value {
+    fn from(value: f64) -> Self {
+        Self {
+            control: control_block(0, Tag::Float),
+            payload: value.to_bits(),
+        }
+    }
+}
+
+impl From<String> for Value {
+    fn from(value: String) -> Self {
+        Self {
+            control: control_block(0, Tag::String),
+            payload: Box::into_raw(Box::new(value)) as u64,
+        }
+    }
+}
+
+impl From<&str> for Value {
+    fn from(value: &str) -> Self {
+        Self {
+            control: control_block(0, Tag::String),
+            payload: Box::into_raw(Box::new(value.to_string())) as u64,
+        }
+    }
+}
+
+impl Cached for () {}
+impl Cached for bool {}
+impl Allocated for i64 {}
+impl Allocated for f64 {}
+impl Allocated for String {}
+impl Allocated for &str {}
+
+impl<T> IntoVia for T
+where
+    Heap: Alloc<T>,
+    Value: From<T>,
+{
+    fn into_via(self, heap: &mut Heap) -> ValueId {
+        <Heap as Alloc<T>>::alloc(heap, self)
     }
 }

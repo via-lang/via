@@ -1,15 +1,16 @@
 use via_compiler::{
+    Compiler,
+    builtin::ExtraLib,
     clinic::Clinic,
     def::DefContext,
     sema::SemContext,
     source::{SourceBuf, SourceSpan},
     symbol::SymbolTable,
-    traits::Access,
 };
 use via_macros::Access;
-use via_vm::{Executable, executor::Executor};
+use via_vm::{Executable, Executor};
 
-use super::{Compiler, Module};
+use super::{Access, Module};
 
 #[allow(unused)]
 #[derive(Access)]
@@ -38,6 +39,7 @@ impl SourceModule {
         let mut def = DefContext::new();
 
         let exe = Compiler::new()
+            .inject_prelude(&mut st, &mut sem, &mut def, clinic, ExtraLib::all())?
             .tokenize(&source)
             .parse(clinic)?
             .lower(&mut st, &mut sem, &mut def, clinic)?

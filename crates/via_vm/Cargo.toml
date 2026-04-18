@@ -4,4 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+memsizes = "1.0.0"
 via_macros.path = "../via_macros"

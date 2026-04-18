@@ -29,30 +29,20 @@
 
 ## Introduction
 
-**via** is a modern, performant, multi-paradigm scripting language designed for **correctness**, **embeddability**, and **performance**.
+**via** is a scripting language that **refuses to run invalid programs**. It isn't *just* "x with nicer syntax" or "x but faster", but rather a language that aims to make invalid/erroneous programs fundamentally unrepresentable- with the goal of eliminating an entire class of bugs.
 
-## Yet another toy scripting language?
+If _[insert dynamic language]_ has ever failed you in production, you're in the right place!
 
-_Not quite_.
-
-via isn't just "x with nicer syntax" or "x but faster", it is a language that aims to have type safety & correctness using purely compile-time invariants.
-
-A fair way to compared it to Lua would be: _via is to Lua what Rust is to C_.
-
-### But what are invariants?
-
-An **invariant** is a guarantee by the compiler that a contract within the program will *never* be breached. That is still quite vague, so it is demonstrated by comparison to [Lua](https://lua.org)/[Luau](https://luau.org) in the following points paragraphs.
-
-> [!NOTE]
-> These are only a few of many places in which dynamic languages (and by extension Lua) completely disregard guaranteed compile time correctness _by design_.
+<details>
+<summary><strong>A (humble) comparison to Lua</strong></summary>
 
 ### No compile-time checks
 
-In Lua, there is no way to guarantee _anything_ about parameters passed to functions at compile time:
+In Lua, there is no way to guarantee _anything_ about parameters, variables, etc. at compile time:
 
 ```lua
 function foo(n, f)
-    return f(n) / n
+    return f(someglobal) / n
 end
 
 -- Every one of these is "legal", but all of them will fail at runtime:
@@ -62,10 +52,11 @@ foo(nil, nil) -- alright
 foo(foo, foo) -- go for it!
 ```
 
-There are *five* possible ways in which this function can fail, inherently undetectable at compile time. This is an unfavorable tradeoff for the programmer because of the trivial nature of this function. You can imagine the permutations of potential failure in larger, more complex code.
+There are half a dozen possible ways in which this function can fail, inherently undetectable at compile time. This is an unfavorable tradeoff for the programmer because of the trivial nature of this function. You can imagine the permutations of potential failure in larger, more complex code.
 
 And no, **Luau** does *not* fix this. It has an _optional_ type safety mechanism with `--!strict` which means the core of the problem is still there. This happens because Lua is fully dynamic which makes its type system fundamentally incompatible with compile-time invariants, which in this case are:
 
+- `someglobal` **exists**
 - `n` **is a** `number`
 - `n` **is not** `0`
 - `f` **is a** `function`
@@ -83,9 +74,6 @@ fn foo(n: float, f: fn(float) -> float) -> float
     f(n) / n
 }
 ```
-
-> [!WARNING]
-> Non-trait constraints are still very early in via.
 
 ### Dangers of catch-all data structures
 
@@ -187,39 +175,34 @@ let raw = foo(a); // error: cannot propagate raise alternative `Oops` in callsit
                   //  help: explicitly handle the error by inserting a `?` after the function call
 ```
 
-### Why does it matter though?
+</details>
+
+#### Why does it matter though?
 
 After all, can't we just write better code?
 
-_Yes, you absolutely can._ But there are **expensive tradeoffs**:
+Yes, you _absolutely can_. But there are _undeniable_ tradeoffs:
 
 - **Surprise errors**: Would you rather your script not compile or die in production? via is in favor of the *former*.
 - **Code duplication**: End up sprinkling `assert` to check the type of every parameter, making your code cluttered, repetitive, and fragile.
 - **Performance**: Runtime type-safety is *expensive*. Enforcing this invariant during compile-time completely eliminates this overhead.
 - **Developer experience**: Dynamic type systems often produce verbose, confusing, and opaque diagnostics that are hard to trace, and tooling struggles to provide reliable feedback. via eliminates this chaos by providing first class tooling and enforcing correctness at compile-time, letting tools actually help you instead of fighting you.
-- **Human nature**: Even the most careful programmer will *inevitably* make mistakes. The compiler is capable of catching invariant violations we can't even conceptualize.
+- **Human nature**: Even the most careful programmer _will_ inevitably make mistakes. Modern compilers are capable of catching invariant violations one can't even conceptualize.
 
-In short; via shifts the burden of correctness from *runtime* to *compile time*, letting you focus on the logic, not the bugs.
+Having to write better code as a counterweight to the flaws of a language is not good practice, to say the least.
 
 ## Features
 
 > [!NOTE]
 > via is constantly evolving, therefore putting a full list of features here would be premature. It should be noted that this is only a list of **core features**.
 
-- [**Compile-time invariance:**](#but-what-are-invariants)
-    - No more debugging `expected number, got nil` in prod
-- **Modern, clean and sane syntax and standard library**
-    - via takes syntax and design inspiration from beloved languages like **Rust** and **TypeScript**.
-- **Powerful type system and metaprogramming**
-    - via comes with a powerful set of builtin types, a [type-trait system](https://en.wikipedia.org/wiki/Trait_(computer_programming)), and [hygenic macros](https://en.wikipedia.org/wiki/Hygienic_macro) inspired by Rust.
-- **Multi-paradigm design:**
-    - via supports multiple programming paradigms, including object-oriented and functional programming.
-- **High performance:**
-    - Static typing opens the door for a multitude of non-trivial optimizations that dynamic languages simply cannot implement.
-- **Platform independence:**
-    - via uses Rust as the compatibility layer, if your device can run Rust, it can run via.
-- **No garbage collection:**
-    - via uses a combination of [RC](https://en.wikipedia.org/wiki/Reference_counting) and fully manual [garbage collection](https://en.wikipedia.org/wiki/Garbage_collection_(computer_science)) to ensure proper resource management.
+- [**Compile-time invariance:**](#but-what-are-invariants) No more debugging `expected number, got nil` in prod like it's still the '90s.
+- **Modern, clean and sane syntax and standard library:** via takes syntax and design inspiration from beloved languages like **Rust** and **TypeScript**.
+- **Powerful type system and metaprogramming:** via comes with a powerful set of builtin types, a [type-trait system](https://en.wikipedia.org/wiki/Trait_(computer_programming)), and [hygenic macros](https://en.wikipedia.org/wiki/Hygienic_macro) inspired by Rust.
+- **Multi-paradigm design:** via supports multiple programming paradigms, including object-oriented and functional programming.
+- **High performance:** Static typing opens the door for a multitude of non-trivial optimizations that dynamic languages simply cannot implement.
+- **Platform independence:** via uses Rust as the compatibility layer; if your device can run Rust, it can run via.
+- **No garbage collection:** via uses a combination of [reference counting](https://en.wikipedia.org/wiki/Reference_counting) and manual* [garbage collection](https://en.wikipedia.org/wiki/Garbage_collection_(computer_science)) to achieve efficient resource management.
 
 ## Installation
 

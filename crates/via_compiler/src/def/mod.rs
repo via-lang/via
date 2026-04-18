@@ -1,6 +1,6 @@
 pub mod error;
 mod func;
-mod module;
+mod ns;
 pub mod traits;
 
 use std::collections::{HashMap, hash_map::Entry};
@@ -17,14 +17,14 @@ use error::*;
 
 pub use {
     func::*,
-    module::*,
+    ns::*,
     traits::{TraitDef, TraitImpl},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum DefId {
     FnId(NodeId<FnDef>),
-    ModId(NodeId<ModDef>),
+    ModId(NodeId<NsDef>),
     TraitId(NodeId<TraitDef>),
 }
 
@@ -36,11 +36,11 @@ pub struct DefContext {
     #[allocator]
     fn_def: Vec<FnDef>,
     #[allocator]
-    mod_def: Vec<ModDef>,
+    ns_def: Vec<NsDef>,
     #[allocator]
     trait_def: Vec<TraitDef>,
-    trait_map: HashMap<SymbolId, NodeId<TraitDef>>,
     trait_impls: HashMap<NodeId<TraitDef>, HashMap<NodeId<Ty>, TraitImpl>>,
+    def_map: HashMap<SymbolId, DefId>,
 }
 
 impl DefContext {
@@ -48,20 +48,37 @@ impl DefContext {
         Self::default()
     }
 
-    pub fn register_trait(&mut self, def: TraitDef) -> Result<NodeId<TraitDef>> {
-        let sym = def.sym;
-
-        if self.trait_map.contains_key(&sym) {
-            return Err(Error::DuplicateTrait(sym));
+    pub fn register_fn(&mut self, fun: FnDef) -> Result<NodeId<FnDef>> {
+        let sym = fun.sym;
+        if self.def_map.contains_key(&sym) {
+            return Err(Error::DuplicateDef(sym));
         }
 
-        let id = self.alloc_trait_def(def);
-        self.trait_map.insert(sym, id);
+        let id = self.alloc_fn_def(fun);
+        self.def_map.insert(sym, DefId::FnId(id));
         Ok(id)
     }
 
+    pub fn register_trait(&mut self, def: TraitDef) -> Result<NodeId<TraitDef>> {
+        let sym = def.sym;
+        if self.def_map.contains_key(&sym) {
+            return Err(Error::DuplicateDef(sym));
+        }
+
+        let id = self.alloc_trait_def(def);
+        self.def_map.insert(sym, DefId::TraitId(id));
+        Ok(id)
+    }
+
+    pub fn get(&self, sym: SymbolId) -> Option<DefId> {
+        self.def_map.get(&sym).cloned()
+    }
+
     pub fn get_trait(&self, sym: SymbolId) -> Option<NodeId<TraitDef>> {
-        self.trait_map.get(&sym).copied()
+        match self.def_map.get(&sym).cloned()? {
+            DefId::TraitId(trait_id) => Some(trait_id),
+            _ => None,
+        }
     }
 
     pub fn get_trait_impl(&self, class: NodeId<TraitDef>, ty: NodeId<Ty>) -> Option<&TraitImpl> {

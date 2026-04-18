@@ -1,3 +1,5 @@
+use via_vm::NativeClosure;
+
 use super::{super::symbol::SymbolId, DefId};
 use crate::{node::NodeId, sema::Ty};
 
@@ -24,4 +26,5 @@ pub enum Intrin {
 #[derive(Debug)]
 pub enum FnImpl {
     Intrin(Intrin),
+    Native(NativeClosure),
 }
