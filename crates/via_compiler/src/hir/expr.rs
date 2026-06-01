@@ -4,10 +4,11 @@ use super::{
 };
 use crate::{
     ast::{Expr as AstExpr, ExprKind as AstExprKind},
-    def::FnDef,
+    def::{FnDef, traits::TraitImplKey},
     macros::ice_unimplemented,
     node::NodeId,
     sema::{BinaryOp, Ty},
+    symbol::IntoSymbol,
 };
 
 #[derive(Debug, Clone)]
@@ -32,13 +33,13 @@ impl HirBuilder<'_, '_> {
             Expr::Float(_) => Ty::Float,
             Expr::String(_) => Ty::String,
             Expr::Call { callee, .. } => {
-                let fn_def = &self.def[*callee];
-                let sig = &self.def[fn_def.sig];
-                return Ok(sig.ret);
+                let fn_def = &self.def_ctxt[*callee];
+                let sig = &self.def_ctxt[fn_def.sig];
+                return Ok(sig.result);
             }
         };
 
-        Ok(self.sem.intern_ty(ty))
+        Ok(self.sem_ctxt.intern_ty(ty))
     }
 
     pub(super) fn lower_expr(&mut self, hir: &mut Hir, expr: NodeId<AstExpr>) -> Result<Expr> {
@@ -62,44 +63,34 @@ impl HirBuilder<'_, '_> {
 
                 let lty = self.infer(hir, lhs)?;
                 let rty = self.infer(hir, rhs)?;
-                let ty = self.unify(lty, rty)?;
 
                 let trait_name = match op {
                     BinaryOp::Add => "Add",
                     BinaryOp::Sub => "Sub",
                     BinaryOp::Mul => "Mul",
                     BinaryOp::Div => "Div",
+                    BinaryOp::Pow => "Pow",
+                    BinaryOp::Mod => "Rem",
                     _ => ice_unimplemented!(),
                 };
 
-                // TODO: This is a hack that will probably break when we have more complex trait resolution.
-                // We should have a better way to resolve trait methods.
-                let method_name = trait_name.to_string().to_lowercase();
-
-                let trait_sym = self.st.intern(trait_name);
-                let method_sym = self.st.intern(method_name);
+                let trait_sym = trait_name.into_symbol(self.interner);
+                let method_sym = trait_name.to_lowercase().into_symbol(self.interner);
 
                 let class = self
-                    .def
+                    .def_ctxt
                     .get_trait(trait_sym)
                     .ok_or(Error::InvalidBinaryOp)?;
 
                 let imp = self
-                    .def
-                    .get_trait_impl(class, ty)
+                    .def_ctxt
+                    .get_trait_impl(class, &TraitImplKey::new(lty, [rty]))
                     .ok_or(Error::InvalidBinaryOp)?;
 
-                let fn_def_id = imp.impls.get(&method_sym).ok_or(Error::InvalidBinaryOp)?;
-                let fn_def = &self.def[*fn_def_id];
-
-                let sig = &self.def[fn_def.sig];
-
-                (sig.parms.len() == 2 && sig.parms[0] == ty && sig.parms[1] == ty)
-                    .then_some(())
-                    .ok_or(Error::InvalidBinaryOp)?;
+                let fn_def_id = imp.methods.get(&method_sym).ok_or(Error::InvalidBinaryOp)?;
 
                 Expr::Call {
-                    callee: *fn_def_id,
+                    callee: fn_def_id.def,
                     args: vec![lhs, rhs],
                 }
             }

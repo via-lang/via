@@ -1,3 +1,5 @@
+use via_vm::Operand;
+
 use crate::macros::{ice_assert, ice_panic, ice_unimplemented};
 
 pub struct RegisterAlloc {
@@ -7,8 +9,8 @@ pub struct RegisterAlloc {
 impl RegisterAlloc {
     pub fn new(size: usize) -> Self {
         ice_assert!(
-            size < u16::MAX as usize,
-            "Register allocator can only be as big as maximum register space, which is u16::MAX"
+            size <= (Operand::MAX as usize) + 1,
+            "Register allocator can only be as big as maximum register space, which is Operand::MAX"
         );
 
         Self {
@@ -16,19 +18,19 @@ impl RegisterAlloc {
         }
     }
 
-    pub fn alloc(&mut self) -> u16 {
+    pub fn alloc(&mut self) -> Operand {
         for (i, w) in self.words.iter_mut().enumerate() {
             let inv = !*w;
             if inv != 0 {
                 let bit = inv.trailing_zeros();
                 *w |= 1u64 << bit;
-                return (i * 64 + bit as usize) as u16;
+                return (i * 64 + bit as usize) as Operand;
             }
         }
         ice_unimplemented!("spilling not yet implemented (semantic register exhaustion)")
     }
 
-    pub fn free(&mut self, reg: u16) {
+    pub fn free(&mut self, reg: Operand) {
         let offset = reg % 64;
         let index = ((reg - offset) / 64) as usize;
 

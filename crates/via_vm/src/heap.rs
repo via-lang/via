@@ -1,13 +1,11 @@
-use crate::{Allocated, traits::Stats, value::Value};
+use crate::{Allocated, stats::Stats, value::Value};
 
 mod sealed {
     pub trait Sealed {}
 }
 
-type Index = u32;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ValueId(pub(crate) Index);
+pub struct Handle(pub(crate) u32);
 
 #[derive(Debug)]
 pub struct Heap {
@@ -15,16 +13,23 @@ pub struct Heap {
     free_list: Vec<usize>,
 }
 
-pub trait Alloc<T>: sealed::Sealed
-where
-    Value: From<T>,
-{
-    fn alloc(&mut self, value: T) -> ValueId;
+pub trait Alloc<T: Into<Value>>: sealed::Sealed {
+    fn alloc(&mut self, value: T) -> Handle;
 }
 
 const NONE: usize = 0;
 const TRUE: usize = 1;
 const FALSE: usize = 2;
+
+impl Handle {
+    pub(super) fn new(index: impl Into<u32>) -> Self {
+        Self(index.into())
+    }
+
+    pub(crate) fn index(&self) -> u32 {
+        self.0
+    }
+}
 
 impl Heap {
     pub fn new(initial_capacity: usize) -> Self {
@@ -40,22 +45,31 @@ impl Heap {
         }
     }
 
+    pub fn capacity(&self) -> usize {
+        self.inner.capacity()
+    }
+
+    pub fn size(&self) -> usize {
+        self.inner.len() - self.free_list.len()
+    }
+
     #[inline]
-    fn alloc_raw(&mut self, value: impl Into<Value>) -> ValueId {
-        let value = value.into();
+    fn alloc_raw(&mut self, value: impl Into<Value>) -> Handle {
+        let mut value = value.into();
+        value.inc_ref();
 
         if let Some(i) = self.free_list.pop() {
             self.inner[i] = value;
-            return ValueId(i as u32);
+            return Handle::new(i as u32);
         }
 
         let i = self.inner.len();
         self.inner.push(value);
-        ValueId(i as u32)
+        Handle::new(i as u32)
     }
 
     #[inline]
-    pub fn free(&mut self, id: ValueId) {
+    pub fn free(&mut self, id: Handle) {
         let i = id.0 as usize;
 
         debug_assert_ne!(i, 0);
@@ -68,28 +82,37 @@ impl Heap {
     }
 
     #[inline]
-    pub fn clone(&mut self, value: ValueId) -> ValueId {
+    pub fn clone(&mut self, value: Handle) -> Handle {
         let value = self.inner[value.0 as usize].deep_clone();
         self.alloc_raw(value)
     }
 
     #[inline]
-    pub fn get(&self, id: ValueId) -> &Value {
+    pub fn get(&self, id: Handle) -> &Value {
+        debug_assert!(self.get_safe(id).is_some(), "handle uninitialized");
         &self.inner[id.0 as usize]
     }
 
     #[inline]
-    pub fn get_mut(&mut self, id: ValueId) -> &mut Value {
+    pub fn get_safe(&self, id: Handle) -> Option<&Value> {
+        if self.free_list.contains(&(id.0 as usize)) {
+            return None;
+        }
+        self.inner.get(id.0 as usize)
+    }
+
+    #[inline]
+    pub fn get_mut(&mut self, id: Handle) -> &mut Value {
         &mut self.inner[id.0 as usize]
     }
 
     #[inline]
-    pub(crate) fn inc_ref(&mut self, id: ValueId) {
+    pub(crate) fn inc_ref(&mut self, id: Handle) {
         self.get_mut(id).inc_ref();
     }
 
     #[inline]
-    pub(crate) fn dec_ref(&mut self, id: ValueId) {
+    pub(crate) fn dec_ref(&mut self, id: Handle) {
         self.get_mut(id).dec_ref().then(|| self.free(id));
     }
 }
@@ -98,15 +121,15 @@ impl sealed::Sealed for Heap {}
 
 impl Alloc<()> for Heap {
     #[inline]
-    fn alloc(&mut self, _: ()) -> ValueId {
-        ValueId(NONE as u32)
+    fn alloc(&mut self, _: ()) -> Handle {
+        Handle::new(NONE as u32)
     }
 }
 
 impl Alloc<bool> for Heap {
     #[inline]
-    fn alloc(&mut self, value: bool) -> ValueId {
-        ValueId(if value { TRUE } else { FALSE } as u32)
+    fn alloc(&mut self, value: bool) -> Handle {
+        Handle::new(if value { TRUE } else { FALSE } as u32)
     }
 }
 
@@ -116,7 +139,7 @@ where
     Value: From<T>,
 {
     #[inline]
-    fn alloc(&mut self, value: T) -> ValueId {
+    fn alloc(&mut self, value: T) -> Handle {
         self.alloc_raw(value)
     }
 }

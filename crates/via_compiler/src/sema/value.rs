@@ -1,6 +1,6 @@
 use pretty::RcDoc;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ConstValue {
     Unit,
     Bool(bool),

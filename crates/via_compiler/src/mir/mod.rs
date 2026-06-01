@@ -10,7 +10,8 @@ use pretty::RcDoc;
 use via_macros::Arena;
 
 use crate::{
-    clinic::Clinic, def::DefContext, hir::Hir, node::NodeId, sema::SemContext, symbol::SymbolTable,
+    clinic::Clinic, def::DefContext, hir::Hir, node::NodeId, sema::SemContext,
+    symbol::StringInterner,
 };
 
 use env::Env;
@@ -40,40 +41,43 @@ impl Mir {
     }
 }
 
+#[allow(unused)]
 #[derive(Debug)]
 pub struct MirBuilder<'cx> {
-    pub(super) st: &'cx mut SymbolTable,
-    pub(super) sem: &'cx mut SemContext,
-    pub(super) def: &'cx mut DefContext,
+    pub(super) interner: &'cx mut StringInterner,
+    pub(super) sem_ctxt: &'cx mut SemContext,
+    pub(super) def_ctxt: &'cx mut DefContext,
     pub(super) clinic: &'cx mut Clinic,
     pub(super) hir: &'cx Hir,
 }
 
 impl<'cx> MirBuilder<'cx> {
     pub fn new(
-        st: &'cx mut SymbolTable,
-        sem: &'cx mut SemContext,
-        def: &'cx mut DefContext,
+        interner: &'cx mut StringInterner,
+        sem_ctxt: &'cx mut SemContext,
+        def_ctxt: &'cx mut DefContext,
         clinic: &'cx mut Clinic,
         hir: &'cx Hir,
     ) -> Self {
         Self {
-            st,
-            sem,
-            def,
+            interner,
+            sem_ctxt,
+            def_ctxt,
             clinic,
             hir,
         }
     }
 
+    #[allow(unused)]
     pub(super) fn terminate(&mut self, mir: &mut Mir, block: NodeId<Block>, term: Term) {
         mir[block].term = term;
     }
 
-    pub(super) fn push(&mut self, mir: &mut Mir, block: NodeId<Block>, instr: Instr) {
+    pub(super) fn push(&mut self, mir: &mut Mir, block: NodeId<Block>, instr: Instruction) {
         mir[block].instrs.push(instr);
     }
 
+    #[allow(unused)]
     pub(super) fn is_terminated(&self, mir: &mut Mir, block: NodeId<Block>) -> bool {
         !matches!(mir[block].term, Term::Halt)
     }

@@ -1,6 +1,6 @@
 use itertools::Itertools;
 
-use super::{Block, Instr, Mir, MirBuilder, Operand, env::Env};
+use super::{Block, Instruction, Mir, MirBuilder, Operand, env::Env};
 use crate::{
     def::{FnImpl, Intrin},
     hir::Expr,
@@ -31,17 +31,17 @@ impl MirBuilder<'_> {
 
                 let out = Operand::Temp(env.temp_id.bump());
 
-                match &self.def[*callee].impl_ {
+                match &self.def_ctxt[*callee].impl_ {
                     FnImpl::Intrin(intrin) => {
                         let (lhs, rhs) = (args[0], args[1]);
                         let instr = match intrin {
-                            Intrin::IAdd => Instr::IAdd { lhs, rhs, out },
+                            Intrin::IAdd => Instruction::IAdd { lhs, rhs, out },
                             _ => ice_unimplemented!(),
                         };
 
                         self.push(mir, block_id, instr);
                     }
-                    FnImpl::Native(native) => {}
+                    FnImpl::Native(_) => {}
                 }
 
                 return out;
@@ -50,7 +50,7 @@ impl MirBuilder<'_> {
         };
 
         let out = Operand::Temp(env.temp_id.bump());
-        self.push(mir, block_id, Instr::Const { value, out });
+        self.push(mir, block_id, Instruction::Const { value, out });
         out
     }
 }

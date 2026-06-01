@@ -1,11 +1,10 @@
 use via_compiler::{
     Compiler,
-    builtin::ExtraLib,
     clinic::Clinic,
     def::DefContext,
     sema::SemContext,
     source::{SourceBuf, SourceSpan},
-    symbol::SymbolTable,
+    symbol::StringInterner,
 };
 use via_macros::Access;
 use via_vm::{Executable, Executor};
@@ -18,11 +17,11 @@ pub struct SourceModule {
     #[getter]
     source: SourceBuf,
     #[getter]
-    st: SymbolTable,
+    interner: StringInterner,
     #[getter]
-    sem: SemContext,
+    sem_ctxt: SemContext,
     #[getter]
-    def: DefContext,
+    def_ctxt: DefContext,
     exe: Executable,
 }
 
@@ -34,30 +33,34 @@ impl Module for SourceModule {
 
 impl SourceModule {
     pub(crate) fn new(source: SourceBuf, clinic: &mut Clinic) -> Option<Self> {
-        let mut st = SymbolTable::new();
-        let mut sem = SemContext::new();
-        let mut def = DefContext::new();
+        let mut interner = StringInterner::new();
+        let mut sem_ctxt = SemContext::new();
+        let mut def_ctxt = DefContext::new();
 
         let exe = Compiler::new()
-            .inject_prelude(&mut st, &mut sem, &mut def, clinic, ExtraLib::all())?
+            .inject_core(&mut interner, &mut sem_ctxt, &mut def_ctxt)?
             .tokenize(&source)
             .parse(clinic)?
-            .lower(&mut st, &mut sem, &mut def, clinic)?
+            .lower(&mut interner, &mut sem_ctxt, &mut def_ctxt, clinic)?
             .typecheck()?
             .optimize()
-            .lower(&mut st, &mut sem, &mut def, clinic)?
+            .lower(&mut interner, &mut sem_ctxt, &mut def_ctxt, clinic)?
             .optimize()
             .lower()?
             .0
             .exe;
 
-        let _int = Executor::new(&exe, None).run();
+        let mut exec = Executor::new(&exe, None);
+        let int = exec.run();
+
+        println!("{int:?}");
+        println!("{exec:?}");
 
         Some(Self {
             source,
-            st,
-            sem,
-            def,
+            interner,
+            sem_ctxt,
+            def_ctxt,
             exe,
         })
     }

@@ -44,7 +44,7 @@ pub struct SnapCounter<T: Id> {
 
 impl<T: Id> Default for SnapCounter<T>
 where
-    T::Inner: Default + AddAssign<u32>,
+    T::Inner: Default + From<u8> + AddAssign<T::Inner>,
 {
     fn default() -> Self {
         Self::new()
@@ -53,7 +53,7 @@ where
 
 impl<T: Id> SnapCounter<T>
 where
-    T::Inner: Default + AddAssign<u32>,
+    T::Inner: Default + From<u8> + AddAssign<T::Inner>,
 {
     pub fn new() -> Self {
         Self {
@@ -64,7 +64,7 @@ where
 
     pub fn bump(&mut self) -> T {
         let id = T::from_inner(self.inner);
-        self.inner += 1;
+        self.inner += 1.into();
         id
     }
 

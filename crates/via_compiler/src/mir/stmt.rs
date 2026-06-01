@@ -1,4 +1,4 @@
-use super::{Block, Instr, Mir, MirBuilder, env::Env};
+use super::{Block, Instruction, Mir, MirBuilder, env::Env};
 use crate::{hir::Stmt, macros::ice_unimplemented, node::NodeId};
 
 impl MirBuilder<'_> {
@@ -17,7 +17,7 @@ impl MirBuilder<'_> {
                 self.push(
                     mir,
                     block_id,
-                    Instr::Local {
+                    Instruction::Local {
                         id: value,
                         out: local,
                     },

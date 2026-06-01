@@ -21,35 +21,35 @@ pub struct Hir {
     pub roots: Vec<NodeId<Stmt>>,
 }
 
-use crate::{ast::Tree, clinic::Clinic, def::DefContext, sema::SemContext, symbol::SymbolTable};
+use crate::{ast::Tree, clinic::Clinic, def::DefContext, sema::SemContext, symbol::StringInterner};
 
 pub struct HirBuilder<'cx, 'tree> {
     pub(super) clinic: &'cx mut Clinic,
-    pub(super) st: &'cx mut SymbolTable,
-    pub(super) sem: &'cx mut SemContext,
-    pub(super) def: &'cx mut DefContext,
+    pub(super) interner: &'cx mut StringInterner,
+    pub(super) sem_ctxt: &'cx mut SemContext,
+    pub(super) def_ctxt: &'cx mut DefContext,
     pub(super) ast: &'tree Tree,
 }
 
 impl<'cx, 'tree> HirBuilder<'cx, 'tree> {
     pub fn new(
         clinic: &'cx mut Clinic,
-        st: &'cx mut SymbolTable,
-        sem: &'cx mut SemContext,
-        def: &'cx mut DefContext,
+        interner: &'cx mut StringInterner,
+        sem_ctxt: &'cx mut SemContext,
+        def_ctxt: &'cx mut DefContext,
         ast: &'tree Tree,
     ) -> Self {
         Self {
             clinic,
-            st,
-            sem,
-            def,
+            interner,
+            sem_ctxt,
+            def_ctxt,
             ast,
         }
     }
 
     fn run_pass(&mut self, hir: &mut Hir, pass: &mut impl Pass) -> Option<()> {
-        pass.run(self.sem, hir)
+        pass.run(self.sem_ctxt, hir)
             .map_err(|e| self.clinic.report(e))
             .ok()
     }

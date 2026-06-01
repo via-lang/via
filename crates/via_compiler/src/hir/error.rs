@@ -12,6 +12,7 @@ pub enum Error {
     TypeMismatch(NodeId<Ty>, NodeId<Ty>),
     UnsolvedMetavar(MetaId),
     InvalidBinaryOp,
+    InvalidConstGeneric,
 }
 
 impl Diagnostic for Error {

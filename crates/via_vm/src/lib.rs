@@ -1,16 +1,17 @@
 mod closure;
+mod conversion;
 mod executor;
 mod heap;
-mod instr;
+mod instruction;
 mod stack;
-mod traits;
+mod stats;
 mod value;
 
-pub use {closure::*, executor::*, heap::*, instr::*, value::*};
+pub use {closure::*, conversion::*, executor::*, heap::*, instruction::*, stats::*, value::*};
 
 #[derive(Default, Debug)]
 pub struct Executable {
-    pub instrs: Vec<Instr>,
+    pub instrs: Vec<Instruction>,
 }
 
 impl Executable {

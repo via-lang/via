@@ -1,10 +1,11 @@
 use std::mem::MaybeUninit;
 
-use crate::{ValueId, traits::Stats};
+use crate::{Handle, NativeClosure, stats::Stats};
 
 #[derive(Debug)]
 pub enum SlotKind {
     Value,
+    NativeFrame,
 }
 
 #[derive(Debug)]
@@ -18,15 +19,23 @@ pub struct Slot {
 pub struct Stack {
     inner: Box<[MaybeUninit<Slot>]>,
     capacity: usize,
-    pos: usize,
+    stk_ptr: usize,
 }
 
 impl Slot {
-    pub fn value(id: ValueId) -> Self {
+    pub fn value(id: Handle) -> Self {
         Self {
             #[cfg(debug_assertions)]
             kind: SlotKind::Value,
-            word: id.0 as usize,
+            word: id.index() as usize,
+        }
+    }
+
+    pub fn native_frame(id: *const NativeClosure) -> Self {
+        Self {
+            #[cfg(debug_assertions)]
+            kind: SlotKind::NativeFrame,
+            word: id as usize,
         }
     }
 }
@@ -36,35 +45,35 @@ impl Stack {
         Self {
             inner: Box::new_uninit_slice(capacity),
             capacity,
-            pos: 0,
+            stk_ptr: 0,
         }
     }
 
     pub fn push(&mut self, value: Slot) -> *mut Slot {
-        debug_assert!(self.pos < self.capacity, "stack overflow");
+        debug_assert!(self.stk_ptr < self.capacity, "stack overflow");
 
-        let inner = &mut self.inner[self.pos];
-        self.pos += 1;
+        let inner = &mut self.inner[self.stk_ptr];
+        self.stk_ptr += 1;
 
         inner.write(value);
         inner.as_mut_ptr()
     }
 
     pub fn pop(&mut self) -> Slot {
-        debug_assert_ne!(self.pos, 0, "stack underflow");
-        self.pos -= 1;
-        unsafe { self.inner[self.pos].assume_init_read() }
+        debug_assert_ne!(self.stk_ptr, 0, "stack underflow");
+        self.stk_ptr -= 1;
+        unsafe { self.inner[self.stk_ptr].assume_init_read() }
     }
 }
 
 impl Stats for Stack {
     fn reserved_bytes(&self) -> memsizes::Bytes {
-        let deficit = self.capacity - self.pos;
+        let deficit = self.capacity - self.stk_ptr;
         ((deficit * size_of::<Slot>()) as u64).into()
     }
 
     fn used_bytes(&self) -> memsizes::Bytes {
-        ((self.pos * size_of::<Slot>()) as u64).into()
+        ((self.stk_ptr * size_of::<Slot>()) as u64).into()
     }
 
     fn total_bytes(&self) -> memsizes::Bytes {

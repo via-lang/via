@@ -27,7 +27,7 @@ impl Term {
         match self {
             Self::Halt => RcDoc::text("halt"),
             Self::Return { value } => {
-                let mut base = RcDoc::text("ret");
+                let mut base = RcDoc::text("result");
                 if let Some(value) = value {
                     base = base.append(value.to_doc());
                 }

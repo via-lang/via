@@ -1,47 +1,89 @@
 use std::fmt;
 
-use crate::{Executor, IntoVia, ValueId};
+use crate::{Executor, FromVia, Handle, Heap, IntoVia};
 
-pub type NativeFn = dyn Fn(&mut Executor, Vec<ValueId>) -> ValueId;
-
-#[allow(clippy::type_complexity)]
-pub struct NativeClosure {
-    ptr: Box<NativeFn>,
-    upvs: Box<[ValueId]>,
+pub trait FromArgs {
+    fn from_args(heap: &mut Heap, args: &[Handle]) -> Self;
 }
 
-pub trait IntoNativeFn<R> {
-    fn into_native(self) -> Box<NativeFn>;
+pub trait NativeCallback: Fn(&Executor, &[Handle]) -> Handle {}
+
+pub struct NativeClosure<'e> {
+    e: &'e Executor<'e>,
+    ptr: Box<dyn NativeCallback>,
+    upvs: Box<[Handle]>,
 }
 
-impl NativeClosure {
-    pub fn new<R, F>(f: F, upvs: &[ValueId]) -> Self
-    where
-        R: IntoVia,
-        F: IntoNativeFn<R>,
-    {
+pub fn create_function<'e, F, A, R>(f: F) -> Box<dyn NativeCallback + 'e>
+where
+    F: Fn(&Executor, A) -> R + 'e,
+    A: FromArgs,
+    R: IntoVia,
+{
+    Box::new(move |e: &Executor, args: &[Handle]| {
+        let args = A::from_args(unsafe { &mut *e.heap() }, args);
+        let result = f(e, args);
+        result.into_via(unsafe { &mut *e.heap() })
+    })
+}
+
+impl<T> FromArgs for T
+where
+    T: FromVia,
+{
+    fn from_args(heap: &mut Heap, args: &[Handle]) -> Self {
+        debug_assert_eq!(args.len(), 1);
+        T::from_via(heap, args[0])
+    }
+}
+
+impl<T, U> FromArgs for (T, U)
+where
+    T: FromVia,
+    U: FromVia,
+{
+    fn from_args(heap: &mut Heap, args: &[Handle]) -> Self {
+        debug_assert_eq!(args.len(), 2);
+        debug_assert_ne!(args[0], args[1]);
+        (
+            T::from_via(unsafe { &mut *(heap as *mut _) }, args[0]),
+            U::from_via(unsafe { &mut *(heap as *mut _) }, args[1]),
+        )
+    }
+}
+
+impl<T> NativeCallback for T where T: Fn(&Executor, &[Handle]) -> Handle {}
+
+impl<'e> NativeClosure<'e> {
+    pub fn new(e: &'e Executor, ptr: Box<dyn NativeCallback>, upvs: &[Handle]) -> Self {
+        let heap = unsafe { &mut *e.heap() };
+        for upv in upvs {
+            heap.dec_ref(*upv);
+        }
+
         Self {
+            e,
+            ptr,
             upvs: Box::from(upvs),
-            ptr: f.into_native(),
+        }
+    }
+
+    pub fn upvalues(&self) -> &[Handle] {
+        &self.upvs
+    }
+}
+
+impl Drop for NativeClosure<'_> {
+    fn drop(&mut self) {
+        let heap = unsafe { &mut *self.e.heap() };
+        for upv in &self.upvs {
+            heap.dec_ref(*upv);
         }
     }
 }
 
-impl<R, F> IntoNativeFn<R> for F
-where
-    R: IntoVia,
-    F: for<'a, 'b> Fn(&'a mut Executor<'b>, Vec<ValueId>) -> R + 'static,
-{
-    fn into_native(self) -> Box<NativeFn> {
-        Box::new(move |e, args| -> ValueId {
-            let result = self(e, args);
-            result.into_via(e.heap())
-        })
-    }
-}
-
-impl fmt::Debug for NativeClosure {
+impl fmt::Debug for NativeClosure<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "<native-closure@{:p}>", self.ptr.as_ref() as *const _)
+        write!(f, "<native-closure@{:p}>", self.ptr)
     }
 }

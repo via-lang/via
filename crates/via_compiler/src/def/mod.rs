@@ -3,14 +3,15 @@ mod func;
 mod ns;
 pub mod traits;
 
-use std::collections::{HashMap, hash_map::Entry};
+use std::collections::HashMap;
 
 use via_macros::Arena;
 
 use crate::{
+    def::traits::TraitImplKey,
     node::NodeId,
     sema::{SemContext, Ty, TySubst},
-    symbol::SymbolId,
+    symbol::Symbol,
 };
 
 use error::*;
@@ -24,7 +25,7 @@ pub use {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum DefId {
     FnId(NodeId<FnDef>),
-    ModId(NodeId<NsDef>),
+    NsId(NodeId<NsDef>),
     TraitId(NodeId<TraitDef>),
 }
 
@@ -39,8 +40,8 @@ pub struct DefContext {
     ns_def: Vec<NsDef>,
     #[allocator]
     trait_def: Vec<TraitDef>,
-    trait_impls: HashMap<NodeId<TraitDef>, HashMap<NodeId<Ty>, TraitImpl>>,
-    def_map: HashMap<SymbolId, DefId>,
+    trait_impls: HashMap<NodeId<TraitDef>, HashMap<TraitImplKey, TraitImpl>>,
+    def_map: HashMap<Symbol, DefId>,
 }
 
 impl DefContext {
@@ -49,92 +50,118 @@ impl DefContext {
     }
 
     pub fn register_fn(&mut self, fun: FnDef) -> Result<NodeId<FnDef>> {
-        let sym = fun.sym;
-        if self.def_map.contains_key(&sym) {
-            return Err(Error::DuplicateDef(sym));
+        let symbol = fun.symbol;
+        if self.def_map.contains_key(&symbol) {
+            return Err(Error::DuplicateDef(symbol));
         }
 
         let id = self.alloc_fn_def(fun);
-        self.def_map.insert(sym, DefId::FnId(id));
+        self.def_map.insert(symbol, DefId::FnId(id));
         Ok(id)
     }
 
     pub fn register_trait(&mut self, def: TraitDef) -> Result<NodeId<TraitDef>> {
-        let sym = def.sym;
-        if self.def_map.contains_key(&sym) {
-            return Err(Error::DuplicateDef(sym));
+        let symbol = def.symbol;
+        if self.def_map.contains_key(&symbol) {
+            return Err(Error::DuplicateDef(symbol));
         }
 
         let id = self.alloc_trait_def(def);
-        self.def_map.insert(sym, DefId::TraitId(id));
+        self.def_map.insert(symbol, DefId::TraitId(id));
         Ok(id)
     }
 
-    pub fn get(&self, sym: SymbolId) -> Option<DefId> {
-        self.def_map.get(&sym).cloned()
+    pub fn get(&self, symbol: Symbol) -> Option<DefId> {
+        self.def_map.get(&symbol).cloned()
     }
 
-    pub fn get_trait(&self, sym: SymbolId) -> Option<NodeId<TraitDef>> {
-        match self.def_map.get(&sym).cloned()? {
+    pub fn get_trait(&self, symbol: Symbol) -> Option<NodeId<TraitDef>> {
+        match self.def_map.get(&symbol).cloned()? {
             DefId::TraitId(trait_id) => Some(trait_id),
             _ => None,
         }
     }
 
-    pub fn get_trait_impl(&self, class: NodeId<TraitDef>, ty: NodeId<Ty>) -> Option<&TraitImpl> {
-        self.trait_impls.get(&class)?.get(&ty)
-    }
-
-    fn match_sig(
+    pub fn get_trait_impl(
         &self,
-        sem: &SemContext,
-        class_sig: NodeId<FnSig>,
-        impl_sig: NodeId<FnSig>,
-    ) -> bool {
-        let resolve = |ty: NodeId<Ty>| match &sem[ty] {
-            Ty::Subst(subst) => sem.get_subst(*subst).unwrap_or(ty),
-            _ => ty,
-        };
-
-        let class = &self[class_sig];
-        let impl_ = &self[impl_sig];
-
-        class.parms.len() == impl_.parms.len()
-            && class
-                .parms
-                .iter()
-                .zip(&impl_.parms)
-                .all(|(&p, &i)| sem[resolve(p)] == sem[resolve(i)])
-            && sem[resolve(class.ret)] == sem[resolve(impl_.ret)]
+        class: NodeId<TraitDef>,
+        key: &TraitImplKey,
+    ) -> Option<&TraitImpl> {
+        self.trait_impls.get(&class)?.get(&key)
     }
 
     pub fn impl_trait(
         &mut self,
-        sem: &mut SemContext,
-        ty: NodeId<Ty>,
-        mut imp: TraitImpl,
+        sem_ctxt: &mut SemContext,
+        key: impl Into<TraitImplKey>,
+        imp: TraitImpl,
     ) -> Result<()> {
-        if self.get_trait_impl(imp.class, ty).is_some() {
-            return Err(Error::DuplicateTraitImpl(ty, imp.class));
+        let key = key.into();
+        if self.get_trait_impl(imp.class, &key).is_some() {
+            return Err(Error::DuplicateTraitImpl(key, imp.class));
         }
 
         let class = &self[imp.class];
 
-        sem.define_subst(TySubst::This, ty);
+        sem_ctxt.define_subst(TySubst::This, key.this);
 
-        for (sym, sig) in &class.methods {
-            match imp.impls.entry(*sym) {
-                Entry::Occupied(e) if self.match_sig(sem, self[*e.get()].sig, *sig) => {}
-                Entry::Occupied(_) | Entry::Vacant(_) => return Err(Error::BadTraitImpl),
+        for (symbol, method_def) in &class.methods {
+            let impl_fn = match imp.methods.get(symbol) {
+                Some(m) => m,
+                None => return Err(Error::BadTraitImpl),
+            };
+
+            let class_sig = &self[method_def.sig];
+            let impl_sig = &self[self[impl_fn.def].sig];
+
+            let normalize = |ty: NodeId<Ty>| -> Result<NodeId<Ty>> {
+                match sem_ctxt[ty] {
+                    Ty::Subst(TySubst::This) => Ok(key.this),
+                    Ty::Subst(TySubst::Generic(s)) => {
+                        let idx = class.generics.iter().position(|g| g.symbol == s).unwrap();
+                        let generic = &class.generics[idx];
+                        imp.generics
+                            .get(idx)
+                            .cloned()
+                            .or(generic.default)
+                            .ok_or(Error::MissingGenericParam(s))
+                    }
+                    Ty::Subst(TySubst::Assoc(s)) => Ok(imp.assoc_types[&s]),
+                    _ => Ok(ty),
+                }
+            };
+
+            let class_parms = class_sig
+                .params
+                .iter()
+                .map(|&p| normalize(p))
+                .collect::<Result<Vec<_>>>()?;
+
+            let impl_parms = impl_sig
+                .params
+                .iter()
+                .map(|&p| normalize(p))
+                .collect::<Result<Vec<_>>>()?;
+
+            let parms_match = class_parms
+                .iter()
+                .zip(impl_parms.iter())
+                .all(|(c, i)| sem_ctxt[*c] == sem_ctxt[*i]);
+
+            let ret_match =
+                sem_ctxt[normalize(class_sig.result)?] == sem_ctxt[normalize(impl_sig.result)?];
+
+            if class_sig.params.len() != impl_sig.params.len() || !parms_match || !ret_match {
+                return Err(Error::BadTraitImpl);
             }
         }
 
-        sem.remove_subst(TySubst::This);
+        sem_ctxt.remove_subst(TySubst::This);
 
         self.trait_impls
             .entry(imp.class)
             .or_default()
-            .insert(ty, imp);
+            .insert(key, imp);
 
         Ok(())
     }

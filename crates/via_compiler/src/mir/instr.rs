@@ -1,6 +1,7 @@
 use derive_more::From;
 use pretty::RcDoc;
 use via_macros::Id;
+use via_vm::Immediate;
 
 use crate::sema::ConstValue;
 
@@ -15,8 +16,8 @@ impl TempId {
 }
 
 #[derive(Id)]
-#[id(inner = u32)]
-pub struct LocalId(u32);
+#[id(inner = Immediate)]
+pub struct LocalId(Immediate);
 
 impl LocalId {
     pub fn to_doc(&self) -> RcDoc<'_> {
@@ -40,7 +41,7 @@ impl Operand {
 }
 
 #[derive(Debug)]
-pub enum Instr {
+pub enum Instruction {
     Local {
         id: Operand,
         out: LocalId,
@@ -56,7 +57,7 @@ pub enum Instr {
     },
 }
 
-impl Instr {
+impl Instruction {
     pub fn to_doc(&self) -> RcDoc<'_> {
         match self {
             Self::Local { id, out } => out.to_doc().append(" = ").append(id.to_doc()),

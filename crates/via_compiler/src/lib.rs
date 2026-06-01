@@ -1,6 +1,6 @@
 pub mod ast;
-pub mod builtin;
 pub mod clinic;
+pub mod core;
 mod counter;
 pub mod def;
 pub mod exe;
@@ -12,11 +12,9 @@ pub mod node;
 pub mod parser;
 pub mod sema;
 pub mod source;
-pub mod symbol;
 
 use self::{
     ast::Tree,
-    builtin::ExtraLib,
     clinic::Clinic,
     def::DefContext,
     exe::ExeBuilder,
@@ -26,8 +24,40 @@ use self::{
     parser::Parser,
     sema::SemContext,
     source::SourceBuf,
-    symbol::SymbolTable,
 };
+
+pub mod symbol {
+    use string_interner::{DefaultStringInterner, DefaultSymbol};
+
+    pub type StringInterner = DefaultStringInterner;
+
+    pub type Symbol = DefaultSymbol;
+
+    pub trait IntoSymbol {
+        fn into_symbol(self, it: &mut StringInterner) -> Symbol;
+    }
+
+    impl IntoSymbol for &str
+    where
+        Self: 'static,
+    {
+        fn into_symbol(self, it: &mut StringInterner) -> Symbol {
+            it.get_or_intern_static(self)
+        }
+    }
+
+    impl IntoSymbol for String {
+        fn into_symbol(self, it: &mut StringInterner) -> Symbol {
+            it.get_or_intern(&self)
+        }
+    }
+
+    impl IntoSymbol for Symbol {
+        fn into_symbol(self, _it: &mut StringInterner) -> Symbol {
+            self
+        }
+    }
+}
 
 pub mod state {
     use via_vm::Executable;
@@ -61,6 +91,7 @@ pub mod state {
 }
 
 use state::*;
+use symbol::*;
 
 #[must_use]
 pub struct Compiler<S>(pub S);
@@ -70,18 +101,14 @@ impl Compiler<Empty> {
         Self(Empty)
     }
 
-    pub fn inject_prelude(
-        &mut self,
-        st: &mut SymbolTable,
-        sem: &mut SemContext,
-        def: &mut DefContext,
-        clinic: &mut Clinic,
-        extra: ExtraLib,
+    pub fn inject_core(
+        self,
+        interner: &mut StringInterner,
+        sem_ctxt: &mut SemContext,
+        def_ctxt: &mut DefContext,
     ) -> Option<Compiler<Injected>> {
-        builtin::register(st, sem, def, extra)
-            .map(|_| Compiler(Injected))
-            .map_err(|e| clinic.report(e))
-            .ok()
+        core::open(interner, sem_ctxt, def_ctxt).expect("::core injection failure");
+        Some(Compiler(Injected))
     }
 }
 
@@ -116,12 +143,12 @@ impl Compiler<Lexed> {
 impl Compiler<Parsed> {
     pub fn lower(
         self,
-        st: &mut SymbolTable,
+        interner: &mut StringInterner,
         sema: &mut SemContext,
-        def: &mut DefContext,
+        def_ctxt: &mut DefContext,
         clinic: &mut Clinic,
     ) -> Option<Compiler<Hir>> {
-        HirBuilder::new(clinic, st, sema, def, &self.0.ast)
+        HirBuilder::new(clinic, interner, sema, def_ctxt, &self.0.ast)
             .lower()
             .map(|hir| Compiler(Hir { hir }))
     }
@@ -138,12 +165,12 @@ impl Compiler<Hir> {
 
     pub fn lower(
         self,
-        st: &mut SymbolTable,
-        sem: &mut SemContext,
-        def: &mut DefContext,
+        interner: &mut StringInterner,
+        sem_ctxt: &mut SemContext,
+        def_ctxt: &mut DefContext,
         clinic: &mut Clinic,
     ) -> Option<Compiler<Mir>> {
-        MirBuilder::new(st, sem, def, clinic, &self.0.hir)
+        MirBuilder::new(interner, sem_ctxt, def_ctxt, clinic, &self.0.hir)
             .lower()
             .map(|mir| Compiler(Mir { mir }))
     }

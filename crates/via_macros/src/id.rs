@@ -6,7 +6,7 @@ pub fn expand(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let name = input.ident;
 
-    let mut inner_ty = quote! { u32 };
+    let mut inner_ty = quote! { u8 };
 
     for attr in input.attrs {
         if attr.path().is_ident("id") {

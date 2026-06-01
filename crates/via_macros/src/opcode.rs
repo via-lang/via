@@ -29,37 +29,37 @@ pub fn expand(input: TokenStream) -> TokenStream {
         let layout = layout_name.expect("Missing #[layout(...)]");
         let tokens = match layout.as_str() {
             "Rx0" => quote! {
-                impl Instr {
+                impl Instruction {
                     pub fn #fn_ident() -> Self {
-                        Instr::new_rx(#enum_ident::#variant_ident, &[])
+                        Instruction::new_rx(#enum_ident::#variant_ident, &[])
                     }
                 }
             },
             "Rx1" => quote! {
-                impl Instr {
-                    pub fn #fn_ident(a: u16) -> Self {
-                        Instr::new_rx(#enum_ident::#variant_ident, &[a])
+                impl Instruction {
+                    pub fn #fn_ident(a: Operand) -> Self {
+                        Instruction::new_rx(#enum_ident::#variant_ident, &[a])
                     }
                 }
             },
             "Rx2" => quote! {
-                impl Instr {
-                    pub fn #fn_ident(a: u16, b: u16) -> Self {
-                        Instr::new_rx(#enum_ident::#variant_ident, &[a, b])
+                impl Instruction {
+                    pub fn #fn_ident(a: Operand, b: Operand) -> Self {
+                        Instruction::new_rx(#enum_ident::#variant_ident, &[a, b])
                     }
                 }
             },
             "Rx3" => quote! {
-                impl Instr {
-                    pub fn #fn_ident(a: u16, b: u16, c: u16) -> Self {
-                        Instr::new_rx(#enum_ident::#variant_ident, &[a, b, c])
+                impl Instruction {
+                    pub fn #fn_ident(a: Operand, b: Operand, c: Operand) -> Self {
+                        Instruction::new_rx(#enum_ident::#variant_ident, &[a, b, c])
                     }
                 }
             },
             "RIm" => quote! {
-                impl Instr {
-                    pub fn #fn_ident(a: u16, imm: u32) -> Self {
-                        Instr::new_rim(#enum_ident::#variant_ident, a, imm)
+                impl Instruction {
+                    pub fn #fn_ident(a: Operand, imm: u16) -> Self {
+                        Instruction::new_rim(#enum_ident::#variant_ident, a, imm)
                     }
                 }
             },

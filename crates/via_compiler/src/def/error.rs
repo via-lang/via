@@ -1,18 +1,21 @@
 use crate::{
     clinic::{Diagnostic, Severity},
-    def::{FnSig, traits::TraitDef},
+    def::{
+        FnSig,
+        traits::{TraitDef, TraitImplKey},
+    },
     node::NodeId,
-    sema::Ty,
-    symbol::SymbolId,
+    symbol::Symbol,
 };
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum Error {
-    DuplicateDef(SymbolId),
-    DuplicateTraitImpl(NodeId<Ty>, NodeId<TraitDef>),
+    DuplicateDef(Symbol),
+    DuplicateTraitImpl(TraitImplKey, NodeId<TraitDef>),
     DuplicateTraitMethod(NodeId<FnSig>),
+    MissingGenericParam(Symbol),
     // TODO: This is way too generic
     BadTraitImpl,
 }

@@ -1,6 +1,6 @@
 use crate::node::NodeId;
 
-use super::{instr::Instr, term::Term};
+use super::{instr::Instruction, term::Term};
 use pretty::RcDoc;
 
 impl NodeId<Block> {
@@ -12,7 +12,7 @@ impl NodeId<Block> {
 #[derive(Debug)]
 pub struct Block {
     pub id: NodeId<Block>,
-    pub instrs: Vec<Instr>,
+    pub instrs: Vec<Instruction>,
     pub term: Term,
 }
 

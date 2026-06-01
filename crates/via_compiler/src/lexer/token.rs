@@ -33,9 +33,6 @@ pub enum TokenKind {
     #[keyword("_")]
     KwPlaceholder,
 
-    #[keyword("var")]
-    KwVar,
-
     #[keyword("let")]
     KwLet,
 

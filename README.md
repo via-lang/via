@@ -156,23 +156,24 @@ In via, the same function would look like:
 ```rust
 struct Oops;
 
-fn foo(a: int) -> int raise Oops {
-    if a == 1 {
-        raise Oops
-    } else if a == 2 {
-        raise 10    // error: cannot raise type `int` in callsite with raise type `Oops`
-                    // |- help: add `int` to the raise type by changing raise clause to: `raise Oops | int`
-    } else {
-        return a + a
+fn foo(a: int)
+    -> int raise Oops
+{
+    match a {
+        1 => raise Oops,
+        2 => raise -1,
+        _ => return 0,
     }
 }
 
-let result = foo(...)?;
-let n = result * 2; // error: cannot multiply type `int | Oops` with `int`
-                    //  note: type `int | Oops` does not implement trait `Mul<int>`
-
-let raw = foo(a); // error: cannot propagate raise alternative `Oops` in callsite
-                  //  help: explicitly handle the error by inserting a `?` after the function call
+fn main() {
+    let result = foo(...)?;
+    let n = result * 2; // error: cannot multiply type `int | Oops` with `int`
+                        //  note: type `int | Oops` does not implement trait `Mul<int>`
+    
+    let raw = foo(a); // error: cannot propagate raise alternative `Oops` in callsite
+                      //  help: explicitly handle the error by inserting a `?` after the function call
+}
 ```
 
 </details>

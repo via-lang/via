@@ -7,10 +7,9 @@ edition = "2024"
 via_vm.path = "../via_vm"
 via_macros.path = "../via_macros"
 itertools.workspace = true
-bitflags.workspace = true
 derive_more = { workspace = true, features = ["from", "add", "add_assign"] }
 bimap = "0.6.3"
 unicode-ident = "1.0.22"
 strum = { version = "0.27.2", features = ["derive"] }
-typed-arena = "2.0.2"
 pretty = "0.12.5"
+string-interner = "0.20.0"

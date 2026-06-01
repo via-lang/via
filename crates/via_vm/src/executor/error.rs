@@ -1,7 +1,7 @@
-use crate::{instr::Instr, value::Value};
+use crate::{instruction::Instruction, value::Value};
 
 #[derive(Debug)]
 pub struct ExecError {
-    pub pc: *const Instr,
+    pub pc: *const Instruction,
     pub err: Value,
 }

@@ -12,5 +12,5 @@ use prelude::*;
 use crate::sema::SemContext;
 
 pub trait Pass {
-    fn run(&mut self, sem: &mut SemContext, hir: &mut Hir) -> Result<()>;
+    fn run(&mut self, sem_ctxt: &mut SemContext, hir: &mut Hir) -> Result<()>;
 }

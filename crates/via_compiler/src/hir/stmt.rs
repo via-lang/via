@@ -4,13 +4,13 @@ use crate::{
     macros::ice_unimplemented,
     node::NodeId,
     sema::Ty,
-    symbol::SymbolId,
+    symbol::{IntoSymbol, Symbol},
 };
 
 #[derive(Debug, Clone)]
 pub enum Stmt {
     Let {
-        ident: SymbolId,
+        ident: Symbol,
         ty: NodeId<Ty>,
         expr: NodeId<Expr>,
     },
@@ -27,15 +27,15 @@ impl HirBuilder<'_, '_> {
                 let expr = hir.alloc_expr(expr);
 
                 let rty = self.infer(hir, expr)?;
-                let lty = ty.and_then(|ty| self.lower_ty(hir, ty));
+                let lty = ty.map(|ty| self.lower_ty(hir, ty));
 
                 if let Some(lty) = lty {
-                    self.unify(lty, rty)?;
+                    self.unify(lty?, rty)?;
                 }
 
                 Stmt::Let {
-                    ident: self.st.intern(ident),
-                    ty: lty.unwrap_or(rty),
+                    ident: ident.clone().into_symbol(self.interner),
+                    ty: lty.unwrap_or(Ok(rty))?,
                     expr,
                 }
             }

@@ -5,15 +5,16 @@ use bimap::BiHashMap;
 use super::instr::{LocalId, TempId};
 use crate::{
     counter::{Counter, SnapCounter},
-    symbol::SymbolId,
+    symbol::Symbol,
 };
 
 #[derive(Debug)]
 pub(super) struct Env<'a> {
+    #[allow(unused)]
     parent: Option<&'a Env<'a>>,
     local_id: Rc<RefCell<SnapCounter<LocalId>>>,
     pub temp_id: Counter<TempId>,
-    map: BiHashMap<LocalId, SymbolId>,
+    map: BiHashMap<LocalId, Symbol>,
 }
 
 impl Drop for Env<'_> {
@@ -33,14 +34,16 @@ impl<'a> Env<'a> {
         }
     }
 
-    pub fn lookup(&self, symbol: SymbolId) -> Option<LocalId> {
+    #[allow(unused)]
+    pub fn lookup(&self, symbol: Symbol) -> Option<LocalId> {
         self.map
             .get_by_right(&symbol)
             .copied()
             .or_else(|| self.parent.and_then(|parent| parent.lookup(symbol)))
     }
 
-    pub fn lookup_symbol(&self, id: LocalId) -> SymbolId {
+    #[allow(unused)]
+    pub fn lookup_symbol(&self, id: LocalId) -> Symbol {
         self.map.get_by_left(&id).copied().unwrap_or_else(|| {
             self.parent
                 .map(|parent| parent.lookup_symbol(id))
@@ -48,7 +51,7 @@ impl<'a> Env<'a> {
         })
     }
 
-    pub fn insert(&mut self, id: SymbolId) -> LocalId {
+    pub fn insert(&mut self, id: Symbol) -> LocalId {
         let local = self.local_id.borrow_mut().bump();
         self.map.insert(local, id);
         local

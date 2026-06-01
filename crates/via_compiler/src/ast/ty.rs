@@ -1,15 +1,13 @@
-use crate::source::SourceSpan;
+use crate::{ast::Expr, node::NodeId, source::SourceSpan};
 
 #[derive(Debug)]
 pub enum TyKind {
-    // ()
     Unit,
-    // bool
     Bool,
-    // int
     Int,
-    // float
     Float,
+    Array { ty: NodeId<Ty>, size: NodeId<Expr> },
+    Vector(NodeId<Ty>),
 }
 
 #[derive(Debug)]

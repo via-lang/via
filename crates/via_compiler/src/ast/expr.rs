@@ -22,6 +22,10 @@ pub enum ExprKind {
     False,
     Integer(u128),
     Float(f64),
+    Array {
+        init: Vec<NodeId<Expr>>,
+        trailing: bool,
+    },
     Unary {
         op: UnaryOp,
         expr: NodeId<Expr>,
@@ -30,6 +34,10 @@ pub enum ExprKind {
         op: BinaryOp,
         lhs: NodeId<Expr>,
         rhs: NodeId<Expr>,
+    },
+    Call {
+        callee: NodeId<Expr>,
+        args: Vec<NodeId<Expr>>,
     },
     Read(Place),
 }
