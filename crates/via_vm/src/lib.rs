@@ -11,7 +11,7 @@ pub use {closure::*, conversion::*, executor::*, heap::*, instruction::*, stats:
 
 #[derive(Default, Debug)]
 pub struct Executable {
-    pub instrs: Vec<Instruction>,
+    pub instrs: Vec<Instr>,
 }
 
 impl Executable {

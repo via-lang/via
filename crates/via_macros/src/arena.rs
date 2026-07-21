@@ -48,7 +48,7 @@ fn validate_map_type(
         ));
     };
 
-    let type_args: Vec<&Type> = args
+    let tyargs: Vec<&Type> = args
         .args
         .iter()
         .filter_map(|a| {
@@ -60,15 +60,15 @@ fn validate_map_type(
         })
         .collect();
 
-    if type_args.len() < 2 {
+    if tyargs.len() < 2 {
         return Err(syn::Error::new(
             map_field_span,
             "map field must have at least two type arguments: HashMap<T, NodeId<T>>",
         ));
     }
 
-    let key_ty = type_args[0];
-    let val_ty = type_args[1];
+    let key_ty = tyargs[0];
+    let val_ty = tyargs[1];
 
     let key_str = quote!(#key_ty).to_string();
     let expected_str = quote!(#expected_inner).to_string();

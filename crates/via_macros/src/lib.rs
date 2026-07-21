@@ -1,8 +1,10 @@
-mod access;
 mod arena;
+mod def_tree;
 mod id;
 mod opcode;
-mod token;
+mod operation;
+mod syntax;
+mod syntax_tree;
 
 use proc_macro::TokenStream;
 
@@ -16,17 +18,27 @@ pub fn arena(input: TokenStream) -> TokenStream {
     arena::expand(input)
 }
 
-#[proc_macro_derive(Access, attributes(getter))]
-pub fn access(input: TokenStream) -> TokenStream {
-    access::expand(input)
+#[proc_macro_derive(Syntax, attributes(keyword, operator))]
+pub fn syntax(input: TokenStream) -> TokenStream {
+    syntax::expand(input)
 }
 
-#[proc_macro_derive(Token, attributes(token_kind, prec, keyword, operator))]
-pub fn token(input: TokenStream) -> TokenStream {
-    token::expand(input)
+#[proc_macro]
+pub fn syntax_tree(input: TokenStream) -> TokenStream {
+    syntax_tree::expand(input)
+}
+
+#[proc_macro]
+pub fn def_tree(input: TokenStream) -> TokenStream {
+    def_tree::expand(input)
 }
 
 #[proc_macro_derive(Opcode, attributes(layout))]
 pub fn opcode(input: TokenStream) -> TokenStream {
     opcode::expand(input)
+}
+
+#[proc_macro_derive(Operation, attributes(from, trait_info))]
+pub fn operation(input: TokenStream) -> TokenStream {
+    operation::expand(input)
 }

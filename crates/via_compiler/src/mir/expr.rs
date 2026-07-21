@@ -1,56 +1,31 @@
-use itertools::Itertools;
+use salsa::Update;
 
-use super::{Block, Instruction, Mir, MirBuilder, Operand, env::Env};
 use crate::{
-    def::{FnImpl, Intrin},
-    hir::Expr,
-    macros::ice_unimplemented,
-    node::NodeId,
-    sema::ConstValue,
+    db::Db,
+    mir::{
+        function::Function,
+        ty::{Ty, TyData},
+        value::{Value, get_type_of_value},
+    },
 };
 
-impl MirBuilder<'_> {
-    pub(super) fn lower_expr(
-        &mut self,
-        mir: &mut Mir,
-        env: &mut Env,
-        block_id: NodeId<Block>,
-        expr: NodeId<Expr>,
-    ) -> Operand {
-        let value = match &self.hir[expr] {
-            Expr::Unit => ConstValue::Unit,
-            Expr::Bool(b) => ConstValue::Bool(*b),
-            Expr::Int(i) => ConstValue::Int(*i),
-            Expr::Float(fp) => ConstValue::Float(*fp),
-            Expr::Call { callee, args } => {
-                let args = args
-                    .iter()
-                    .cloned()
-                    .map(|expr| self.lower_expr(mir, env, block_id, expr))
-                    .collect_vec();
+#[salsa::tracked(debug)]
+pub struct Expr<'db> {
+    pub data: ExprData<'db>,
+}
 
-                let out = Operand::Temp(env.temp_id.bump());
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Update)]
+pub enum ExprData<'db> {
+    Value(Value<'db>),
+    Call(Function<'db>),
+    Return(Option<Expr<'db>>),
+}
 
-                match &self.def_ctxt[*callee].impl_ {
-                    FnImpl::Intrin(intrin) => {
-                        let (lhs, rhs) = (args[0], args[1]);
-                        let instr = match intrin {
-                            Intrin::IAdd => Instruction::IAdd { lhs, rhs, out },
-                            _ => ice_unimplemented!(),
-                        };
-
-                        self.push(mir, block_id, instr);
-                    }
-                    FnImpl::Native(_) => {}
-                }
-
-                return out;
-            }
-            _ => ice_unimplemented!(),
-        };
-
-        let out = Operand::Temp(env.temp_id.bump());
-        self.push(mir, block_id, Instruction::Const { value, out });
-        out
+#[salsa::tracked]
+pub fn get_type_of_expr<'db>(db: &'db dyn Db, expr: Expr<'db>) -> Ty<'db> {
+    match expr.data(db) {
+        ExprData::Value(value) => get_type_of_value(db, value),
+        ExprData::Call(call) => call.result(db),
+        ExprData::Return(_) => Ty::new(db, TyData::Never),
     }
 }

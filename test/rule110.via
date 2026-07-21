@@ -1,0 +1,58 @@
+const ROW_SIZE: Int = 53;
+const ROW_COUNT: Int = 110;
+
+// These should be pattern matches in reality
+fn pattern(a: Int, b: Int, c: Int) -> Int {
+    (a << 2) | (b << 1) | c
+}
+
+const PATTERNS: # { Int: Int } = # {
+    [pattern(0,0,0)]: 0,
+    [pattern(0,0,1)]: 1,
+    [pattern(0,1,0)]: 1,
+    [pattern(0,1,1)]: 1,
+    [pattern(1,0,0)]: 0,
+    [pattern(1,0,1)]: 1,
+    [pattern(1,1,0)]: 1,
+    [pattern(1,1,1)]: 0,
+};
+
+type Row = [Int; ROW_SIZE];
+
+fn next_row(prev: Row) -> Row {
+    let next: Row = [];
+
+    for i in 1..(ROW_SIZE-1) {
+        let pattern = pattern(prev[i-1], prev[i], prev[(i+1) % ROW_SIZE]);
+        next[i] = PATTERNS[pattern];
+    }
+
+    next
+}
+
+fn print_row(row: Row) {
+    __print("|");
+
+    for cell in row {
+        __print(if cell == 0 { " " } else { "*" });
+    }
+
+    __print("|\n");
+}
+
+fn random_row() -> Row {
+    let out: Row = [];
+
+    for i in 0..ROW_SIZE {
+        out[i] = __rand() % 2;
+    }
+
+    out
+}
+
+fn main() {
+    for _ in 0..ROW_COUNT {
+        let row = random_row();
+        print_row(row);
+    }
+}

@@ -1,7 +1,9 @@
+use std::ops::{Add, Div, Mul, Rem, Sub};
+
 use super::{Executor, interrupt::Interrupt};
 use crate::{
     heap::Alloc,
-    instruction::{Instruction, OpCode},
+    instruction::{Instr, OpCode},
     stack::{Slot, SlotKind},
 };
 
@@ -21,19 +23,71 @@ macro_rules! free {
     }};
 }
 
+macro_rules! ld16 {
+    ($a:expr, $regs:expr, $pc:expr) => {{
+        let lit = $pc.imm() as i16 as i64;
+        $regs[$pc.a() as usize] = $a.alloc(lit);
+    }};
+}
+
+macro_rules! ld32 {
+    ($a:expr, $regs:expr, $pc:expr, $advance:expr) => {{
+        let bits = unsafe { Instr::decode_32($pc) };
+        $regs[(*$pc).a() as usize] = $a.alloc(bits as i32 as i64);
+        $advance = 2;
+    }};
+}
+
+macro_rules! ldf32 {
+    ($a:expr, $regs:expr, $pc:expr, $advance:expr) => {{
+        let bits = unsafe { Instr::decode_32($pc) };
+        $regs[(*$pc).a() as usize] = $a.alloc(f32::from_bits(bits) as f64);
+        $advance = 2;
+    }};
+}
+
+macro_rules! ld64 {
+    ($a:expr, $regs:expr, $pc:expr, $advance:expr, int) => {{
+        let bits = unsafe { Instr::decode_64($pc) };
+        $regs[(*$pc).a() as usize] = $a.alloc(bits as i64);
+        $advance = 3;
+    }};
+    ($a:expr, $regs:expr, $pc:expr, $advance:expr, float) => {{
+        let bits = unsafe { Instr::decode_64($pc) };
+        $regs[(*$pc).a() as usize] = $a.alloc(f64::from_bits(bits));
+        $advance = 3;
+    }};
+}
+
 macro_rules! ibin {
-    ($self:expr, $a:expr, $regs:expr, $pc:expr, $op:tt) => {{
+    ($self:expr, $a:expr, $regs:expr, $pc:expr, $op:path) => {{
         let lhs = $a.get($regs[$pc.b() as usize]).as_int();
         let rhs = $a.get($regs[$pc.c() as usize]).as_int();
-        $regs[$pc.a() as usize] = $a.alloc(lhs $op rhs);
+        $regs[$pc.a() as usize] = $a.alloc($op(lhs, rhs));
+    }};
+}
+
+macro_rules! ibinf {
+    ($self:expr, $a:expr, $regs:expr, $pc:expr, $op:path) => {{
+        let lhs = $a.get($regs[$pc.b() as usize]).as_int();
+        let rhs = $a.get($regs[$pc.c() as usize]).as_float();
+        $regs[$pc.a() as usize] = $a.alloc($op(lhs as f64, rhs));
     }};
 }
 
 macro_rules! fbin {
-    ($self:expr, $a:expr, $regs:expr, $pc:expr, $op:tt) => {{
+    ($self:expr, $a:expr, $regs:expr, $pc:expr, $op:path) => {{
         let lhs = $a.get($regs[$pc.b() as usize]).as_float();
         let rhs = $a.get($regs[$pc.c() as usize]).as_float();
-        $regs[$pc.a() as usize] = $a.alloc(lhs $op rhs);
+        $regs[$pc.a() as usize] = $a.alloc($op(lhs, rhs));
+    }};
+}
+
+macro_rules! fbini {
+    ($self:expr, $a:expr, $regs:expr, $pc:expr, $op:path) => {{
+        let lhs = $a.get($regs[$pc.b() as usize]).as_float();
+        let rhs = $a.get($regs[$pc.c() as usize]).as_int();
+        $regs[$pc.a() as usize] = $a.alloc($op(lhs, rhs as f64));
     }};
 }
 
@@ -43,6 +97,10 @@ macro_rules! cmp {
         let rhs = $a.get($regs[$pc.c() as usize]).$as_ty();
         $regs[$pc.a() as usize] = $a.alloc(lhs $op rhs);
     }};
+}
+
+fn ipow(a: i64, b: i64) -> i64 {
+    a.pow(b as u32)
 }
 
 impl Executor<'_> {
@@ -57,18 +115,17 @@ impl Executor<'_> {
             let heap = unsafe { &mut *self.heap.get() };
 
             let op = pc.op();
-
             let mut advance = 1;
 
             match op {
-                Halt => break Interrupt::Halt,
+                HLT => break Interrupt::Halt,
 
-                Copy => copy!(heap, rg, pc),
-                Free1 => free!(heap, rg, pc, a),
-                Free2 => free!(heap, rg, pc, a, b),
-                Free3 => free!(heap, rg, pc, a, b, c),
+                CPY => copy!(heap, rg, pc),
+                FR1 => free!(heap, rg, pc, a),
+                FR2 => free!(heap, rg, pc, a, b),
+                FR3 => free!(heap, rg, pc, a, b, c),
 
-                Push => {
+                PUSH => {
                     let id = rg[pc.a() as usize];
                     heap.inc_ref(id);
                     stk.push(Slot {
@@ -77,79 +134,62 @@ impl Executor<'_> {
                     });
                 }
 
-                LoadNone => rg[pc.a() as usize] = heap.alloc(()),
-                LoadTrue => rg[pc.a() as usize] = heap.alloc(true),
-                LoadFalse => rg[pc.a() as usize] = heap.alloc(false),
+                LDU => rg[pc.a() as usize] = heap.alloc(()),
+                LDT => rg[pc.a() as usize] = heap.alloc(true),
+                LDF => rg[pc.a() as usize] = heap.alloc(false),
 
-                LoadI16 => {
-                    let lit = pc.imm() as i16 as i64;
-                    rg[pc.a() as usize] = heap.alloc(lit);
-                }
-                LoadI32 => {
-                    let lit = pc.imm() as i16 as i32 as i64;
-                    rg[pc.a() as usize] = heap.alloc(lit);
-                }
-                LoadI64 | LoadF64 => {
-                    let extra = unsafe { &*(self.pc as *const Instruction).add(1) };
+                LDI16 => ld16!(heap, rg, pc),
+                LDI32 => ld32!(heap, rg, self.pc, advance),
+                LDI64 => ld64!(heap, rg, self.pc, advance, int),
+                LDF32 => ldf32!(heap, rg, self.pc, advance),
+                LDF64 => ld64!(heap, rg, self.pc, advance, float),
 
-                    let hi = pc.imm() as u32;
-                    let lo = (extra.a() as u32) << 8 | (extra.b() as u32);
-
-                    let val = ((hi << 16) | lo) as u64;
-
-                    if matches!(op, LoadI64) {
-                        rg[pc.a() as usize] = heap.alloc(val as i64);
-                    } else {
-                        rg[pc.a() as usize] = heap.alloc(f64::from_bits(val));
-                    }
-
-                    advance = 2;
+                IFCONV => {
+                    let ra = rg[pc.b() as usize];
+                    let int = heap.get(ra).as_int();
+                    rg[pc.a() as usize] = heap.alloc(int as f64);
                 }
 
-                IAdd => ibin!(self, heap, rg, pc, +),
-                ISub => ibin!(self, heap, rg, pc, -),
-                IMul => ibin!(self, heap, rg, pc, *),
-                IDiv => ibin!(self, heap, rg, pc, /),
-                IMod => ibin!(self, heap, rg, pc, %),
-
-                FAdd => fbin!(self, heap, rg, pc, +),
-                FSub => fbin!(self, heap, rg, pc, -),
-                FMul => fbin!(self, heap, rg, pc, *),
-                FDiv => fbin!(self, heap, rg, pc, /),
-                FMod => fbin!(self, heap, rg, pc, %),
-
-                ILt => cmp!(self, heap, rg, pc, as_int, <),
-                FLt => cmp!(self, heap, rg, pc, as_float, <),
-                ILtEq => cmp!(self, heap, rg, pc, as_int, <=),
-                FLtEq => cmp!(self, heap, rg, pc, as_float, <=),
-                IGt => cmp!(self, heap, rg, pc, as_int, >),
-                FGt => cmp!(self, heap, rg, pc, as_float, >),
-                IGtEq => cmp!(self, heap, rg, pc, as_int, >=),
-                FGtEq => cmp!(self, heap, rg, pc, as_float, >=),
-                IEq => cmp!(self, heap, rg, pc, as_int, ==),
-                FEq => cmp!(self, heap, rg, pc, as_float, ==),
-
-                Not | BitNot => {
-                    let val = heap.get(rg[pc.b() as usize]).as_int();
-                    rg[pc.a() as usize] = heap.alloc(!val);
-                }
-                INeg => {
-                    let val = heap.get(rg[pc.b() as usize]).as_int();
-                    rg[pc.a() as usize] = heap.alloc(-val);
-                }
-                FNeg => {
-                    let val = heap.get(rg[pc.b() as usize]).as_float();
-                    rg[pc.a() as usize] = heap.alloc(-val);
+                FICONV => {
+                    let ra = rg[pc.b() as usize];
+                    let float = heap.get(ra).as_float();
+                    rg[pc.a() as usize] = heap.alloc(float as i64);
                 }
 
-                ExtraArg1 | ExtraArg2 | ExtraArg3 => {
-                    panic!("VM fault: executed reserved ExtraArg opcode: {:?}", op)
+                IADD => ibin!(self, heap, rg, pc, i64::add),
+                FADD => fbin!(self, heap, rg, pc, f64::add),
+                IFADD => ibinf!(self, heap, rg, pc, f64::add),
+
+                ISUB => ibin!(self, heap, rg, pc, i64::sub),
+                FSUB => fbin!(self, heap, rg, pc, f64::sub),
+                IFSUB => ibinf!(self, heap, rg, pc, f64::sub),
+                FISUB => fbini!(self, heap, rg, pc, f64::sub),
+
+                IMUL => ibin!(self, heap, rg, pc, i64::mul),
+                FMUL => fbin!(self, heap, rg, pc, f64::mul),
+                IFMUL => ibinf!(self, heap, rg, pc, f64::mul),
+
+                IDIV => ibin!(self, heap, rg, pc, i64::div),
+                FDIV => fbin!(self, heap, rg, pc, f64::div),
+                IFDIV => ibinf!(self, heap, rg, pc, f64::div),
+                FIDIV => fbini!(self, heap, rg, pc, f64::div),
+
+                IEXP => ibin!(self, heap, rg, pc, ipow),
+                FEXP => fbin!(self, heap, rg, pc, f64::powf),
+                IFEXP => ibinf!(self, heap, rg, pc, f64::powf),
+                FIEXP => fbini!(self, heap, rg, pc, f64::powf),
+
+                IREM => ibin!(self, heap, rg, pc, i64::rem),
+                FREM => fbin!(self, heap, rg, pc, f64::rem_euclid),
+
+                EARG1 | EARG2 | EARG3 => {
+                    panic!("executor fault: executed reserved opcode: {:?}", op)
                 }
                 _ => unimplemented!("unimplemented opcode: {:?}", op),
             }
 
-            // Advance the PC by the determined amount (1 normally, 2+ for extra args)
-            self.pc = unsafe { &*(self.pc as *const Instruction).add(advance) };
+            // Advance the PC by the determined amount (1 normally, 2 for multi-slot constants)
+            self.pc = unsafe { &*(self.pc as *const Instr).add(advance) };
         }
     }
 }

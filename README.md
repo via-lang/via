@@ -11,13 +11,13 @@
 </p>
 
 <p align="center">
-  This repository contains the <strong>via Programming Language</strong> source code, runtime, and tooling.
+  This repository contains the Via Programming Language source code, runtime, and tooling.
 </p>
 
 <p align="center">
   <a href="#introduction">Introduction</a>
     &nbsp;&bull;&nbsp;
-  <a href="#features">Features</a>
+  <a href="#roadmap">Roadmap</a>
     &nbsp;&bull;&nbsp;
   <a href="#installation">Installation</a>
     &nbsp;&bull;&nbsp;
@@ -25,16 +25,25 @@
 </p>
 
 > [!WARNING]
-> This is an **experimental** project and currently not production-ready. Most features are under conception/development and may be incomplete/unstable. Implementations are subject to change as the project evolves. That said, by no means is it a non-serious project.
+> This is a **highly experimental** project. Most features are currently under active conception or development, meaning they may be completely incomplete, missing, unstable, or broken. 
+>
+> * **High Instability:** Code is provided as-is, if it compiles/works at all.
+> * **Breaking Changes:** Implementations are subject to radical change without notice as everything evolves.
+> * **Incomplete design:** Significant architectural and design questions are still completely unanswered.
+>
+> While this is a serious, dedicated project, it is currently *not* production-ready. Proceed with extreme caution.
 
 ## Introduction
 
-**via** is a scripting language that **refuses to run invalid programs**. It isn't *just* "x with nicer syntax" or "x but faster", but rather a language that aims to make invalid/erroneous programs fundamentally unrepresentable- with the goal of eliminating an entire class of bugs.
+**via** is a modern scripting language designed for complex, high-performance sandbox environments where correctness and/or speed is the top priority. It completely eliminates runtime type checking, GC pauses, and memory hogging by providing a powerful, flexible static type system, while staying lightweight enough to embed.
 
-If _[insert dynamic language]_ has ever failed you in production, you're in the right place!
+The compiler is built on [salsa](https://salsa-rs.github.io), an incremental computation engine, and [rowan](https://github.com/rust-analyzer/rowan), a lossless syntax tree library with incremental reparsing - the same foundations behind [rust-analyzer](https://rust-analyzer.github.io/) & similar to the ones behind [rustc](https://github.com/rust-lang/rust). The result is a compiler designed to recheck only what changed, keeping iteration fast even as a project grows.
 
 <details>
-<summary><strong>A (humble) comparison to Lua</strong></summary>
+<summary><strong>Comparison to Lua</strong></summary>
+
+> [!NOTE]
+> This isn't an apples-to-apples comparison as per the different design goals of these two languages, but it is still necessary due to the reputation of Lua as an embeddable language.
 
 ### No compile-time checks
 
@@ -45,21 +54,20 @@ function foo(n, f)
     return f(someglobal) / n
 end
 
--- Every one of these is "legal", but all of them will fail at runtime:
+-- Every one of these is "legal", but all of them will crash the program at runtime:
 foo() -- okay
 foo(32) -- ok
 foo(nil, nil) -- alright
 foo(foo, foo) -- go for it!
 ```
 
-There are half a dozen possible ways in which this function can fail, inherently undetectable at compile time. This is an unfavorable tradeoff for the programmer because of the trivial nature of this function. You can imagine the permutations of potential failure in larger, more complex code.
-
-And no, **Luau** does *not* fix this. It has an _optional_ type safety mechanism with `--!strict` which means the core of the problem is still there. This happens because Lua is fully dynamic which makes its type system fundamentally incompatible with compile-time invariants, which in this case are:
+There are half a dozen possible ways in which this function can fail, inherently undetectable at compile time. This is an unfavorable tradeoff for the programmer because of the trivial nature of this function. You can imagine the permutations of potential failure in larger, more complex code. This small program has almost as many invariants as it does lines of code:
 
 - `someglobal` **exists**
 - `n` **is a** `number`
 - `n` **is not** `0`
 - `f` **is a** `function`
+- `f` **accepts type of** `someglobal`
 - `f` **does not throw an error**
 - `f` **returns** `number`
 
@@ -68,7 +76,10 @@ None of which can be truly validated without explicit runtime checks.
 Now the same function in via:
 
 ```rust
-fn foo(n: float, f: fn(float) -> float) -> float
+// Optional, typedef'd here for demonstration sake
+type Callback = fn(Float) -> Float;
+
+fn foo(n: Float, f: Callback) -> Float
     raise DivisionByZero
 {
     f(n) / n
@@ -77,7 +88,7 @@ fn foo(n: float, f: fn(float) -> float) -> float
 
 ### Dangers of catch-all data structures
 
-In Lua, a table (being the primary structurization organ of the language) can store absolutely _anything_. Even itself. They can also mutate their type as the program unfolds. This makes them _practically impossible_ to statically analyze, and outsources type-safety into runtime once again:
+In Lua, a table (being the primary data structure of the language) can take absolutely _any shape_. They can also mutate their type as the program unfolds - making static analysis difficult if not impossible - which unnecessarily outsources type-safety into runtime once again:
 
 ```lua
 local t = { 10 }            -- type: {number}
@@ -88,25 +99,23 @@ t["foo"] = function()       -- type: {[number]: number | string, self: <cycle>, 
 end
 ```
 
-As you can see, the type keeps getting more complex with each addition. There is absolutely no limit to this, which can get out of control extremely fast.
+As you can see, the type keeps getting more complex with each addition. There is absolutely no limit to this, and it can & does get out of control extremely fast.
 
 If you were to try the same thing in via:
 
-```zig
+```rust
 let mut t = [10];
-t[1] = "hello!!";        // error: cannot assign value of type `string` to `&mut int`
+t[1] = "hello, world";  // error: cannot assign value of type `String` to `&mut Int`
 
-t["self"] = t;           // error: cannot index value of type `[int]` with `string`
-                        // |- note: type `[int]` does not implement `Index<string>`
-
-t["foo"] = fn "bar";     // error: <same as above>
+t["self"] = t;          // error: cannot index value of type `[Int]` with `string`
+                        // |- note: type `[Int]` does not implement `Index<String>`
 ```
 
-Structural type polymorphism simply doesn't exist in via. Arrays and maps are split, and every index assignment must satisfy the type system. There is no silent type mutation, no runtime surprises, and no creeping complexity.
+Structural type polymorphism simply doesn't exist in via. Arrays and maps are distinct objects, and all indexing via the subscript operator must strictly satisfy the `Index<I>` trait implementation of the indexed type.
 
-### Problems of `unknown`
+### Ills of `unknown`
 
-In Lua, `unknown` types are allowed (and are everywhere), replacing type inference with runtime uncertainty:
+In Lua, `unknown` types are allowed (and are everywhere), substituting type inference with absolute uncertainty:
 
 ```lua
 local t = {}
@@ -116,20 +125,17 @@ local first = t[0] -- type: nil | unknown
 Here is what it would look like in via:
 
 ```rust
-let t = []              // [$0]
-let first = t.first()   // error: type annotations needed
+let t = [];              // [$0]
+let first = t.first();   // error: type annotations needed
 ```
 
-> [!NOTE]
-> Unfortunately, the error message isn't exactly helpful. But that's due to a good reason, the compiler isn't there to determine intent.
+As you can see, this does not compile because via rejects indeducable [metavariables](https://en.wikipedia.org/wiki/Metavariable) - or in other words, it does not have an `unknown` type. When the array is declared, the solver assigns it the type `[$0]` - a metavariable that infects any site where the array is used - until there is enough information for it to be substituted with a concrete type.
 
-As you can see, this does not compile. Because via does not have an `unknown` type. When the array is declared, the solver infers its type as `[$0]` by assigning a metavariable to the inner type to be solved later.
-
-But because `first` does not introduce any new information about `$0`, it is typed as `$0 raise OutOfRange`. And since there is never enough information to infer `$0`, the compiler throws an error.
+Because `first` does not introduce any new information about `$0`, it is typed as `$0 raise OutOfRange`. And since there is never enough information to infer `$0`, the compiler rejects this code.
 
 ### Unmarked erroneous behavior
 
-In Lua, functions signatures have no reflection of the functions erroneous behavior policy:
+In Lua, functions signatures have no reflection of the function's error policy:
 
 ```lua
 function foo(a)
@@ -142,78 +148,79 @@ function foo(a)
     end
 end
 
-local result = foo(...) -- uhh error maybe???
+local result = foo(...) -- error, maybe?
 ```
 
-There is **absolutely no way of knowing whether if this function throws or not**. The only way to find out is to `pcall` it, meaning you have to outsource it to runtime.
+There is **absolutely no way of knowing whether if this function throws or not**.
 
-Luau does have a `never` type, however it is opaque and also ambiguous between other non-continous control flow like infinite loops.
+Luau does have a `never` type, however it is opaque and also ambiguous between other control flow like infinite loops.
 
-The problem this creates is the fact that you can never know if any function anywhere in your code base will fail or not, and due to that only way to enforce the **"errors must always be handled"** invariant becomes sprinkling `pcall` everywhere; making your code repetitive, cluttered, and fragile.
+The problem this creates is the fact that you can never know if any function anywhere in your code base will fail or not, and due to that only way to handle all errors becomes sprinkling `pcall` everywhere; making your code repetitive, cluttered, and fragile.
 
 In via, the same function would look like:
 
 ```rust
-struct Oops;
+struct Error;
 
-fn foo(a: int)
-    -> int raise Oops
-{
+fn foo(a: Int) -> Int raise Error {
     match a {
-        1 => raise Oops,
-        2 => raise -1,
-        _ => return 0,
+        1 => raise Error,
+        2 => raise -1, // error: cannot raise type `Int` here
+        _ => 0,
     }
 }
 
 fn main() {
     let result = foo(...)?;
-    let n = result * 2; // error: cannot multiply type `int | Oops` with `int`
-                        //  note: type `int | Oops` does not implement trait `Mul<int>`
+    let n = result * 2; // error: cannot multiply type `Int | Oops` with `Int`
+                        //  note: type `Int | Oops` does not implement trait `Mul<Int>`
     
-    let raw = foo(a); // error: cannot propagate raise alternative `Oops` in callsite
+    let raw = foo(a); // error: cannot propagate error `Oops` in callsite
                       //  help: explicitly handle the error by inserting a `?` after the function call
 }
 ```
 
 </details>
 
-#### Why does it matter though?
+### Why does it matter though?
 
 After all, can't we just write better code?
 
-Yes, you _absolutely can_. But there are _undeniable_ tradeoffs:
+Yes, you _absolutely can_. But there are major tradeoffs:
 
-- **Surprise errors**: Would you rather your script not compile or die in production? via is in favor of the *former*.
-- **Code duplication**: End up sprinkling `assert` to check the type of every parameter, making your code cluttered, repetitive, and fragile.
-- **Performance**: Runtime type-safety is *expensive*. Enforcing this invariant during compile-time completely eliminates this overhead.
-- **Developer experience**: Dynamic type systems often produce verbose, confusing, and opaque diagnostics that are hard to trace, and tooling struggles to provide reliable feedback. via eliminates this chaos by providing first class tooling and enforcing correctness at compile-time, letting tools actually help you instead of fighting you.
-- **Human nature**: Even the most careful programmer _will_ inevitably make mistakes. Modern compilers are capable of catching invariant violations one can't even conceptualize.
+- **Surprise errors**: Would you rather your program not compile or crash in production? via is in favor of the _former_.
+- **Code duplication**: End up sprinkling `assert` to check the type of every parameter; making your code cluttered, repetitive, and fragile.
+- **Performance**: Runtime type safety is _expensive_. Checking types entirely during compile time eliminates this overhead entirely.
+- **Developer experience**: Dynamic type systems often produce verbose, confusing, and opaque diagnostics that are hard to trace, and tooling struggles to provide reliable feedback. This chaos is eliminated by first class tooling and compile time correctness, letting tools actually help instead fight.
+- **Human nature**: Even the most talented, careful, and experienced programmer will inevitably make a mistake - computers are fundamentally advantaged when it comes to bookkeeping invariants.
 
-Having to write better code as a counterweight to the flaws of a language is not good practice, to say the least.
+Having to write better code to counterweigh the flaws of a language is simply feeding into the problem itself. It's not a solution but rather simply technical debt.
 
-## Features
-
-> [!NOTE]
-> via is constantly evolving, therefore putting a full list of features here would be premature. It should be noted that this is only a list of **core features**.
-
-- [**Compile-time invariance:**](#but-what-are-invariants) No more debugging `expected number, got nil` in prod like it's still the '90s.
-- **Modern, clean and sane syntax and standard library:** via takes syntax and design inspiration from beloved languages like **Rust** and **TypeScript**.
-- **Powerful type system and metaprogramming:** via comes with a powerful set of builtin types, a [type-trait system](https://en.wikipedia.org/wiki/Trait_(computer_programming)), and [hygenic macros](https://en.wikipedia.org/wiki/Hygienic_macro) inspired by Rust.
-- **Multi-paradigm design:** via supports multiple programming paradigms, including object-oriented and functional programming.
-- **High performance:** Static typing opens the door for a multitude of non-trivial optimizations that dynamic languages simply cannot implement.
-- **Platform independence:** via uses Rust as the compatibility layer; if your device can run Rust, it can run via.
-- **No garbage collection:** via uses a combination of [reference counting](https://en.wikipedia.org/wiki/Reference_counting) and manual* [garbage collection](https://en.wikipedia.org/wiki/Garbage_collection_(computer_science)) to achieve efficient resource management.
+### Roadmap
 
 ## Installation
 
-via currently doesn't have a release, therefore you must build it from source:
-
-```sh
-git clone https://github.com/via-lang/via.git
-cd via
-cargo build --release
+```console
+# CLI
+cargo install via_cli
+# Library
+cargo add via
 ```
+
+## Contribution
+
+> [!WARNING]
+> A quick heads-up if you are looking to contribute: the author (I, @xnlogical) frequently hoards large, incomplete changes locally before pushing them. The project (as I deem) is not mature enough to demand proper version control practices.
+>
+> Because of the aforementioned reasons, upstream development is highly asynchronous - meaning external contributors should expect massive merge conflicts, or in general a life of pain. 
+>
+> If you are still brave enough to navigate the mess, all kinds of contributions are more than welcome!
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+## AI Usage
+
+All usage within this project is strictly limited to macro implementation (`via_macros`), planning, and general advisory.
 
 ## Credits
 

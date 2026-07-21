@@ -2,7 +2,7 @@ use std::path::Path;
 
 use clap::{Parser, Subcommand};
 use clio::Input;
-use via::ModuleContext;
+use via::__compile;
 
 #[derive(Parser)]
 #[command(
@@ -34,8 +34,7 @@ enum Command {
 }
 
 pub fn run(path: &Path) -> anyhow::Result<()> {
-    let mut ctxt = ModuleContext::new();
-    ctxt.load_file(path)?;
+    __compile(path);
     Ok(())
 }
 

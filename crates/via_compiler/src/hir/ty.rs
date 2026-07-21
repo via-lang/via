@@ -1,48 +1,58 @@
-use super::{
-    Hir, HirBuilder,
-    error::{Error, Result},
-};
-use crate::{
-    ast::{Ty as AstTy, TyKind as AstTyKind},
-    hir::Expr,
-    node::NodeId,
-    sema::{ConstSubst, Ty},
-};
+use derive_more::From;
+use salsa::Update;
 
-impl HirBuilder<'_, '_> {
-    pub(super) fn unify(&mut self, lty: NodeId<Ty>, rty: NodeId<Ty>) -> Result<NodeId<Ty>> {
-        match (&self.sem_ctxt[lty], &self.sem_ctxt[rty]) {
-            (Ty::Meta(m), _) => self.sem_ctxt.solve_meta(*m, rty),
-            (_, Ty::Meta(m)) => self.sem_ctxt.solve_meta(*m, lty),
-            (_, _) if lty == rty => {}
-            (_, _) => return Err(Error::TypeMismatch(lty, rty)),
-        }
-        Ok(lty)
-    }
+use super::expr::Expr;
+use super::path::Path;
 
-    pub(super) fn lower_ty(&mut self, hir: &mut Hir, ty: NodeId<AstTy>) -> Result<NodeId<Ty>> {
-        let ty = &self.ast[ty];
-        let ty = match ty.kind {
-            AstTyKind::Unit => Ty::Unit,
-            AstTyKind::Bool => Ty::Bool,
-            AstTyKind::Int => Ty::Int,
-            AstTyKind::Float => Ty::Float,
-            AstTyKind::Array { ty, size } => {
-                let expr = self.lower_expr(hir, size)?;
-                let subst = match expr {
-                    Expr::Bool(bool) => ConstSubst::Bool(bool),
-                    Expr::Int(int) => ConstSubst::Int(int),
-                    _ => return Err(Error::InvalidConstGeneric),
-                };
-
-                Ty::Array {
-                    ty: self.lower_ty(hir, ty)?,
-                    size: subst,
-                }
-            }
-            AstTyKind::Vector(ty) => Ty::Vector(self.lower_ty(hir, ty)?),
-        };
-
-        Ok(self.sem_ctxt.intern_ty(ty))
-    }
+/// Represents a type.
+#[salsa::interned(debug)]
+pub struct Ty<'db> {
+    #[returns(ref)]
+    pub kind: TyKind<'db>,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Update)]
+pub enum TyKind<'db> {
+    /// A primitive type.
+    Primitive(Primitive),
+
+    /// Type [$T].
+    Vector(Ty<'db>),
+
+    /// Type [$T; const $N].
+    Array { ty: Ty<'db>, size: Expr<'db> },
+
+    /// Type #{ $T: $U }.
+    Map { key: Ty<'db>, value: Ty<'db> },
+
+    /// Type &mut $T.
+    Reference { mutable: bool, ty: Ty<'db> },
+
+    /// A thunk to be solved during MIR.
+    Obligation(Obligation<'db>),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Update)]
+pub enum Primitive {
+    Unit,
+    Bool,
+    Int,
+    Float,
+    String,
+}
+
+/// Represents a dependent type.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Update)]
+pub enum Obligation<'db> {
+    /// Represents the `Self` type.
+    This,
+
+    /// Represents type `_`, with relational context.
+    MetaVar(MetaVar),
+
+    /// Represents an arbitrary path.
+    Path(Path<'db>),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Update, From)]
+pub struct MetaVar(pub u32);

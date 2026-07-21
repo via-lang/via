@@ -1,10 +1,14 @@
-use std::fmt;
+use std::{fmt, sync::Arc};
 
 use crate::{Executor, FromVia, Handle, Heap, IntoVia};
 
 pub trait FromArgs {
     fn from_args(heap: &mut Heap, args: &[Handle]) -> Self;
 }
+
+pub type FastFn = fn(e: &Executor, args: &[Handle]) -> Handle;
+
+pub type HostFn = Arc<dyn Fn(&Executor, &[Handle]) -> Handle + Send + Sync>;
 
 pub trait NativeCallback: Fn(&Executor, &[Handle]) -> Handle {}
 

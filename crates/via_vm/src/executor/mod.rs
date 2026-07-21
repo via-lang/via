@@ -9,7 +9,7 @@ pub use {error::*, interrupt::*};
 use crate::{
     Executable,
     heap::{Handle, Heap},
-    instruction::Instruction,
+    instruction::Instr,
     stack::Stack,
     stats::Stats,
 };
@@ -32,7 +32,7 @@ impl Default for Config {
 }
 
 pub struct Executor<'a> {
-    pc: &'a Instruction,
+    pc: &'a Instr,
     regs: Box<[Handle]>,
     stack: UnsafeCell<Stack>,
     heap: UnsafeCell<Heap>,
