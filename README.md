@@ -25,13 +25,16 @@
 </p>
 
 > [!WARNING]
-> This is a **highly experimental** project. Most features are currently under active conception or development, meaning they may be completely incomplete, missing, unstable, or broken. 
+> This project has been paused until further notice. (due to personal reasons)
+
+> [!WARNING]
+> This is a **highly experimental** project. Most features are a WIP; they may be incomplete, missing, unstable, or broken. 
 >
 > * **High Instability:** Code is provided as-is, if it compiles/works at all.
 > * **Breaking Changes:** Implementations are subject to radical change without notice as everything evolves.
-> * **Incomplete design:** Significant architectural and design questions are still completely unanswered.
+> * **Incomplete Design:** Significant architectural and design questions are still completely unanswered.
 >
-> While this is a serious, dedicated project, it is currently *not* production-ready. Proceed with extreme caution.
+> While this is a serious & dedicated project, it is currently *not* production-ready. Proceed with extreme caution.
 
 ## Introduction
 
@@ -43,7 +46,7 @@ The compiler is built on [salsa](https://salsa-rs.github.io), an incremental com
 <summary><strong>Comparison to Lua</strong></summary>
 
 > [!NOTE]
-> This isn't an apples-to-apples comparison as per the different design goals of these two languages, but it is still necessary due to the reputation of Lua as an embeddable language.
+> This isn't an apples-to-apples comparison as per the different design goals of these two languages, but it is vaild nontheless given the popularity of Lua.
 
 ### No compile-time checks
 
