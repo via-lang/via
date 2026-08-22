@@ -38,12 +38,14 @@
 
 ## Introduction
 
-**via** is a modern scripting language designed for complex, high-performance sandbox environments where correctness and/or speed is the top priority. It completely eliminates runtime type checking, GC pauses, and memory hogging by providing a powerful, flexible static type system, while staying lightweight enough to embed.
+**via** is a modern scripting language designed for complex, high-performance sandbox environments where correctness and speed are the absolute top priority. It completely eliminates runtime type checking overhead, GC pauses, and excessive memory usage by providing a powerful, flexible static type system - while maintaining a footprint lightweight enough to embed. Although it isn't designed for standalone use, it still comes with batteries included! 🔋⚡️
 
-The compiler is built on [salsa](https://salsa-rs.github.io), an incremental computation engine, and [rowan](https://github.com/rust-analyzer/rowan), a lossless syntax tree library with incremental reparsing - the same foundations behind [rust-analyzer](https://rust-analyzer.github.io/) & similar to the ones behind [rustc](https://github.com/rust-lang/rust). The result is a compiler designed to recheck only what changed, keeping iteration fast even as a project grows.
+The compiler is built with [salsa](https://salsa-rs.github.io), an incremental computation engine; along with [rowan](https://github.com/rust-analyzer/rowan), a lossless syntax tree library - the same foundations behind [rust-analyzer](https://rust-analyzer.github.io/) & similar to the ones behind [rustc](https://github.com/rust-lang/rust). The result is a compiler designed to recheck only what changed, keeping iteration fast even as a project grows. The language server is also fused with the compiler, making total integration as smooth as can be! 
+
+### What's different?
 
 <details>
-<summary><strong>Comparison to Lua</strong></summary>
+<summary><strong>A comparison to Lua</strong></summary>
 
 > [!NOTE]
 > This isn't an apples-to-apples comparison as per the different design goals of these two languages, but it is vaild nontheless given the popularity of Lua.
@@ -54,7 +56,7 @@ In Lua, there is no way to guarantee _anything_ about parameters, variables, etc
 
 ```lua
 function foo(n, f)
-    return f(someglobal) / n
+    return f(global) / n
 end
 
 -- Every one of these is "legal", but all of them will crash the program at runtime:
@@ -82,9 +84,10 @@ Now the same function in via:
 // Optional, typedef'd here for demonstration sake
 type Callback = fn(Float) -> Float;
 
-fn foo(n: Float, f: Callback) -> Float
-    raise DivisionByZero
-{
+fn foo(
+    n: Float is ,
+    f: Callback
+) -> Float {
     f(n) / n
 }
 ```
