@@ -81,12 +81,9 @@ None of which can be truly validated without explicit runtime checks.
 Now the same function in via:
 
 ```rust
-// Optional, typedef'd here for demonstration sake
-type Callback = fn(Float) -> Float;
-
 fn foo(
-    n: Float is ,
-    f: Callback
+    n: Float is ~0,
+    f: impl Fn<(Float,), Output = Float>
 ) -> Float {
     f(n) / n
 }
