@@ -45,7 +45,7 @@ The compiler is built with [salsa](https://salsa-rs.github.io), an incremental c
 ### What's different?
 
 <details>
-<summary><strong>A comparison to Lua</strong></summary>
+<summary><strong>Lua comparison</strong></summary>
 
 > [!NOTE]
 > This isn't an apples-to-apples comparison as per the different design goals of these two languages, but it is vaild nontheless given the popularity of Lua.
@@ -185,9 +185,8 @@ fn main() {
 
 </details>
 
-### Why does it matter though?
-
-After all, can't we just write better code?
+#### Why does it matter?
+##### After all, can't we just write better code?
 
 Yes, you _absolutely can_. But there are major tradeoffs:
 
@@ -213,17 +212,17 @@ cargo add via
 ## Contribution
 
 > [!WARNING]
-> A quick heads-up if you are looking to contribute: the author (I, @xnlogical) frequently hoards large, incomplete changes locally before pushing them. The project (as I deem) is not mature enough to demand proper version control practices.
+> A quick heads-up if you are looking to contribute: the author (I, @xnlogical) frequently hoards large, incomplete changes locally before pushing them. The project (as I deem) is not mature enough to warrant proper version control practices.
 >
-> Because of the aforementioned reasons, upstream development is highly asynchronous - meaning external contributors should expect massive merge conflicts, or in general a life of pain. 
+> Because of the aforementioned reasons, upstream development is largely asynchronous - meaning contributors should expect massive merge conflicts, or more broadly: _a life of pain_.
 >
 > If you are still brave enough to navigate the mess, all kinds of contributions are more than welcome!
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md).
 
-## AI Usage
+## AI
 
-All usage within this project is strictly limited to macro implementation (`via_macros`), planning, and general advisory.
+AI generation within this project is strictly limited to macro implementations (`via_macros`), planning, and general advisory.
 
 ## Credits
 
