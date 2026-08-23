@@ -1,0 +1,22 @@
+let x = 10 + 5.0;
+let y = 10 - 5.0;
+let TAU = 3.14159 * 2;
+let PI = 6.28318 / 2;
+let twentyfive = 5 ** 2;
+let zero = 25 % 5;
+
+const A: Int = 0;
+
+mod ns {
+    for mut x in 10..100 {}
+
+    while true {}
+
+    loop {}
+
+    fn foo() {}
+
+    priv fn cba() {}
+
+    pub fn abc() {}
+}

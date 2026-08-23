@@ -1,10 +1,5 @@
 local
-build
-.cache
-scripts/__pycache__
-CMakeFiles
-CMakeCache.txt
-CMakeUserPresets.json
-core/cmake-build-*
-cli/cmake-build-*
-lib/cmake-build-*
+.direnv
+# Added by cargo
+
+/target

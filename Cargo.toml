@@ -1,0 +1,9 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.dependencies]
+bitflags = "2.10"
+itertools = "0.14"
+derive_more = "2.1"
+anyhow = "1"
