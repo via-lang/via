@@ -185,6 +185,95 @@ fn main() {
 
 </details>
 
+<details>
+  <summary>JavaScript comparison</summary>
+  TBA
+</details>
+
+<details>
+<summary>TypeScript comparison</summary>
+
+TypeScript is a major improvement over both Lua and JavaScript, but it still suffers from unsoundness in many places.
+
+### Absence of nominal typing
+
+TypeScript completely lacks the mechanisms for nominal typing, as demonstrated below:
+
+```ts
+interface Point2D {
+  x: number;
+  y: number;
+}
+
+interface Vector2D {
+  x: number;
+  y: number;
+}
+
+function translate(point: Point2D, velocity: Vector2D): Point2D {
+  return {
+    x: point.x + velocity.x,
+    y: point.y + velocity.y
+  };
+}
+
+const location: Point2D = { x: 10, y: 20 };
+const wind: Vector2D = { x: 5, y: -2 };
+
+// ERROR-FREE: Accidental mix-up compiles successfully!
+// We passed a Point where a Vector was expected, and vice versa.
+const incorrectTransform = translate(wind, location);
+```
+
+Instead, the language relies on marker fields to distinguish otherwise structurally similar types:
+
+```ts
+interface Point2D {
+  x: number;
+  y: number;
+  _nominal_Point2D: unique symbol;
+}
+
+interface Vector2D {
+  x: number;
+  y: number;
+  _nominal_Vector2D: unqiue symbol;
+}
+```
+
+This approach, however, is still not 100% sound, harmful to ergonomics, and is usually memory inefficient as the runtime must tag each instance of these objects - which are often just dictionaries, leading to further memory inefficiency.
+
+via fixes this by making all structural types nominal by default:
+
+```rust
+struct Point2D {
+  pub x: Float,
+  pub y: Float
+}
+
+struct Vector2D {
+  pub x: Float,
+  pub y: Float
+}
+
+fn translate(point: Point2D, velocity: Vector2D) -> Point2D {
+  Point2D {
+    x: point.x + velocity.x,
+    y: point.y + velocity.y
+  }
+}
+
+fn main() {
+  let location = Point2D { x: 3, y: 4 };
+  let wind = Vector2D { x: -2, y: 1 };
+  
+  // error: expected Point2D, got Vector2D as argument 0
+  let result = translate(wind, location);
+}
+```
+
+</details>
+
 #### Why does it matter?
 ##### After all, can't we just write better code?
 
