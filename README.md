@@ -38,62 +38,30 @@
 
 ## Introduction
 
-**via** is a modern scripting language designed for complex, high-performance sandbox environments where correctness and speed are the absolute top priority. It completely eliminates runtime type checking overhead, GC pauses, and excessive memory usage by providing a powerful, flexible static type system - while maintaining a footprint lightweight enough to embed. Although it isn't designed for standalone use, it still comes with batteries included! 🔋⚡️
+**via** is a modern scripting language designed for complex, high-performance sandbox environments where correctness and speed are the absolute top priority.
+It completely eliminates runtime type checking overhead, GC pauses, and excessive memory usage by providing a powerful, flexible static type system - while maintaining a footprint lightweight enough to embed.
+Although it isn't designed for standalone use, it still comes with batteries included! 🔋⚡️
 
-The compiler is built with [salsa](https://salsa-rs.github.io), an incremental computation engine; along with [rowan](https://github.com/rust-analyzer/rowan), a lossless syntax tree library - the same foundations behind [rust-analyzer](https://rust-analyzer.github.io/) & similar to the ones behind [rustc](https://github.com/rust-lang/rust). The result is a compiler designed to recheck only what changed, keeping iteration fast even as a project grows. The language server is also fused with the compiler, making total integration as smooth as can be! 
+The compiler is built with [salsa](https://salsa-rs.github.io), an incremental computation engine;
+along with [rowan](https://github.com/rust-analyzer/rowan), a lossless syntax tree library - the same foundations behind [rust-analyzer](https://rust-analyzer.github.io/) & similar to the ones behind [rustc](https://github.com/rust-lang/rust).
+The result is a compiler designed to recheck only what changed, keeping iteration fast even as a project grows.
+The language server is also fused with the compiler, making total integration as smooth as can be! 
 
 ### What's different?
 
-<details>
-<summary><strong>Lua comparison</strong></summary>
-
 > [!NOTE]
-> This isn't an apples-to-apples comparison as per the different design goals of these two languages, but it is vaild nontheless given the popularity of Lua.
+> The following comparisons are limited to statically-typed languages only,
+> given the statically-typed vs dynamically-typed language debate has been largely settled in favor of statically-typed languages.
 
-### No compile-time checks
+<details>
+<summary>Luau comparison</summary>
 
-In Lua, there is no way to guarantee _anything_ about parameters, variables, etc. at compile time:
+### Dynamic structural typing
 
-```lua
-function foo(n, f)
-    return f(global) / n
-end
+Tables (being the primary data structure of the language) can take absolutely _any shape_.
+They can also mutate their type as the program unfolds:
 
--- Every one of these is "legal", but all of them will crash the program at runtime:
-foo() -- okay
-foo(32) -- ok
-foo(nil, nil) -- alright
-foo(foo, foo) -- go for it!
-```
-
-There are half a dozen possible ways in which this function can fail, inherently undetectable at compile time. This is an unfavorable tradeoff for the programmer because of the trivial nature of this function. You can imagine the permutations of potential failure in larger, more complex code. This small program has almost as many invariants as it does lines of code:
-
-- `someglobal` **exists**
-- `n` **is a** `number`
-- `n` **is not** `0`
-- `f` **is a** `function`
-- `f` **accepts type of** `someglobal`
-- `f` **does not throw an error**
-- `f` **returns** `number`
-
-None of which can be truly validated without explicit runtime checks.
-
-Now the same function in via:
-
-```rust
-fn foo(
-    n: Float is ~0,
-    f: impl Fn<(Float,), Output = Float>
-) -> Float {
-    f(n) / n
-}
-```
-
-### Dangers of catch-all data structures
-
-In Lua, a table (being the primary data structure of the language) can take absolutely _any shape_. They can also mutate their type as the program unfolds - making static analysis difficult if not impossible - which unnecessarily outsources type-safety into runtime once again:
-
-```lua
+```luau
 local t = { 10 }            -- type: {number}
 t[2] = "hello!!"            -- type: {number | string}
 t["self"] = t               -- type: {[number]: number | string, self: <cycle>}
@@ -102,7 +70,7 @@ t["foo"] = function()       -- type: {[number]: number | string, self: <cycle>, 
 end
 ```
 
-As you can see, the type keeps getting more complex with each addition. There is absolutely no limit to this, and it can & does get out of control extremely fast.
+As you can see, the type keeps getting more complex with each addition.
 
 If you were to try the same thing in via:
 
@@ -114,13 +82,64 @@ t["self"] = t;          // error: cannot index value of type `[Int]` with `strin
                         // |- note: type `[Int]` does not implement `Index<String>`
 ```
 
-Structural type polymorphism simply doesn't exist in via. Arrays and maps are distinct objects, and all indexing via the subscript operator must strictly satisfy the `Index<I>` trait implementation of the indexed type.
+via strictly seperates dictionaries and sturctural types - which are immutable, compile-time objects - and rejects such dynamic behavior.
 
-### Ills of `unknown`
+### Metatables
 
-In Lua, `unknown` types are allowed (and are everywhere), substituting type inference with absolute uncertainty:
+Metatables are a way to immitate inheritance hierarchies.
+They link two tables together at runtime:
 
-```lua
+```luau
+local Point2D = {}
+Point2D.__index = Point2D
+
+function Point2D:__tostring()
+  return `Point2D({self.x}, {self.y})`
+end
+
+function Point2D:__call(x: number, y: number)
+  return setmetatable({ x=x, y=y }, Point2D)
+end
+
+function Point2D.is(object: any)
+  return getmetatable(object) == Point2D
+end
+
+tostring(Point2D(0, 1)) // "Point2D(0, 1)"
+Point2D.is({}) // false
+```
+
+This pattern may look innocent - or even useful - but in reality it is practically impossible to analyze statically.
+This leads to various issues, including but not limited to: LSP performance degradation, poor intellisense, and overall reduced runtime performance.
+
+It can also easily be tricked into producing false positives when it comes to the validity of a given object, as demonstrated below:
+
+```luau
+Point2D.is(setmetatable({}, Point2D)) -- true !!
+```
+
+### any
+
+`any` can be thought of as a union between all types except `nil` and `unknown`.
+Any and all types can implicitly convert to `any`:
+
+```luau
+function foo(x: any)
+end
+
+foo(1) -- Valid
+foo("hi") -- Valid
+foo({}) -- Valid
+```
+
+Although it exists largely for backwards compatability, it is still a major source of unsoundness - as it actively destroys type information, with no way to get it back during compile time.
+The only remedy to this is `typeof()`, which is runtime-only and retrieves partial type information at best.
+
+### unknown
+
+`unknown` is a placeholder type for types that the solver cannot determine:
+
+```luau
 local t = {}
 local first = t[0] -- type: nil | unknown
 ```
@@ -134,11 +153,12 @@ let first = t.first();   // error: type annotations needed
 
 As you can see, this does not compile because via rejects indeducable [metavariables](https://en.wikipedia.org/wiki/Metavariable) - or in other words, it does not have an `unknown` type. When the array is declared, the solver assigns it the type `[$0]` - a metavariable that infects any site where the array is used - until there is enough information for it to be substituted with a concrete type.
 
-Because `first` does not introduce any new information about `$0`, it is typed as `$0 raise OutOfRange`. And since there is never enough information to infer `$0`, the compiler rejects this code.
+Because `first` does not introduce any new information about `$0`, it is typed as `$0 raise OutOfRange`.
+And since there is never enough information to infer `$0`, the compiler rejects this code.
 
-### Unmarked erroneous behavior
+### Opaque errors
 
-In Lua, functions signatures have no reflection of the function's error policy:
+Function signatures have no reflection of the function's error behavior:
 
 ```lua
 function foo(a)
@@ -156,9 +176,11 @@ local result = foo(...) -- error, maybe?
 
 There is **absolutely no way of knowing whether if this function throws or not**.
 
-Luau does have a `never` type, however it is opaque and also ambiguous between other control flow like infinite loops.
+The `never` type is a partial substitute, but it still is not sufficient,
+as it is still opaque between various infinite-yield control flow cases and actual errors.
 
-The problem this creates is the fact that you can never know if any function anywhere in your code base will fail or not, and due to that only way to handle all errors becomes sprinkling `pcall` everywhere; making your code repetitive, cluttered, and fragile.
+The problem this creates is the fact that you can never know if any function anywhere in your code base will fail - without vetting each function individually -
+and due to that only way to handle all errors becomes sprinkling `pcall` everywhere; making your code repetitive, cluttered, and fragile.
 
 In via, the same function would look like:
 
@@ -186,14 +208,7 @@ fn main() {
 </details>
 
 <details>
-  <summary>JavaScript comparison</summary>
-  TBA
-</details>
-
-<details>
 <summary>TypeScript comparison</summary>
-
-TypeScript is a major improvement over both Lua and JavaScript, but it still suffers from unsoundness in many places.
 
 ### Absence of nominal typing
 
@@ -220,8 +235,8 @@ function translate(point: Point2D, velocity: Vector2D): Point2D {
 const location: Point2D = { x: 10, y: 20 };
 const wind: Vector2D = { x: 5, y: -2 };
 
-// ERROR-FREE: Accidental mix-up compiles successfully!
-// We passed a Point where a Vector was expected, and vice versa.
+// OK!! Accidental mix-up compiles successfully
+// We passed a Point where a Vector was expected, and vice versa
 const incorrectTransform = translate(wind, location);
 ```
 
