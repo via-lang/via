@@ -50,38 +50,49 @@ The result is a compiler designed to recheck only what changed, keeping iteratio
 
 > [!NOTE]
 > The following comparisons are limited to statically-typed languages only,
-> given the statically-typed vs dynamically-typed language debate has been largely settled in favor of statically-typed languages.
+> given the static vs. dynamic typing debate has overwhelmingly settled in favor of static typing.
+> Hence, comparison to dynamically-typed languages would not be fruitful.
 
 <details>
 <summary>Luau comparison</summary>
 
-### Dynamic structural typing
+### Structural typing
 
-Tables (being the primary data structure of the language) can take absolutely _any shape_.
-They can also mutate their type as the program unfolds:
+Inherited from Lua, tables are the common ancestor of all data structures in Luau.
+This includes arrays, dictionaries, and objects.
+
+The many purposes of the table mandate it to be extremely versatile,
+and in the process makes them actively hostile to static analysis:
 
 ```luau
-local t = { 10 }            -- type: {number}
-t[2] = "hello!!"            -- type: {number | string}
-t["self"] = t               -- type: {[number]: number | string, self: <cycle>}
-t["foo"] = function()       -- type: {[number]: number | string, self: <cycle>, foo: () -> string}
+local object = { 10 }            -- type: {number}
+object[2] = "hello!!"            -- type: {number | string}
+object["self"] = t               -- type: {[number]: number | string, self: <cycle>}
+object["foo"] = function()       -- type: {[number]: number | string, self: <cycle>, foo: () -> string}
     return "bar"
 end
 ```
 
-As you can see, the type keeps getting more complex with each addition.
+This pattern requires the compiler to analyze the table over the entire program,
+as the shape of the object is granular.
+This makes determining full structural types extremely complex,
+as they are often deeply cyclic and 
 
 If you were to try the same thing in via:
 
 ```rust
-let mut t = [10];
-t[1] = "hello, world";  // error: cannot assign value of type `String` to `&mut Int`
+struct Object;
 
-t["self"] = t;          // error: cannot index value of type `[Int]` with `string`
-                        // |- note: type `[Int]` does not implement `Index<String>`
+fn main() {
+  let mut object = Object;
+  object[1] = "hello"; // error: Object does not implement Index<Int>
+  object["self"] = object; // error: Object does not implement Index<String>
+}
 ```
 
-via strictly seperates dictionaries and sturctural types - which are immutable, compile-time objects - and rejects such dynamic behavior.
+via strictly seperates arrays, dictionaries, and sturctural types -
+which are immutable, compile-time objects -
+and rejects such dynamic behavior.
 
 ### Metatables
 
